@@ -1,5 +1,6 @@
 pub trait CPU {
     fn read(&self, addr: u16) -> u8;
+    fn read_only(&self, addr: u16) -> u8;
     fn write(&self, addr: u16, data: u8);
 
     // External event functions. In hardware these represent pins that are asserted

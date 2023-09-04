@@ -1,3 +1,5 @@
+use core::fmt;
+
 use super::{Cpu6502, CPU};
 
 ///
@@ -94,6 +96,12 @@ pub enum AddrMode {
     ///
     /// operand is zeropage address; effective address is address incremented by Y without carry **
     ZPY,
+}
+
+impl fmt::Display for AddrMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 pub type AddrFn = fn(cpu: &mut Cpu6502) -> u8;

@@ -1,5 +1,7 @@
 // https://www.masswerk.at/6502/6502_instruction_set.html
 
+use core::fmt;
+
 use super::{address_mode::AddrMode, registers::status_flags as SF, Cpu6502, CPU};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -119,6 +121,12 @@ pub enum Instruction {
 
     /// ILLEGAL
     XXX,
+}
+
+impl fmt::Display for Instruction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 pub type OperFn = fn(cpu: &mut Cpu6502) -> u8;

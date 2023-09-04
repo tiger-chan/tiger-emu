@@ -3,11 +3,16 @@ mod instructions;
 mod opcode;
 mod registers;
 
+use self::address_mode::AddrMode;
+
 use super::Bus6502;
+use crate::gui::{DebugCpu, CURSOR, DIAGNOSTIC_FONT, DISABLED, ENABLED};
 use crate::{bus::Bus, cpu::CPU};
 use std::cell::RefCell;
+use std::ops::Range;
 use std::rc::{Rc, Weak};
 
+use egui::RichText;
 use opcode::{Operation, OPERATIONS};
 use registers::{status_flags as SF, Registers};
 
@@ -46,10 +51,79 @@ pub(super) struct State {
     pub op: Operation,
 }
 
+struct Assembly {
+    lines: Vec<String>,
+    mapping: Vec<usize>,
+}
+
+impl Assembly {
+    pub fn new() -> Self {
+        Self {
+            lines: vec![],
+            mapping: vec![],
+        }
+    }
+    pub fn with_capacity(size: usize) -> Self {
+        Self {
+            lines: Vec::with_capacity(size / 2),
+            mapping: Vec::with_capacity(size),
+        }
+    }
+
+    pub fn push(&mut self, line: String, addr_range: Range<u32>) {
+        let idx = self.lines.len();
+        self.lines.push(line);
+
+        for x in addr_range {
+            self.mapping.insert(x as usize, idx);
+        }
+    }
+
+    pub fn get(&self, addr: u16) -> Option<&str> {
+        if (addr as usize) < self.mapping.len() {
+            let idx = self.mapping[addr as usize];
+            Some(&self.lines[idx])
+        } else {
+            None
+        }
+    }
+
+    pub fn get_range(&self, addr: u16, dist: i8) -> Vec<&str> {
+        if (addr as usize) < self.mapping.len() {
+            let origin = self.mapping[addr as usize];
+            let (start, end) = if dist.is_negative() {
+                (origin.saturating_sub(-dist as usize), origin)
+            } else {
+                (origin, origin.saturating_add(dist as usize))
+            };
+            let vec: Vec<&str> = self
+                .lines
+                .iter()
+                .skip(start)
+                .take(end - start)
+                .map(|x| x.as_str())
+                // .enumerate()
+                // .filter_map(|(idx, x)| {
+                // 	if (start..=end).contains(&idx) {
+                // 		Some(x.as_str())
+                // 	}
+                // 	else {
+                // 		None
+                // 	}
+                // })
+                .collect();
+            vec
+        } else {
+            vec![]
+        }
+    }
+}
+
 pub struct Cpu6502 {
     pub(super) reg: Registers,
     pub(super) state: State,
     bus: Option<Weak<BusCell>>,
+    asm: Assembly,
 }
 
 impl Cpu6502 {
@@ -58,11 +132,125 @@ impl Cpu6502 {
             bus: None,
             reg: Registers::default(),
             state: State::default(),
+            asm: Assembly::new(),
         }
     }
 
     pub fn connect_bus(&mut self, bus: &Rc<BusCell>) {
         self.bus = Some(Rc::downgrade(bus));
+    }
+
+    pub fn disssemble(&mut self, start: u16, end: u16) {
+        let mut addr = start as u32;
+
+        self.asm = Assembly::with_capacity((end - start) as usize);
+
+        while addr < end as u32 {
+            let ln_addr = addr as u16;
+
+            let opcode = self.read_only(ln_addr);
+            addr += 1;
+            let op = &OPERATIONS[opcode as usize];
+
+            let line = match op.am {
+                AddrMode::IMP => format!("${:>04X}: {:?} {{{:?}}}", ln_addr, op.op, op.am),
+                AddrMode::IMM | AddrMode::ZPG => {
+                    let lo = self.read_only(addr as u16);
+                    addr += 1;
+                    format!(
+                        "${:>04X}: {:?} #${:>02X} {{{:?}}}",
+                        ln_addr, op.op, lo, op.am
+                    )
+                }
+                AddrMode::ZPX => {
+                    let lo = self.read_only(addr as u16);
+                    addr += 1;
+                    format!(
+                        "${:>04X}: {:?} #${:>02X}, X {{{:?}}}",
+                        ln_addr, op.op, lo, op.am
+                    )
+                }
+                AddrMode::ZPY => {
+                    let lo = self.read_only(addr as u16);
+                    addr += 1;
+                    format!(
+                        "${:>04X}: {:?} #${:>02X}, Y {{{:?}}}",
+                        ln_addr, op.op, lo, op.am
+                    )
+                }
+                AddrMode::IZX => {
+                    let lo = self.read_only(addr as u16);
+                    addr += 1;
+                    format!(
+                        "${:>04X}: {:?} (${:>02X}, X) {{{:?}}}",
+                        ln_addr, op.op, lo, op.am
+                    )
+                }
+                AddrMode::IZY => {
+                    let lo = self.read_only(addr as u16);
+                    addr += 1;
+                    format!(
+                        "${:>04X}: {:?} (${:>02X}, Y) {{{:?}}}",
+                        ln_addr, op.op, lo, op.am
+                    )
+                }
+                AddrMode::ABS => {
+                    let lo = self.read_only(addr as u16) as u16;
+                    addr += 1;
+                    let hi = (self.read_only(addr as u16) as u16) << 8;
+                    addr += 1;
+                    let val = hi | lo;
+                    format!(
+                        "${:>04X}: {:?} ${:>04X} {{{:?}}}",
+                        ln_addr, op.op, val, op.am
+                    )
+                }
+                AddrMode::ABX => {
+                    let lo = self.read_only(addr as u16) as u16;
+                    addr += 1;
+                    let hi = (self.read_only(addr as u16) as u16) << 8;
+                    addr += 1;
+                    let val = hi | lo;
+                    format!(
+                        "${:>04X}: {:?} ${:>04X}, X {{{:?}}}",
+                        ln_addr, op.op, val, op.am
+                    )
+                }
+                AddrMode::ABY => {
+                    let lo = self.read_only(addr as u16) as u16;
+                    addr += 1;
+                    let hi = (self.read_only(addr as u16) as u16) << 8;
+                    addr += 1;
+                    let val = hi | lo;
+                    format!(
+                        "${:>04X}: {:?} ${:>04X}, Y {{{:?}}}",
+                        ln_addr, op.op, val, op.am
+                    )
+                }
+                AddrMode::IND => {
+                    let lo = self.read_only(addr as u16) as u16;
+                    addr += 1;
+                    let hi = (self.read_only(addr as u16) as u16) << 8;
+                    addr += 1;
+                    let val = hi | lo;
+                    format!(
+                        "${:>04X}: {:?} (${:>04X}) {{{:?}}}",
+                        ln_addr, op.op, val, op.am
+                    )
+                }
+                AddrMode::REL => {
+                    let lo = self.read_only(addr as u16) as u16;
+                    addr += 1;
+                    let rel = addr as u16 + lo;
+                    format!(
+                        "${:>04X}: {:?} ${:>02X} [${:>04X}] {{{:?}}}",
+                        ln_addr, op.op, lo, rel, op.am
+                    )
+                }
+            };
+
+            self.asm.push(line, (ln_addr as u32)..addr);
+        }
     }
 }
 
@@ -71,6 +259,16 @@ impl CPU for Cpu6502 {
         match &self.bus {
             Some(bus) => match bus.upgrade() {
                 Some(bus) => bus.as_ref().borrow().read(addr),
+                _ => 0x00,
+            },
+            _ => 0x00,
+        }
+    }
+
+    fn read_only(&self, addr: u16) -> u8 {
+        match &self.bus {
+            Some(bus) => match bus.upgrade() {
+                Some(bus) => bus.as_ref().borrow().read_only(addr),
                 _ => 0x00,
             },
             _ => 0x00,
@@ -191,5 +389,73 @@ impl CPU for Cpu6502 {
         self.reg.pc = pc;
 
         self.state.cc = 8;
+    }
+}
+
+impl DebugCpu for Cpu6502 {
+    fn draw_cpu(&self, ui: &mut egui::Ui) {
+        ui.vertical(|ui| {
+            ui.horizontal(|ui| {
+                let f = |f| match flag(self.reg.p, f) == 0 {
+                    true => DISABLED,
+                    false => ENABLED,
+                };
+
+                ui.label(RichText::new("Status: ").font(DIAGNOSTIC_FONT));
+                ui.label(RichText::new("N").color(f(SF::N)).font(DIAGNOSTIC_FONT));
+                ui.label(RichText::new("V").color(f(SF::V)).font(DIAGNOSTIC_FONT));
+                ui.label(RichText::new("U").color(f(SF::U)).font(DIAGNOSTIC_FONT));
+                ui.label(RichText::new("B").color(f(SF::B)).font(DIAGNOSTIC_FONT));
+                ui.label(RichText::new("D").color(f(SF::D)).font(DIAGNOSTIC_FONT));
+                ui.label(RichText::new("I").color(f(SF::I)).font(DIAGNOSTIC_FONT));
+                ui.label(RichText::new("Z").color(f(SF::Z)).font(DIAGNOSTIC_FONT));
+                ui.label(RichText::new("C").color(f(SF::C)).font(DIAGNOSTIC_FONT));
+            });
+
+            ui.vertical(|ui| {
+                ui.label(
+                    RichText::new(format!("PC: {:>04X} [{:>5}]", self.reg.pc, self.reg.pc))
+                        .font(DIAGNOSTIC_FONT),
+                );
+                ui.label(
+                    RichText::new(format!("AC: {:>04X} [{:>5}]", self.reg.ac, self.reg.ac))
+                        .font(DIAGNOSTIC_FONT),
+                );
+                ui.label(
+                    RichText::new(format!(" X: {:>04X} [{:>5}]", self.reg.x, self.reg.x))
+                        .font(DIAGNOSTIC_FONT),
+                );
+                ui.label(
+                    RichText::new(format!(" Y: {:>04X} [{:>5}]", self.reg.y, self.reg.y))
+                        .font(DIAGNOSTIC_FONT),
+                );
+                ui.label(
+                    RichText::new(format!("SP: {:>04X} [{:>5}]", self.reg.sp, self.reg.sp))
+                        .font(DIAGNOSTIC_FONT),
+                );
+            });
+        });
+    }
+
+    fn draw_code(&self, ui: &mut egui::Ui, instruction_count: i8) {
+        ui.vertical(|ui| {
+            let half = instruction_count / 2;
+            let range = self.asm.get_range(self.reg.pc, -(half + 1));
+            for str in range.iter().skip(1) {
+                ui.label(RichText::new(*str).font(DIAGNOSTIC_FONT));
+            }
+
+            match self.asm.get(self.reg.pc) {
+                Some(str) => {
+                    ui.label(RichText::new(str).font(DIAGNOSTIC_FONT).color(CURSOR));
+                }
+                None => {}
+            }
+
+            let range = self.asm.get_range(self.reg.pc, half + 1);
+            for str in range.iter().skip(1) {
+                ui.label(RichText::new(*str).font(DIAGNOSTIC_FONT));
+            }
+        });
     }
 }
