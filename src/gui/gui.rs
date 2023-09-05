@@ -1,3 +1,5 @@
+use crate::cpu::CPU;
+
 use super::{DebugBus, DebugCpu};
 use egui::{Color32, Context, FontId, RichText};
 
@@ -23,7 +25,10 @@ impl Gui {
     }
 
     /// Create the UI using egui.
-    pub(crate) fn ui(&mut self, ctx: &Context, bus: &dyn DebugBus, cpu: &dyn DebugCpu) {
+    pub(crate) fn ui<TCpu>(&mut self, ctx: &Context, bus: &dyn DebugBus, cpu: &TCpu)
+    where
+        TCpu: DebugCpu + CPU,
+    {
         egui::TopBottomPanel::top("menubar_container").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
@@ -36,6 +41,22 @@ impl Gui {
                     if ui.button("Diagnositics").clicked() {
                         self.instruct = true;
                         ui.close_menu();
+                    }
+
+                    if ui.button("Step (SPACE)").clicked() {
+                        //cpu.step();
+                    }
+
+                    if ui.button("Reset (R)").clicked() {
+                        //cpu.reset();
+                    }
+
+                    if ui.button("IRQ (I)").clicked() {
+                        //cpu.irq();
+                    }
+
+                    if ui.button("NMI (N)").clicked() {
+                        //cpu.nmi();
                     }
                 })
             });

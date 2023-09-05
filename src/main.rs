@@ -6,6 +6,7 @@ mod nes;
 use crate::gui::Framework;
 use crate::{cpu::CPU, nes::RAM};
 use error_iter::ErrorIter;
+use gui::DebugCpu;
 use log::error;
 use pixels::{Error, Pixels, SurfaceTexture};
 use std::{cell::RefCell, rc::Rc};
@@ -19,6 +20,10 @@ const WIDTH: u32 = 1024;
 const HEIGHT: u32 = 768;
 
 fn main() -> Result<(), Error> {
+    env_logger::builder()
+        .filter_module("nes_ultra", log::LevelFilter::Debug)
+        .init();
+
     let event_loop = EventLoop::new();
     let mut input = WinitInputHelper::new();
     let window = {
@@ -96,8 +101,6 @@ fn main() -> Result<(), Error> {
     // Reset now that we've updated the ram
     cpu.borrow_mut().reset();
 
-    cpu.borrow_mut().clock();
-
     event_loop.run(move |event, _, control_flow| {
         // Handle input events
         if input.update(&event) {
@@ -105,6 +108,22 @@ fn main() -> Result<(), Error> {
             if input.key_pressed(VirtualKeyCode::Escape) || input.close_requested() {
                 *control_flow = ControlFlow::Exit;
                 return;
+            }
+
+            if input.key_pressed(VirtualKeyCode::Space) {
+                cpu.borrow_mut().step();
+            }
+
+            if input.key_pressed(VirtualKeyCode::R) {
+                cpu.borrow_mut().reset();
+            }
+
+            if input.key_pressed(VirtualKeyCode::I) {
+                cpu.borrow_mut().irq();
+            }
+
+            if input.key_pressed(VirtualKeyCode::N) {
+                cpu.borrow_mut().nmi();
             }
 
             // Update the scale factor

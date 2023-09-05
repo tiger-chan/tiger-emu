@@ -13,6 +13,7 @@ use std::ops::Range;
 use std::rc::{Rc, Weak};
 
 use egui::RichText;
+use log::debug;
 use opcode::{Operation, OPERATIONS};
 use registers::{status_flags as SF, Registers};
 
@@ -102,15 +103,6 @@ impl Assembly {
                 .skip(start)
                 .take(end - start)
                 .map(|x| x.as_str())
-                // .enumerate()
-                // .filter_map(|(idx, x)| {
-                // 	if (start..=end).contains(&idx) {
-                // 		Some(x.as_str())
-                // 	}
-                // 	else {
-                // 		None
-                // 	}
-                // })
                 .collect();
             vec
         } else {
@@ -286,14 +278,16 @@ impl CPU for Cpu6502 {
     }
 
     fn clock(&mut self) {
+		log::trace!("clock");
         if self.state.cc == 0 {
+			let pc = self.reg.pc;
             self.state.opcode = self.read(self.reg.pc);
 
             self.reg.p = set_flag(self.reg.p, SF::U, true);
             self.reg.pc += 1;
 
             self.state.op = OPERATIONS[self.state.opcode as usize].into();
-            self.state.cc = self.state.cc;
+            self.state.cc = self.state.op.cc;
 
             let am_additional_cc = (self.state.op.am_fn)(self);
             let op_additional_cc = (self.state.op.op_fn)(self);
@@ -301,6 +295,21 @@ impl CPU for Cpu6502 {
             self.state.cc += am_additional_cc & op_additional_cc;
 
             self.reg.p = set_flag(self.reg.p, SF::U, true);
+
+			{
+				let f = |f, i, e| {
+					match flag(self.reg.p, f) == 1 {
+						true => i,
+						false => e
+					}
+				};
+
+				debug!("{:>010}:00 {} ({}) PC:{:>04X} XXX AC:{:>02X} X:{:>02X} Y:{:>02X} {:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?} SP:{:>02X}",
+				self.state.clock_count, self.state.op.op, self.state.op.am, pc, self.reg.ac, self.reg.x, self.reg.y,
+				f(SF::N, 'N', '.'), f(SF::V, 'V', '.'),	f(SF::U, 'U', '.'),	
+				f(SF::B, 'B', '.'), f(SF::D, 'D', '.'),	f(SF::I, 'I', '.'),	
+				f(SF::Z, 'Z', '.'),	f(SF::N, 'C', '.'), self.reg.sp);
+			}
         }
 
         self.state.clock_count += 1;
@@ -458,4 +467,14 @@ impl DebugCpu for Cpu6502 {
             }
         });
     }
+
+	fn step(&mut self) {
+		while self.state.cc != 0 {
+			self.clock();
+		}
+		self.clock();
+		while self.state.cc != 0 {
+			self.clock();
+		}
+	}
 }

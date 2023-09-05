@@ -4,6 +4,8 @@ use pixels::{wgpu, PixelsContext};
 use winit::event_loop::EventLoopWindowTarget;
 use winit::window::Window;
 
+use crate::cpu::CPU;
+
 use super::{DebugBus, DebugCpu, Gui};
 
 /// Manages all state required for rendering egui over `Pixels`.
@@ -74,7 +76,10 @@ impl Framework {
     }
 
     /// Prepare egui.
-    pub(crate) fn prepare(&mut self, window: &Window, bus: &dyn DebugBus, cpu: &dyn DebugCpu) {
+    pub(crate) fn prepare<TCpu>(&mut self, window: &Window, bus: &dyn DebugBus, cpu: &TCpu)
+    where
+        TCpu: DebugCpu + CPU,
+    {
         // Run the egui frame and create all paint jobs to prepare for rendering.
         let raw_input = self.egui_state.take_egui_input(window);
         let output = self.egui_ctx.run(raw_input, |egui_ctx| {

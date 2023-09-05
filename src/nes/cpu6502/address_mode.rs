@@ -263,11 +263,9 @@ pub(super) fn izy(cpu: &mut Cpu6502) -> u8 {
 ///
 /// branch target is PC + signed offset BB ***
 pub(super) fn rel(cpu: &mut Cpu6502) -> u8 {
-    cpu.state.addr_rel = cpu.read(cpu.reg.pc) as u16;
+    let addr = cpu.read(cpu.reg.pc) as u16;
     cpu.reg.pc += 1;
-    if cpu.state.addr_rel & 0x80 > 0 {
-        cpu.state.addr_rel = cpu.state.addr_rel | 0xFF00;
-    }
+    cpu.state.addr_rel = if addr & 0x80 > 0 { addr | 0xFF00 } else { addr };
 
     0
 }

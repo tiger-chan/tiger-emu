@@ -12,4 +12,5 @@ pub(crate) trait DebugBus {
 pub(crate) trait DebugCpu {
     fn draw_cpu(&self, ui: &mut Ui);
     fn draw_code(&self, ui: &mut Ui, instruction_count: i8);
+    fn step(&mut self);
 }
