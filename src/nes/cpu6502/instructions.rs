@@ -293,7 +293,7 @@ pub(super) fn bne(cpu: &mut Cpu6502) -> u8 {
         cpu.state.cc += 1;
 
         let pc = cpu.reg.pc;
-        let addr_abs = pc + cpu.state.addr_rel;
+        let addr_abs = (pc as i32 + cpu.state.addr_rel as i32) as u16;
         cpu.state.addr_abs = addr_abs;
 
         if (addr_abs & 0xFF00) != (pc & 0xFF00) {
@@ -478,7 +478,7 @@ pub(super) fn dey(cpu: &mut Cpu6502) -> u8 {
     p = set_flag(p, SF::Z, y == 0);
     p = set_flag(p, SF::N, y & 0x80 > 0);
     cpu.reg.p = p;
-    cpu.reg.x = y;
+    cpu.reg.y = y;
 
     0
 }

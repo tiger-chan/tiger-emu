@@ -265,7 +265,7 @@ pub(super) fn izy(cpu: &mut Cpu6502) -> u8 {
 pub(super) fn rel(cpu: &mut Cpu6502) -> u8 {
     let addr = cpu.read(cpu.reg.pc) as u16;
     cpu.reg.pc += 1;
-    cpu.state.addr_rel = if addr & 0x80 > 0 { addr | 0xFF00 } else { addr };
+    cpu.state.addr_rel = if addr & 0x80 != 0 { addr | 0xFF00 } else { addr };
 
     0
 }
