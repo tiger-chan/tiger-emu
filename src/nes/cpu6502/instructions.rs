@@ -293,7 +293,7 @@ pub(super) fn bne(cpu: &mut Cpu6502) -> u8 {
         cpu.state.cc += 1;
 
         let pc = cpu.reg.pc;
-        let addr_abs = (pc as i32 + cpu.state.addr_rel as i32) as u16;
+        let addr_abs = pc.wrapping_add(cpu.state.addr_rel);
         cpu.state.addr_abs = addr_abs;
 
         if (addr_abs & 0xFF00) != (pc & 0xFF00) {
