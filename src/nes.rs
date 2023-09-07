@@ -1,3 +1,4 @@
+mod board;
 mod bus6502;
 mod cpu6502;
 
