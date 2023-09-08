@@ -1,8 +1,6 @@
-use std::cell::RefCell;
+use crate::motherboard::Motherboard;
 
-use crate::{bus::Bus, cpu::CPU};
-
-use super::{DebugBus, DebugCpu};
+use super::{CpuDisplay, MemoryDisplay};
 use egui::{Color32, Context, FontId, RichText};
 
 pub const ENABLED: Color32 = Color32::GREEN;
@@ -33,10 +31,9 @@ impl Gui {
     }
 
     /// Create the UI using egui.
-    pub(crate) fn ui<TBus, TCpu>(&mut self, ctx: &Context, bus: &RefCell<TBus>, cpu: &RefCell<TCpu>)
+    pub(crate) fn ui<TMotherBoard>(&mut self, ctx: &Context, board: &mut TMotherBoard)
     where
-        TBus: DebugBus + Bus,
-        TCpu: DebugCpu + CPU,
+        TMotherBoard: Motherboard + MemoryDisplay + CpuDisplay,
     {
         egui::TopBottomPanel::top("menubar_container").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
@@ -69,22 +66,22 @@ impl Gui {
                     ui.separator();
 
                     if ui.button("Step (F10)").clicked() {
-                        cpu.borrow_mut().step();
+                        board.step();
                         ui.close_menu();
                     }
 
                     if ui.button("Reset (CTRL + SHIFT + F5)").clicked() {
-                        cpu.borrow_mut().reset();
+                        board.reset();
                         ui.close_menu();
                     }
 
                     if ui.button("IRQ (CTRL + SHIFT + I)").clicked() {
-                        cpu.borrow_mut().irq();
+                        board.irq();
                         ui.close_menu();
                     }
 
                     if ui.button("NMI (CTRL + SHIFT + N)").clicked() {
-                        cpu.borrow_mut().nmi();
+                        board.nmi();
                         ui.close_menu();
                     }
                 })
@@ -98,15 +95,15 @@ impl Gui {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     ui.horizontal(|ui| {
                         ui.vertical(|ui| {
-                            bus.borrow().draw_mem(ui, 0x0000, 16, 16);
+                            board.draw_mem(ui, 0x0000, 16, 16);
                             ui.label(RichText::new("").font(DIAGNOSTIC_FONT)); // Spacing
                             ui.label(RichText::new("").font(DIAGNOSTIC_FONT)); // Spacing
-                            bus.borrow().draw_mem(ui, 0x8000, 16, 16);
+                            board.draw_mem(ui, 0x8000, 16, 16);
                         });
                         ui.vertical(|ui| {
-                            cpu.borrow().draw_cpu(ui);
+                            board.draw_cpu(ui);
                             ui.label(RichText::new("").font(DIAGNOSTIC_FONT)); // Spacing
-                            cpu.borrow().draw_code(ui, 26);
+                            board.draw_code(ui, 26);
                         });
                     });
                 });
@@ -115,13 +112,13 @@ impl Gui {
         egui::Window::new("CPU: Status")
             .open(&mut self.cpu)
             .show(ctx, |ui| {
-                cpu.borrow().draw_cpu(ui);
+                board.draw_cpu(ui);
             });
 
         egui::Window::new("Instructions")
             .open(&mut self.instructions)
             .show(ctx, |ui| {
-                cpu.borrow().draw_code(ui, 26);
+                board.draw_code(ui, 26);
             });
 
         egui::Window::new("Memory")
@@ -135,7 +132,7 @@ impl Gui {
                         .text("Page"),
                 );
                 let addr = self.memory_inspect << 8;
-                bus.borrow().draw_mem(ui, addr, 16, 16);
+                board.draw_mem(ui, addr, 16, 16);
             });
     }
 }

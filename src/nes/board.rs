@@ -1,8 +1,15 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::cpu::CPU;
+use egui::RichText;
 
-use super::{Bus6502, Cpu6502, RAM};
+use crate::{
+    bus::Bus,
+    cpu::CPU,
+    gui::{CpuDisplay, MemoryDisplay, DIAGNOSTIC_FONT},
+    motherboard::Motherboard,
+};
+
+use super::{Cpu6502, Ppu2C02};
 
 /// Bytes, Words, Addressing
 /// 8 bit bytes, 16 bit words in lobyte-hibyte representation (Little-Endian).
@@ -45,31 +52,131 @@ pub const IRQ_LO: Addr = 0xFFFE;
 /// $FFFE, $FFFF ... IRQ (Interrupt Request) vector, 16-bit (LB, HB)
 pub const IRQ_HI: Addr = 0xFFFF;
 
+//pub const RAM: usize = 0x0800;
+pub const RAM: usize = 64 * 1024;
+
+pub struct BoardBus {
+    ram: Rc<RefCell<[u8; RAM]>>,
+}
+
+impl BoardBus {
+    pub fn new() -> Self {
+        Self {
+            ram: Rc::new(RefCell::new([0; RAM])),
+        }
+    }
+}
+
+impl Bus for BoardBus {
+    fn read(&self, addr: u16) -> u8 {
+        self.ram.borrow()[addr as usize]
+    }
+
+    fn read_only(&self, addr: u16) -> u8 {
+        self.ram.borrow()[addr as usize]
+    }
+
+    fn write(&mut self, addr: u16, data: u8) {
+        self.ram.borrow_mut()[addr as usize] = data;
+    }
+}
+
 pub struct Board {
-    pub bus: Rc<RefCell<Bus6502>>,
     pub cpu: Rc<RefCell<Cpu6502>>,
+    pub ppu: Rc<RefCell<Ppu2C02>>,
+    pub bus: BoardBus,
 }
 
 impl Board {
     pub fn new() -> Self {
-        let board = Self {
-            bus: Rc::new(RefCell::new(Bus6502::new())),
+        Self {
             cpu: Rc::new(RefCell::new(Cpu6502::new())),
-        };
-
-        board.bus.borrow_mut().connect_cpu(&board.cpu);
-        board.cpu.borrow_mut().connect_bus(&board.bus);
-
-        board
+            ppu: Rc::new(RefCell::new(Ppu2C02::new())),
+            bus: BoardBus::new(),
+        }
     }
 
     pub fn set_prog(&mut self, program: &[u8; RAM]) {
-        self.bus.borrow_mut().set_ram(program);
+        *self.bus.ram.borrow_mut() = *program;
 
-        self.cpu.borrow_mut().disssemble(0x0000, 0xFFFF);
+        self.cpu.borrow_mut().disssemble(&self.bus, 0x0000, 0xFFFF);
+    }
+}
+
+impl Bus for Board {
+    fn read(&self, addr: u16) -> u8 {
+        self.bus.read(addr)
     }
 
-    pub fn reset(&mut self) {
-        self.cpu.borrow_mut().reset();
+    fn read_only(&self, addr: u16) -> u8 {
+        self.bus.read_only(addr)
+    }
+
+    fn write(&mut self, addr: u16, data: u8) {
+        self.bus.write(addr, data);
+    }
+}
+
+impl Motherboard for Board {
+    fn clock(&mut self) {
+        self.cpu.borrow_mut().clock(&mut self.bus);
+    }
+
+    fn reset(&mut self) {
+        self.cpu.borrow_mut().reset(&mut self.bus);
+    }
+
+    fn irq(&mut self) {
+        self.cpu.borrow_mut().irq(&mut self.bus);
+    }
+
+    fn nmi(&mut self) {
+        self.cpu.borrow_mut().nmi(&mut self.bus);
+    }
+}
+
+impl MemoryDisplay for Board {
+    fn draw_mem(&self, ui: &mut egui::Ui, addr: u16, rows: u8, cols: u8) {
+        ui.vertical(|ui| {
+            let mem_block: Vec<u8> = self
+                .bus
+                .ram
+                .borrow()
+                .iter()
+                .skip(addr as usize)
+                .take(rows as usize * cols as usize)
+                .map(|x| *x)
+                .collect();
+            for (i, chunk) in mem_block.chunks(cols as usize).enumerate() {
+                let mut str = String::with_capacity(cols as usize * 3 + 6);
+                str.push_str(format!("{:>04X} ", addr + (i as u16 * cols as u16)).as_str());
+                for mem in chunk {
+                    str.push_str(format!("{:>02X} ", mem).as_str());
+                }
+
+                ui.label(RichText::new(str).font(DIAGNOSTIC_FONT));
+            }
+        });
+    }
+}
+
+impl CpuDisplay for Board {
+    fn draw_code(&self, ui: &mut egui::Ui, instruction_count: i8) {
+        self.cpu.borrow().draw_code(ui, instruction_count);
+    }
+
+    fn draw_cpu(&self, ui: &mut egui::Ui) {
+        self.cpu.borrow().draw_cpu(ui);
+    }
+
+    fn step(&mut self) {
+        let mut cpu = self.cpu.borrow_mut();
+        while cpu.state.cc != 0 {
+            cpu.clock(&mut self.bus);
+        }
+        cpu.clock(&mut self.bus);
+        while cpu.state.cc != 0 {
+            cpu.clock(&mut self.bus);
+        }
     }
 }

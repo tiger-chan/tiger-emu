@@ -1,6 +1,8 @@
 use core::fmt;
 
-use super::{Cpu6502, CPU};
+use crate::bus::Bus;
+
+use super::Cpu6502;
 
 ///
 ///   * 16-bit address words are little endian, lo(w)-byte first, followed by the hi(gh)-byte.
@@ -104,7 +106,7 @@ impl fmt::Display for AddrMode {
     }
 }
 
-pub type AddrFn = fn(cpu: &mut Cpu6502) -> u8;
+pub type AddrFn = fn(cpu: &mut Cpu6502, &mut dyn Bus) -> u8;
 
 /// Absolute
 ///
@@ -123,10 +125,10 @@ pub type AddrFn = fn(cpu: &mut Cpu6502) -> u8;
 /// Absolute addresses are also used for the jump instructions JMP and
 /// JSR to provide the address for the next instruction to continue with
 /// in the control flow.
-pub(super) fn abs(cpu: &mut Cpu6502) -> u8 {
-    let lo = cpu.read(cpu.reg.pc) as u16;
+pub(super) fn abs(cpu: &mut Cpu6502, bus: &mut dyn Bus) -> u8 {
+    let lo = bus.read(cpu.reg.pc) as u16;
     cpu.reg.pc += 1;
-    let hi = (cpu.read(cpu.reg.pc) as u16) << 8;
+    let hi = (bus.read(cpu.reg.pc) as u16) << 8;
     cpu.reg.pc += 1;
 
     cpu.state.addr_abs = hi | lo;
@@ -158,11 +160,11 @@ pub(super) fn abs(cpu: &mut Cpu6502) -> u8 {
 /// effective address is on the next memory page, the additional
 /// operation to increment the high-byte takes another CPU cycle. This
 /// is also known as a crossing of page boundaries.
-pub(super) fn abx(cpu: &mut Cpu6502) -> u8 {
-    let lo = cpu.read(cpu.reg.pc) as u16;
+pub(super) fn abx(cpu: &mut Cpu6502, bus: &mut dyn Bus) -> u8 {
+    let lo = bus.read(cpu.reg.pc) as u16;
     cpu.reg.pc += 1;
 
-    let hi = (cpu.read(cpu.reg.pc) as u16) << 8;
+    let hi = (bus.read(cpu.reg.pc) as u16) << 8;
     cpu.reg.pc += 1;
 
     cpu.state.addr_abs = hi | lo + cpu.reg.x as u16;
@@ -198,11 +200,11 @@ pub(super) fn abx(cpu: &mut Cpu6502) -> u8 {
 /// effective address is on the next memory page, the additional
 /// operation to increment the high-byte takes another CPU cycle. This
 /// is also known as a crossing of page boundaries.
-pub(super) fn aby(cpu: &mut Cpu6502) -> u8 {
-    let lo = cpu.read(cpu.reg.pc) as u16;
+pub(super) fn aby(cpu: &mut Cpu6502, bus: &mut dyn Bus) -> u8 {
+    let lo = bus.read(cpu.reg.pc) as u16;
     cpu.reg.pc += 1;
 
-    let hi = (cpu.read(cpu.reg.pc) as u16) << 8;
+    let hi = (bus.read(cpu.reg.pc) as u16) << 8;
     cpu.reg.pc += 1;
 
     cpu.state.addr_abs = hi | lo + cpu.reg.y as u16;
@@ -225,7 +227,7 @@ pub(super) fn aby(cpu: &mut Cpu6502) -> u8 {
 /// length is always 2 bytes. In memory, the operand is a single byte
 /// following immediately after the instruction code. In assembler, the
 /// mode is usually indicated by a "#" prefix adjacent to the operand.
-pub(super) fn imm(cpu: &mut Cpu6502) -> u8 {
+pub(super) fn imm(cpu: &mut Cpu6502, _bus: &mut dyn Bus) -> u8 {
     cpu.state.addr_abs = cpu.reg.pc;
     cpu.reg.pc += 1;
 
@@ -249,7 +251,7 @@ pub(super) fn imm(cpu: &mut Cpu6502) -> u8 {
 /// special address mode of its own, but it is really a special case of
 /// an implied instruction. It is still a single-byte instruction and no
 /// operand is provided in machine language.)
-pub(super) fn imp(cpu: &mut Cpu6502) -> u8 {
+pub(super) fn imp(cpu: &mut Cpu6502, _bus: &mut dyn Bus) -> u8 {
     cpu.state.fetched = cpu.reg.ac;
 
     0
@@ -273,23 +275,23 @@ pub(super) fn imp(cpu: &mut Cpu6502) -> u8 {
 ///
 /// Generally, indirect addressing is denoted by putting the lookup
 /// address in parenthesis.
-pub(super) fn ind(cpu: &mut Cpu6502) -> u8 {
-    let lo = cpu.read(cpu.reg.pc) as u16;
+pub(super) fn ind(cpu: &mut Cpu6502, bus: &mut dyn Bus) -> u8 {
+    let lo = bus.read(cpu.reg.pc) as u16;
     cpu.reg.pc += 1;
-    let hi = (cpu.read(cpu.reg.pc) as u16) << 8;
+    let hi = (bus.read(cpu.reg.pc) as u16) << 8;
     cpu.reg.pc += 1;
 
     let ptr = hi | lo;
 
     if lo == 0x00FF {
         // Simulate page boundary hardware bug
-        let lo = cpu.read(ptr + 0) as u16;
-        let hi = (cpu.read(ptr & 0xFF00) as u16) << 8;
+        let lo = bus.read(ptr + 0) as u16;
+        let hi = (bus.read(ptr & 0xFF00) as u16) << 8;
         cpu.state.addr_abs = hi | lo;
     } else {
         // Simulate page boundary hardware bug
-        let lo = cpu.read(ptr + 0) as u16;
-        let hi = (cpu.read(ptr + 1) as u16) << 8;
+        let lo = bus.read(ptr + 0) as u16;
+        let hi = (bus.read(ptr + 1) as u16) << 8;
         cpu.state.addr_abs = hi | lo;
     }
 
@@ -325,14 +327,14 @@ pub(super) fn ind(cpu: &mut Cpu6502) -> u8 {
 /// of pointers to disperse addresses, or where we want to apply the
 /// same operation to various addresses, which we have stored as a table
 /// in the zero-page.
-pub(super) fn izx(cpu: &mut Cpu6502) -> u8 {
-    let t = cpu.read(cpu.reg.pc) as u16;
+pub(super) fn izx(cpu: &mut Cpu6502, bus: &mut dyn Bus) -> u8 {
+    let t = bus.read(cpu.reg.pc) as u16;
     cpu.reg.pc += 1;
 
     let x = cpu.reg.x as u16;
 
-    let lo = cpu.read((t + x) & 0x00FF) as u16;
-    let hi = (cpu.read((t + x + 1) & 0x00FF) as u16) << 8;
+    let lo = bus.read((t + x) & 0x00FF) as u16;
+    let hi = (bus.read((t + x + 1) & 0x00FF) as u16) << 8;
 
     cpu.state.addr_abs = hi | lo;
 
@@ -361,14 +363,14 @@ pub(super) fn izx(cpu: &mut Cpu6502) -> u8 {
 /// These instructions are useful, wherever we want to perform lookups
 /// on varying bases addresses or whenever we want to loop over tables,
 /// the base address of which we have stored in the zero-page.
-pub(super) fn izy(cpu: &mut Cpu6502) -> u8 {
-    let t = cpu.read(cpu.reg.pc) as u16;
+pub(super) fn izy(cpu: &mut Cpu6502, bus: &mut dyn Bus) -> u8 {
+    let t = bus.read(cpu.reg.pc) as u16;
     cpu.reg.pc += 1;
 
     let y = cpu.reg.y as u16;
 
-    let lo = cpu.read(t & 0x00FF) as u16;
-    let hi = (cpu.read((t + 1) & 0x00FF) as u16) << 8;
+    let lo = bus.read(t & 0x00FF) as u16;
+    let hi = (bus.read((t + 1) & 0x00FF) as u16) << 8;
 
     cpu.state.addr_abs = hi | lo + y;
 
@@ -407,8 +409,8 @@ pub(super) fn izy(cpu: &mut Cpu6502) -> u8 {
 /// 'false'), and 3 cycles, if the branch is taken (when the condition
 /// is true). If a branch is taken and the target is on a different
 /// page, this adds another CPU cycle (4 in total).
-pub(super) fn rel(cpu: &mut Cpu6502) -> u8 {
-    let addr = cpu.read(cpu.reg.pc) as u16;
+pub(super) fn rel(cpu: &mut Cpu6502, bus: &mut dyn Bus) -> u8 {
+    let addr = bus.read(cpu.reg.pc) as u16;
     cpu.reg.pc += 1;
     cpu.state.addr_rel = if addr & 0x80 != 0 {
         addr | 0xFF00
@@ -437,8 +439,8 @@ pub(super) fn rel(cpu: &mut Cpu6502) -> u8 {
 /// Therefore, these instructions have a total length of just two bytes
 /// (one less than absolute mode) and take one CPU cycle less to
 /// execute, as there is one byte less to fetch.
-pub(super) fn zpg(cpu: &mut Cpu6502) -> u8 {
-    cpu.state.addr_abs = cpu.read(cpu.reg.pc) as u16;
+pub(super) fn zpg(cpu: &mut Cpu6502, bus: &mut dyn Bus) -> u8 {
+    cpu.state.addr_abs = bus.read(cpu.reg.pc) as u16;
     cpu.reg.pc += 1;
 
     cpu.state.addr_abs = cpu.state.addr_abs & 0x00FF;
@@ -465,8 +467,8 @@ pub(super) fn zpg(cpu: &mut Cpu6502) -> u8 {
 /// zero-page indexed instructions never affect the high-byte of the
 /// effective address, which will simply wrap around in the zero-page,
 /// and there is no penalty for crossing any page boundaries.
-pub(super) fn zpx(cpu: &mut Cpu6502) -> u8 {
-    cpu.state.addr_abs = cpu.read(cpu.reg.pc) as u16 + cpu.reg.x as u16;
+pub(super) fn zpx(cpu: &mut Cpu6502, bus: &mut dyn Bus) -> u8 {
+    cpu.state.addr_abs = bus.read(cpu.reg.pc) as u16 + cpu.reg.x as u16;
     cpu.reg.pc += 1;
 
     cpu.state.addr_abs = cpu.state.addr_abs & 0x00FF;
@@ -493,8 +495,8 @@ pub(super) fn zpx(cpu: &mut Cpu6502) -> u8 {
 /// zero-page indexed instructions never affect the high-byte of the
 /// effective address, which will simply wrap around in the zero-page,
 /// and there is no penalty for crossing any page boundaries.
-pub(super) fn zpy(cpu: &mut Cpu6502) -> u8 {
-    cpu.state.addr_abs = cpu.read(cpu.reg.pc) as u16 + cpu.reg.y as u16;
+pub(super) fn zpy(cpu: &mut Cpu6502, bus: &mut dyn Bus) -> u8 {
+    cpu.state.addr_abs = bus.read(cpu.reg.pc) as u16 + cpu.reg.y as u16;
     cpu.reg.pc += 1;
 
     cpu.state.addr_abs = cpu.state.addr_abs & 0x00FF;

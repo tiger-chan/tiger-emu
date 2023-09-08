@@ -1,14 +1,12 @@
-use std::cell::RefCell;
-
 use egui::{ClippedPrimitive, Context, TexturesDelta};
 use egui_wgpu::renderer::{Renderer, ScreenDescriptor};
 use pixels::{wgpu, PixelsContext};
 use winit::event_loop::EventLoopWindowTarget;
 use winit::window::Window;
 
-use crate::{bus::Bus, cpu::CPU};
+use crate::motherboard::Motherboard;
 
-use super::{DebugBus, DebugCpu, Gui};
+use super::{CpuDisplay, Gui, MemoryDisplay};
 
 /// Manages all state required for rendering egui over `Pixels`.
 pub(crate) struct Framework {
@@ -78,20 +76,15 @@ impl Framework {
     }
 
     /// Prepare egui.
-    pub(crate) fn prepare<TBus, TCpu>(
-        &mut self,
-        window: &Window,
-        bus: &RefCell<TBus>,
-        cpu: &RefCell<TCpu>,
-    ) where
-        TBus: DebugBus + Bus,
-        TCpu: DebugCpu + CPU,
+    pub(crate) fn prepare<TMotherBoard>(&mut self, window: &Window, board: &mut TMotherBoard)
+    where
+        TMotherBoard: Motherboard + MemoryDisplay + CpuDisplay,
     {
         // Run the egui frame and create all paint jobs to prepare for rendering.
         let raw_input = self.egui_state.take_egui_input(window);
         let output = self.egui_ctx.run(raw_input, |egui_ctx| {
             // Draw the application.
-            self.gui.ui(egui_ctx, bus, cpu);
+            self.gui.ui(egui_ctx, board);
         });
 
         self.textures.append(output.textures_delta);

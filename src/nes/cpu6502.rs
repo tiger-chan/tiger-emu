@@ -5,21 +5,16 @@ mod registers;
 
 use self::address_mode::AddrMode;
 
-use super::Bus6502;
 use super::board::{PS, RES_LO, RES_HI, IRQ_LO, IRQ_HI, NMI_LO, NMI_HI};
-use crate::gui::{DebugCpu, CURSOR, DIAGNOSTIC_FONT, DISABLED, ENABLED};
+use crate::gui::{CpuDisplay, CURSOR, DIAGNOSTIC_FONT, DISABLED, ENABLED};
 use crate::nes::cpu6502::registers::StatusReg;
 use crate::{bus::Bus, cpu::CPU};
-use std::cell::RefCell;
 use std::ops::Range;
-use std::rc::{Rc, Weak};
 
 use egui::RichText;
 use log::debug;
 use opcode::{Operation, OPERATIONS};
 use registers::Registers;
-
-type BusCell = RefCell<Bus6502>;
 
 #[derive(Default)]
 pub(super) struct State {
@@ -101,25 +96,19 @@ impl Assembly {
 pub struct Cpu6502 {
     pub(super) reg: Registers,
     pub(super) state: State,
-    bus: Option<Weak<BusCell>>,
     asm: Assembly,
 }
 
 impl Cpu6502 {
     pub fn new() -> Self {
         Self {
-            bus: None,
             reg: Registers::default(),
             state: State::default(),
             asm: Assembly::new(),
         }
     }
 
-    pub fn connect_bus(&mut self, bus: &Rc<BusCell>) {
-        self.bus = Some(Rc::downgrade(bus));
-    }
-
-    pub fn disssemble(&mut self, start: u16, end: u16) {
+    pub fn disssemble(&mut self, bus: &dyn Bus, start: u16, end: u16) {
         let mut addr = start as u32;
 
         self.asm = Assembly::with_capacity((end - start) as usize);
@@ -127,14 +116,14 @@ impl Cpu6502 {
         while addr < end as u32 {
             let ln_addr = addr as u16;
 
-            let opcode = self.read_only(ln_addr);
+            let opcode = bus.read_only(ln_addr);
             addr += 1;
             let op = &OPERATIONS[opcode as usize];
 
             let line = match op.am {
                 AddrMode::IMP => format!("${:>04X}: {:?} {{{:?}}}", ln_addr, op.op, op.am),
                 AddrMode::IMM | AddrMode::ZPG => {
-                    let lo = self.read_only(addr as u16);
+                    let lo = bus.read_only(addr as u16);
                     addr += 1;
                     format!(
                         "${:>04X}: {:?} #${:>02X} {{{:?}}}",
@@ -142,7 +131,7 @@ impl Cpu6502 {
                     )
                 }
                 AddrMode::ZPX => {
-                    let lo = self.read_only(addr as u16);
+                    let lo = bus.read_only(addr as u16);
                     addr += 1;
                     format!(
                         "${:>04X}: {:?} #${:>02X}, X {{{:?}}}",
@@ -150,7 +139,7 @@ impl Cpu6502 {
                     )
                 }
                 AddrMode::ZPY => {
-                    let lo = self.read_only(addr as u16);
+                    let lo = bus.read_only(addr as u16);
                     addr += 1;
                     format!(
                         "${:>04X}: {:?} #${:>02X}, Y {{{:?}}}",
@@ -158,7 +147,7 @@ impl Cpu6502 {
                     )
                 }
                 AddrMode::IZX => {
-                    let lo = self.read_only(addr as u16);
+                    let lo = bus.read_only(addr as u16);
                     addr += 1;
                     format!(
                         "${:>04X}: {:?} (${:>02X}, X) {{{:?}}}",
@@ -166,7 +155,7 @@ impl Cpu6502 {
                     )
                 }
                 AddrMode::IZY => {
-                    let lo = self.read_only(addr as u16);
+                    let lo = bus.read_only(addr as u16);
                     addr += 1;
                     format!(
                         "${:>04X}: {:?} (${:>02X}, Y) {{{:?}}}",
@@ -174,9 +163,9 @@ impl Cpu6502 {
                     )
                 }
                 AddrMode::ABS => {
-                    let lo = self.read_only(addr as u16) as u16;
+                    let lo = bus.read_only(addr as u16) as u16;
                     addr += 1;
-                    let hi = (self.read_only(addr as u16) as u16) << 8;
+                    let hi = (bus.read_only(addr as u16) as u16) << 8;
                     addr += 1;
                     let val = hi | lo;
                     format!(
@@ -185,9 +174,9 @@ impl Cpu6502 {
                     )
                 }
                 AddrMode::ABX => {
-                    let lo = self.read_only(addr as u16) as u16;
+                    let lo = bus.read_only(addr as u16) as u16;
                     addr += 1;
-                    let hi = (self.read_only(addr as u16) as u16) << 8;
+                    let hi = (bus.read_only(addr as u16) as u16) << 8;
                     addr += 1;
                     let val = hi | lo;
                     format!(
@@ -196,9 +185,9 @@ impl Cpu6502 {
                     )
                 }
                 AddrMode::ABY => {
-                    let lo = self.read_only(addr as u16) as u16;
+                    let lo = bus.read_only(addr as u16) as u16;
                     addr += 1;
-                    let hi = (self.read_only(addr as u16) as u16) << 8;
+                    let hi = (bus.read_only(addr as u16) as u16) << 8;
                     addr += 1;
                     let val = hi | lo;
                     format!(
@@ -207,9 +196,9 @@ impl Cpu6502 {
                     )
                 }
                 AddrMode::IND => {
-                    let lo = self.read_only(addr as u16) as u16;
+                    let lo = bus.read_only(addr as u16) as u16;
                     addr += 1;
-                    let hi = (self.read_only(addr as u16) as u16) << 8;
+                    let hi = (bus.read_only(addr as u16) as u16) << 8;
                     addr += 1;
                     let val = hi | lo;
                     format!(
@@ -218,7 +207,7 @@ impl Cpu6502 {
                     )
                 }
                 AddrMode::REL => {
-                    let lo = self.read_only(addr as u16) as u16;
+                    let lo = bus.read_only(addr as u16) as u16;
                     addr += 1;
                     let rel = addr as u16 + lo;
                     format!(
@@ -234,41 +223,11 @@ impl Cpu6502 {
 }
 
 impl CPU for Cpu6502 {
-    fn read(&self, addr: u16) -> u8 {
-        match &self.bus {
-            Some(bus) => match bus.upgrade() {
-                Some(bus) => bus.as_ref().borrow().read(addr),
-                _ => 0x00,
-            },
-            _ => 0x00,
-        }
-    }
-
-    fn read_only(&self, addr: u16) -> u8 {
-        match &self.bus {
-            Some(bus) => match bus.upgrade() {
-                Some(bus) => bus.as_ref().borrow().read_only(addr),
-                _ => 0x00,
-            },
-            _ => 0x00,
-        }
-    }
-
-    fn write(&self, addr: u16, data: u8) {
-        match &self.bus {
-            Some(bus) => match bus.upgrade() {
-                Some(bus) => bus.as_ref().borrow_mut().write(addr, data),
-                _ => {}
-            },
-            _ => {}
-        }
-    }
-
-    fn clock(&mut self) {
+    fn clock(&mut self, bus: &mut dyn Bus) {
 		log::trace!("clock");
         if self.state.cc == 0 {
 			let pc = self.reg.pc;
-            self.state.opcode = self.read(self.reg.pc);
+            self.state.opcode = bus.read(self.reg.pc);
 
             self.reg.p.set(StatusReg::U, true);
             self.reg.pc += 1;
@@ -276,8 +235,8 @@ impl CPU for Cpu6502 {
             self.state.op = OPERATIONS[self.state.opcode as usize].into();
             self.state.cc = self.state.op.cc;
 
-            let am_additional_cc = (self.state.op.am_fn)(self);
-            let op_additional_cc = (self.state.op.op_fn)(self);
+            let am_additional_cc = (self.state.op.am_fn)(self, bus);
+            let op_additional_cc = (self.state.op.op_fn)(self, bus);
 
             self.state.cc += am_additional_cc & op_additional_cc;
 
@@ -314,9 +273,9 @@ impl CPU for Cpu6502 {
 	/// Any other initializations are left to the thus executed program. (Notably,
 	/// instructions exist for the initialization and loading of all registers, but
 	/// for the program counter, which is provided by the reset vector at $FFFC.)
-    fn reset(&mut self) {
-        let lo = self.read(RES_LO) as u16;
-        let hi = self.read(RES_HI) as u16;
+    fn reset(&mut self, bus: &mut dyn Bus) {
+        let lo = bus.read(RES_LO) as u16;
+        let hi = bus.read(RES_HI) as u16;
 
         self.reg.pc = hi << 8 | lo;
 
@@ -356,15 +315,15 @@ impl CPU for Cpu6502 {
 	/// In any way, the interrupt disable flag is set to inhibit any further
 	/// IRQ as control is transferred to the interrupt handler specified by
 	/// the respective interrupt vector.
-    fn irq(&mut self) {
+    fn irq(&mut self, bus: &mut dyn Bus) {
         if self.reg.p.get(StatusReg::I) == 0 {
             // Push the program counter to the stack. It's 16-bits dont
             // forget so that takes two pushes
             let mut sp = self.reg.sp as u16;
             let mut pc = self.reg.pc;
-            self.write(PS + sp, (pc >> 8) as u8);
+            bus.write(PS + sp, (pc >> 8) as u8);
             sp -= 1;
-            self.write(PS + sp, pc as u8);
+            bus.write(PS + sp, pc as u8);
             sp -= 1;
 
             // Push flags indicating that there was an interupt
@@ -373,12 +332,12 @@ impl CPU for Cpu6502 {
             .set(StatusReg::U, true)
             .set(StatusReg::I, true);
             self.reg.p = p;
-            self.write(PS + sp, p.into());
+            bus.write(PS + sp, p.into());
             sp -= 1;
 
             // Load fixed program counter
-            let lo = self.read(IRQ_LO) as u16;
-            let hi = (self.read(IRQ_HI) as u16) << 8;
+            let lo = bus.read(IRQ_LO) as u16;
+            let hi = (bus.read(IRQ_HI) as u16) << 8;
             pc = hi | lo;
 
             self.reg.sp = sp as u8;
@@ -411,14 +370,14 @@ impl CPU for Cpu6502 {
 	/// In any way, the interrupt disable flag is set to inhibit any further
 	/// IRQ as control is transferred to the interrupt handler specified by
 	/// the respective interrupt vector.
-    fn nmi(&mut self) {
+    fn nmi(&mut self, bus: &mut dyn Bus) {
         // Push the program counter to the stack. It's 16-bits dont
         // forget so that takes two pushes
         let mut sp = self.reg.sp as u16;
         let mut pc = self.reg.pc;
-        self.write(PS + sp, (pc >> 8) as u8);
+        bus.write(PS + sp, (pc >> 8) as u8);
         sp -= 1;
-        self.write(PS + sp, pc as u8);
+        bus.write(PS + sp, pc as u8);
         sp -= 1;
 
         // Push flags indicating that there was an interupt
@@ -427,12 +386,12 @@ impl CPU for Cpu6502 {
         .set(StatusReg::U, true)
         .set(StatusReg::I, true);
         self.reg.p = p;
-        self.write(PS + sp, p.into());
+        bus.write(PS + sp, p.into());
         sp -= 1;
 
         // Load fixed program counter
-        let lo = self.read(NMI_LO) as u16;
-        let hi = (self.read(NMI_HI) as u16) << 8;
+        let lo = bus.read(NMI_LO) as u16;
+        let hi = (bus.read(NMI_HI) as u16) << 8;
         pc = hi | lo;
 
         self.reg.sp = sp as u8;
@@ -442,7 +401,7 @@ impl CPU for Cpu6502 {
     }
 }
 
-impl DebugCpu for Cpu6502 {
+impl CpuDisplay for Cpu6502 {
     fn draw_cpu(&self, ui: &mut egui::Ui) {
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
@@ -510,12 +469,5 @@ impl DebugCpu for Cpu6502 {
     }
 
 	fn step(&mut self) {
-		while self.state.cc != 0 {
-			self.clock();
-		}
-		self.clock();
-		while self.state.cc != 0 {
-			self.clock();
-		}
 	}
 }
