@@ -8,10 +8,10 @@ use crate::{cpu::CPU, nes::RAM};
 use error_iter::ErrorIter;
 use gui::DebugCpu;
 use log::error;
+use nes::Board;
 use pixels::{Error, Pixels, SurfaceTexture};
-use std::{cell::RefCell, rc::Rc};
 use winit::dpi::LogicalSize;
-use winit::event::{Event, VirtualKeyCode};
+use winit::event::{Event, ModifiersState, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
@@ -52,12 +52,6 @@ fn main() -> Result<(), Error> {
         (pixels, framework)
     };
 
-    let bus = Rc::new(RefCell::new(nes::Bus6502::new()));
-    let cpu = Rc::new(RefCell::new(nes::Cpu6502::new()));
-
-    bus.borrow_mut().connect_cpu(&cpu);
-    cpu.borrow_mut().connect_bus(&bus);
-
     // Load Program (assembled at https://www.masswerk.at/6502/assembler.html)
     /*
         *=$8000
@@ -94,12 +88,11 @@ fn main() -> Result<(), Error> {
     ram[0xFFFC] = 0x00;
     ram[0xFFFD] = 0x80;
 
-    bus.borrow_mut().set_ram(&ram);
-
-    cpu.borrow_mut().disssemble(0x0000, 0xFFFF);
+    let mut board = Board::new();
+    board.set_prog(&ram);
 
     // Reset now that we've updated the ram
-    cpu.borrow_mut().reset();
+    board.reset();
 
     event_loop.run(move |event, _, control_flow| {
         // Handle input events
@@ -110,20 +103,37 @@ fn main() -> Result<(), Error> {
                 return;
             }
 
-            if input.key_pressed(VirtualKeyCode::Space) {
-                cpu.borrow_mut().step();
+            let mut modifiers: Option<ModifiersState> = None;
+
+            match &event {
+                Event::WindowEvent { event, .. } => match &event {
+                    WindowEvent::ModifiersChanged(new) => {
+                        modifiers = Some(*new);
+                    }
+                    _ => {}
+                },
+                _ => (),
             }
 
-            if input.key_pressed(VirtualKeyCode::R) {
-                cpu.borrow_mut().reset();
+            if input.key_pressed(VirtualKeyCode::F10) {
+                board.cpu.borrow_mut().step();
             }
 
-            if input.key_pressed(VirtualKeyCode::I) {
-                cpu.borrow_mut().irq();
-            }
+            match modifiers {
+                Some(mods) => {
+                    if mods.ctrl() && mods.shift() && input.key_pressed(VirtualKeyCode::F5) {
+                        board.cpu.borrow_mut().reset();
+                    }
 
-            if input.key_pressed(VirtualKeyCode::N) {
-                cpu.borrow_mut().nmi();
+                    if mods.ctrl() && mods.shift() && input.key_pressed(VirtualKeyCode::I) {
+                        board.cpu.borrow_mut().irq();
+                    }
+
+                    if mods.ctrl() && mods.shift() && input.key_pressed(VirtualKeyCode::N) {
+                        board.cpu.borrow_mut().nmi();
+                    }
+                }
+                _ => {}
             }
 
             // Update the scale factor
@@ -157,8 +167,8 @@ fn main() -> Result<(), Error> {
                 //world.draw(pixels.frame_mut());
 
                 // Prepare egui
-                let bus = &*bus.borrow();
-                let cpu = &*cpu.borrow();
+                let bus = &board.bus.as_ref();
+                let cpu = board.cpu.as_ref();
                 framework.prepare(&window, bus, cpu);
 
                 // Render everything together

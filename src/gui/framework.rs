@@ -1,10 +1,12 @@
+use std::cell::RefCell;
+
 use egui::{ClippedPrimitive, Context, TexturesDelta};
 use egui_wgpu::renderer::{Renderer, ScreenDescriptor};
 use pixels::{wgpu, PixelsContext};
 use winit::event_loop::EventLoopWindowTarget;
 use winit::window::Window;
 
-use crate::cpu::CPU;
+use crate::{bus::Bus, cpu::CPU};
 
 use super::{DebugBus, DebugCpu, Gui};
 
@@ -76,8 +78,13 @@ impl Framework {
     }
 
     /// Prepare egui.
-    pub(crate) fn prepare<TCpu>(&mut self, window: &Window, bus: &dyn DebugBus, cpu: &TCpu)
-    where
+    pub(crate) fn prepare<TBus, TCpu>(
+        &mut self,
+        window: &Window,
+        bus: &RefCell<TBus>,
+        cpu: &RefCell<TCpu>,
+    ) where
+        TBus: DebugBus + Bus,
         TCpu: DebugCpu + CPU,
     {
         // Run the egui frame and create all paint jobs to prepare for rendering.
