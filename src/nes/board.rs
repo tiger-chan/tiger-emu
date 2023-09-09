@@ -18,7 +18,7 @@ use super::{Cpu6502, Ppu2C02};
 /// Signed values are two's complement, sign in bit 7 (most significant bit).
 /// (%11111111 = $FF = -1, %10000000 = $80 = -128, %01111111 = $7F = +127)
 /// Signed binary and binary coded decimal (BCD) arithmetic modes.
-type Addr = u16;
+pub type Addr = u16;
 
 /// Processor Stack
 ///
