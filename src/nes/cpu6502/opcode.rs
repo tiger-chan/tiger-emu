@@ -320,6 +320,29 @@ pub const OPERATIONS: [InstructionSet; 256] = [
     InstructionSet::new(XXX, IMP, 7),
 ];
 
+pub type Instruc = fn (&mut Registers, &mut dyn Bus);
+
+const INOOP: Instruc = op_ea;
+
+pub const OPER: [Instruc; 256] =[
+	op_00, op_01, INOOP, INOOP, INOOP, op_05, op_06, INOOP, op_08, op_09, op_0a, INOOP, INOOP, op_0d, op_0e, INOOP,
+	op_10, op_11, op_12, INOOP, INOOP, op_15, op_16, INOOP, op_18, op_19, INOOP, INOOP, INOOP, op_1d, op_1e, INOOP,
+	op_20, op_21, op_22, INOOP, op_24, op_25, op_26, INOOP, op_28, op_29, op_2a, INOOP, op_2c, op_2d, op_2e, INOOP,
+	op_30, op_31, op_32, INOOP, INOOP, op_35, op_36, INOOP, op_38, op_39, INOOP, INOOP, INOOP, op_3d, op_3e, INOOP,
+	op_40, op_41, op_42, INOOP, INOOP, op_45, op_46, INOOP, op_48, op_49, op_4a, INOOP, op_4c, op_4d, op_4e, INOOP,
+	op_50, op_51, op_52, INOOP, INOOP, op_55, op_56, INOOP, op_58, op_59, INOOP, INOOP, INOOP, op_5d, op_5e, INOOP,
+	op_60, op_61, op_62, INOOP, INOOP, op_65, op_66, INOOP, op_68, op_69, op_6a, INOOP, op_6c, op_6d, op_6e, INOOP,
+	op_70, op_71, op_72, INOOP, INOOP, op_75, op_76, INOOP, op_78, op_79, INOOP, INOOP, INOOP, op_7d, op_7e, INOOP,
+	INOOP, op_81, INOOP, INOOP, op_84, op_85, op_86, INOOP, op_88, INOOP, op_8a, INOOP, op_8c, op_8d, op_8e, INOOP,
+	op_90, op_91, op_92, INOOP, op_94, op_95, op_96, INOOP, op_98, op_99, op_9a, INOOP, INOOP, op_9d, INOOP, INOOP,
+	op_a0, op_a1, op_a2, INOOP, op_a4, op_a5, op_a6, INOOP, op_a8, op_a9, op_aa, INOOP, op_ac, op_ad, op_ae, INOOP,
+	op_b0, op_b1, op_b2, INOOP, op_b4, op_b5, op_b6, INOOP, op_b8, op_b9, op_ba, INOOP, op_bc, op_bd, op_be, INOOP,
+	op_c0, op_c1, INOOP, INOOP, op_c4, op_c5, op_c6, INOOP, op_c8, op_c9, op_ca, INOOP, op_cc, op_cd, op_ce, INOOP,
+	op_d0, op_d1, op_d2, INOOP, INOOP, op_d5, op_d6, INOOP, op_d8, op_d9, INOOP, INOOP, INOOP, op_dd, op_de, INOOP,
+	op_e0, op_e1, INOOP, INOOP, op_e4, op_e5, op_e6, INOOP, op_e8, op_e9, op_ea, INOOP, op_ec, op_ed, op_ee, INOOP,
+	op_f0, op_f1, op_f2, INOOP, INOOP, op_f5, op_f6, INOOP, op_f8, op_f9, INOOP, INOOP, INOOP, op_fd, op_fe, INOOP,
+];
+
 macro_rules! is_implied {
     ($when:block, $otherwise:block) => {
         $when
@@ -1510,10 +1533,10 @@ macro_rules! op {
 		}
 	};
 
-	([$opc:ident] JAM) => {
+	([$opc:ident] JAM $($rest:tt)*) => {
 		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
-			println!("{}", am!(reg, bus));
+			let _ = am!(reg, bus, $($rest)*);
 		}
 	};
 
@@ -2398,6 +2421,7 @@ op![#op_98 TYA        ];
 // JAMS 02, 12, 22, 32, 42, 52, 62, 72, 92, B2, D2, F2
 op![#op_02 JAM        ];
 op![#op_12 JAM        ];
+op![#op_22 JAM        ];
 op![#op_32 JAM        ];
 op![#op_42 JAM        ];
 op![#op_52 JAM        ];
