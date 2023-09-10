@@ -126,6 +126,7 @@ pub enum Instruction {
 
     /// ILLEGAL
     XXX,
+	JAM,
 }
 
 impl fmt::Display for Instruction {
@@ -897,6 +898,7 @@ impl From<Instruction> for OperFn {
             Instruction::TXS => txs,
             Instruction::TYA => tya,
             Instruction::XXX => xxx,
+            Instruction::JAM => xxx,
         }
     }
 }

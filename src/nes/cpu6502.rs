@@ -121,7 +121,7 @@ impl Cpu6502 {
             let op = &OPERATIONS[opcode as usize];
 
             let line = match op.am {
-                AddrMode::IMP => format!("${:>04X}: {:?} {{{:?}}}", ln_addr, op.op, op.am),
+                AddrMode::A | AddrMode::IMP => format!("${:>04X}: {:?} {{{:?}}}", ln_addr, op.op, op.am),
                 AddrMode::IMM | AddrMode::ZPG => {
                     let lo = bus.read_only(addr as u16);
                     addr += 1;

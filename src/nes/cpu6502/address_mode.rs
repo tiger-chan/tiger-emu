@@ -20,12 +20,12 @@ use super::Cpu6502;
 ///
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum AddrMode {
-    // /// Accumulator
-    // ///
-    // /// OPC A
-    // ///
-    // /// operand is AC (implied single byte instruction)
-    // A,
+    /// Accumulator
+    ///
+    /// OPC A
+    ///
+    /// operand is AC (implied single byte instruction)
+    A,
     /// Absolute
     ///
     /// OPC $LLHH
@@ -507,6 +507,7 @@ pub(super) fn zpy(cpu: &mut Cpu6502, bus: &mut dyn Bus) -> u8 {
 impl From<AddrMode> for AddrFn {
     fn from(value: AddrMode) -> Self {
         match value {
+			AddrMode::A => imp,
             AddrMode::ABS => abs,
             AddrMode::ABX => abx,
             AddrMode::ABY => aby,

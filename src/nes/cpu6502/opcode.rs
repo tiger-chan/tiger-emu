@@ -324,7 +324,7 @@ pub type Instruc = fn (&mut Registers, &mut dyn Bus);
 
 const INOOP: Instruc = op_ea;
 
-pub const OPER: [Instruc; 256] =[
+pub const OPER: [Instruc; 256] = [
 	op_00, op_01, INOOP, INOOP, INOOP, op_05, op_06, INOOP, op_08, op_09, op_0a, INOOP, INOOP, op_0d, op_0e, INOOP,
 	op_10, op_11, op_12, INOOP, INOOP, op_15, op_16, INOOP, op_18, op_19, INOOP, INOOP, INOOP, op_1d, op_1e, INOOP,
 	op_20, op_21, op_22, INOOP, op_24, op_25, op_26, INOOP, op_28, op_29, op_2a, INOOP, op_2c, op_2d, op_2e, INOOP,
@@ -341,6 +341,48 @@ pub const OPER: [Instruc; 256] =[
 	op_d0, op_d1, op_d2, INOOP, INOOP, op_d5, op_d6, INOOP, op_d8, op_d9, INOOP, INOOP, INOOP, op_dd, op_de, INOOP,
 	op_e0, op_e1, INOOP, INOOP, op_e4, op_e5, op_e6, INOOP, op_e8, op_e9, op_ea, INOOP, op_ec, op_ed, op_ee, INOOP,
 	op_f0, op_f1, op_f2, INOOP, INOOP, op_f5, op_f6, INOOP, op_f8, op_f9, INOOP, INOOP, INOOP, op_fd, op_fe, INOOP,
+];
+
+const INOAM: AddrMode = AddrMode::IMP;
+
+pub const ADDER_MODE: [AddrMode; 256] = [
+	AM_00, AM_01, INOAM, INOAM, INOAM, AM_05, AM_06, INOAM, AM_08, AM_09, AM_0A, INOAM, INOAM, AM_0D, AM_0E, INOAM,
+	AM_10, AM_11, AM_12, INOAM, INOAM, AM_15, AM_16, INOAM, AM_18, AM_19, INOAM, INOAM, INOAM, AM_1D, AM_1E, INOAM,
+	AM_20, AM_21, AM_22, INOAM, AM_24, AM_25, AM_26, INOAM, AM_28, AM_29, AM_2A, INOAM, AM_2C, AM_2D, AM_2E, INOAM,
+	AM_30, AM_31, AM_32, INOAM, INOAM, AM_35, AM_36, INOAM, AM_38, AM_39, INOAM, INOAM, INOAM, AM_3D, AM_3E, INOAM,
+	AM_40, AM_41, AM_42, INOAM, INOAM, AM_45, AM_46, INOAM, AM_48, AM_49, AM_4A, INOAM, AM_4C, AM_4D, AM_4E, INOAM,
+	AM_50, AM_51, AM_52, INOAM, INOAM, AM_55, AM_56, INOAM, AM_58, AM_59, INOAM, INOAM, INOAM, AM_5D, AM_5E, INOAM,
+	AM_60, AM_61, AM_62, INOAM, INOAM, AM_65, AM_66, INOAM, AM_68, AM_69, AM_6A, INOAM, AM_6C, AM_6D, AM_6E, INOAM,
+	AM_70, AM_71, AM_72, INOAM, INOAM, AM_75, AM_76, INOAM, AM_78, AM_79, INOAM, INOAM, INOAM, AM_7D, AM_7E, INOAM,
+	INOAM, AM_81, INOAM, INOAM, AM_84, AM_85, AM_86, INOAM, AM_88, INOAM, AM_8A, INOAM, AM_8C, AM_8D, AM_8E, INOAM,
+	AM_90, AM_91, AM_92, INOAM, AM_94, AM_95, AM_96, INOAM, AM_98, AM_99, AM_9A, INOAM, INOAM, AM_9D, INOAM, INOAM,
+	AM_A0, AM_A1, AM_A2, INOAM, AM_A4, AM_A5, AM_A6, INOAM, AM_A8, AM_A9, AM_AA, INOAM, AM_AC, AM_AD, AM_AE, INOAM,
+	AM_B0, AM_B1, AM_B2, INOAM, AM_B4, AM_B5, AM_B6, INOAM, AM_B8, AM_B9, AM_BA, INOAM, AM_BC, AM_BD, AM_BE, INOAM,
+	AM_C0, AM_C1, INOAM, INOAM, AM_C4, AM_C5, AM_C6, INOAM, AM_C8, AM_C9, AM_CA, INOAM, AM_CC, AM_CD, AM_CE, INOAM,
+	AM_D0, AM_D1, AM_D2, INOAM, INOAM, AM_D5, AM_D6, INOAM, AM_D8, AM_D9, INOAM, INOAM, INOAM, AM_DD, AM_DE, INOAM,
+	AM_E0, AM_E1, INOAM, INOAM, AM_E4, AM_E5, AM_E6, INOAM, AM_E8, AM_E9, AM_EA, INOAM, AM_EC, AM_ED, AM_EE, INOAM,
+	AM_F0, AM_F1, AM_F2, INOAM, INOAM, AM_F5, AM_F6, INOAM, AM_F8, AM_F9, INOAM, INOAM, INOAM, AM_FD, AM_FE, INOAM,
+];
+
+const INOIN: Instruction = Instruction::XXX;
+
+pub const INSTRUCTION_TYPE: [Instruction; 256] =[
+	IN_00, IN_01, INOIN, INOIN, INOIN, IN_05, IN_06, INOIN, IN_08, IN_09, IN_0A, INOIN, INOIN, IN_0D, IN_0E, INOIN,
+	IN_10, IN_11, IN_12, INOIN, INOIN, IN_15, IN_16, INOIN, IN_18, IN_19, INOIN, INOIN, INOIN, IN_1D, IN_1E, INOIN,
+	IN_20, IN_21, IN_22, INOIN, IN_24, IN_25, IN_26, INOIN, IN_28, IN_29, IN_2A, INOIN, IN_2C, IN_2D, IN_2E, INOIN,
+	IN_30, IN_31, IN_32, INOIN, INOIN, IN_35, IN_36, INOIN, IN_38, IN_39, INOIN, INOIN, INOIN, IN_3D, IN_3E, INOIN,
+	IN_40, IN_41, IN_42, INOIN, INOIN, IN_45, IN_46, INOIN, IN_48, IN_49, IN_4A, INOIN, IN_4C, IN_4D, IN_4E, INOIN,
+	IN_50, IN_51, IN_52, INOIN, INOIN, IN_55, IN_56, INOIN, IN_58, IN_59, INOIN, INOIN, INOIN, IN_5D, IN_5E, INOIN,
+	IN_60, IN_61, IN_62, INOIN, INOIN, IN_65, IN_66, INOIN, IN_68, IN_69, IN_6A, INOIN, IN_6C, IN_6D, IN_6E, INOIN,
+	IN_70, IN_71, IN_72, INOIN, INOIN, IN_75, IN_76, INOIN, IN_78, IN_79, INOIN, INOIN, INOIN, IN_7D, IN_7E, INOIN,
+	INOIN, IN_81, INOIN, INOIN, IN_84, IN_85, IN_86, INOIN, IN_88, INOIN, IN_8A, INOIN, IN_8C, IN_8D, IN_8E, INOIN,
+	IN_90, IN_91, IN_92, INOIN, IN_94, IN_95, IN_96, INOIN, IN_98, IN_99, IN_9A, INOIN, INOIN, IN_9D, INOIN, INOIN,
+	IN_A0, IN_A1, IN_A2, INOIN, IN_A4, IN_A5, IN_A6, INOIN, IN_A8, IN_A9, IN_AA, INOIN, IN_AC, IN_AD, IN_AE, INOIN,
+	IN_B0, IN_B1, IN_B2, INOIN, IN_B4, IN_B5, IN_B6, INOIN, IN_B8, IN_B9, IN_BA, INOIN, IN_BC, IN_BD, IN_BE, INOIN,
+	IN_C0, IN_C1, INOIN, INOIN, IN_C4, IN_C5, IN_C6, INOIN, IN_C8, IN_C9, IN_CA, INOIN, IN_CC, IN_CD, IN_CE, INOIN,
+	IN_D0, IN_D1, IN_D2, INOIN, INOIN, IN_D5, IN_D6, INOIN, IN_D8, IN_D9, INOIN, INOIN, INOIN, IN_DD, IN_DE, INOIN,
+	IN_E0, IN_E1, INOIN, INOIN, IN_E4, IN_E5, IN_E6, INOIN, IN_E8, IN_E9, IN_EA, INOIN, IN_EC, IN_ED, IN_EE, INOIN,
+	IN_F0, IN_F1, IN_F2, INOIN, INOIN, IN_F5, IN_F6, INOIN, IN_F8, IN_F9, INOIN, INOIN, INOIN, IN_FD, IN_FE, INOIN,
 ];
 
 macro_rules! is_implied {
@@ -835,6 +877,325 @@ macro_rules! am {
 	};
 }
 
+macro_rules! am_const {
+	([$code:ident] A) => {
+		// A Accumulator
+		//
+		// OPC A
+		//
+		// operand is AC (implied single byte instruction)
+		//
+		// These instructions act directly on one or more registers or flags
+		// internal to the CPU. Therefor, these instructions are principally
+		// single-byte instructions, lacking an explicit operand. The operand
+		// is implied, as it is already provided by the very instruction.
+		//
+		// Instructions targeting exclusively the contents of the accumulator
+		// may or may not be denoted by using an explicit "A" as the operand,
+		// depending on the flavor of syntax. (This may be regarded as a
+		// special address mode of its own, but it is really a special case of
+		// an implied instruction. It is still a single-byte instruction and no
+		// operand is provided in machine language.)
+		const $code: AddrMode = AddrMode::IMP;
+		//const $code: AddrMode = AddrMode::A;
+	};
+
+	([$code:ident] &LLHH) => {
+		// Absolute
+		//
+		// OPC $LLHH
+		//
+		// operand is address $HHLL *
+		//
+		// Absolute addressing modes provides the 16-bit address of a memory
+		// location, the contents of which used as the operand to the
+		// instruction. In machine language, the address is provided in two
+		// bytes immediately after the instruction (making these 3-byte
+		// instructions) in low-byte, high-byte order (LLHH) or little-endian.
+		// In assembler, conventional numbers (HHLL order or big-endian words)
+		// are used to provide the address.
+		//
+		// Absolute addresses are also used for the jump instructions JMP and
+		// JSR to provide the address for the next instruction to continue with
+		// in the control flow.
+        const $code: AddrMode = AddrMode::ABS;
+	};
+
+	([$code:ident] &LLHH,X) => {
+		// Absolute, X-indexed
+		//
+		// OPC $LLHH,X
+		//
+		// operand is address; effective address is address incremented by X with carry **
+		//
+		// Indexed addressing adds the contents of either the X-register or the
+		// Y-register to the provided address to give the effective address,
+		// which provides the operand.
+		//
+		// These instructions are usefull to e.g., load values from tables or
+		// to write to a continuous segment of memory in a loop. The most basic
+		// forms are "absolute,X" and "absolute,X", where either the X- or the
+		// Y-register, respectively, is added to a given base address. As the
+		// base address is a 16-bit value, these are generally 3-byte
+		// instructions. Since there is an additional operation to perform to
+		// determine the effective address, these instructions are one cycle
+		// slower than those using absolute addressing mode.*
+		//
+		// *) If the addition of the contents of the index register effects in
+		// a change of the high-byte given by the base address so that the
+		// effective address is on the next memory page, the additional
+		// operation to increment the high-byte takes another CPU cycle. This
+		// is also known as a crossing of page boundaries.
+        const $code: AddrMode = AddrMode::ABX;
+	};
+
+	([$code:ident] &LLHH,Y) => {
+		// Absolute, Y-indexed
+		//
+		// OPC $LLHH,Y
+		//
+		// operand is address; effective address is address incremented by Y with carry **
+		//
+		// Indexed addressing adds the contents of either the X-register or the
+		// Y-register to the provided address to give the effective address,
+		// which provides the operand.
+		//
+		// These instructions are usefull to e.g., load values from tables or
+		// to write to a continuous segment of memory in a loop. The most basic
+		// forms are "absolute,X" and "absolute,X", where either the X- or the
+		// Y-register, respectively, is added to a given base address. As the
+		// base address is a 16-bit value, these are generally 3-byte
+		// instructions. Since there is an additional operation to perform to
+		// determine the effective address, these instructions are one cycle
+		// slower than those using absolute addressing mode.*
+		//
+		// *) If the addition of the contents of the index register effects in
+		// a change of the high-byte given by the base address so that the
+		// effective address is on the next memory page, the additional
+		// operation to increment the high-byte takes another CPU cycle. This
+		// is also known as a crossing of page boundaries.
+        const $code: AddrMode = AddrMode::ABY;
+	};
+
+	([$code:ident] #&BB) => {
+		// Immediate
+		//
+		// OPC #$BB
+		//
+		// operand is byte BB
+		//
+		// Here, a literal operand is given immediately after the instruction.
+		// The operand is always an 8-bit value and the total instruction
+		// length is always 2 bytes. In memory, the operand is a single byte
+		// following immediately after the instruction code. In assembler, the
+		// mode is usually indicated by a "#" prefix adjacent to the operand.
+        const $code: AddrMode = AddrMode::IMM;
+	};
+
+	([$code:ident]) => {
+		// Implied
+		//
+		// OPC
+		//
+		// operand implied
+		//
+		// These instructions act directly on one or more registers or flags
+		// internal to the CPU. Therefor, these instructions are principally
+		// single-byte instructions, lacking an explicit operand. The operand
+		// is implied, as it is already provided by the very instruction.
+		//
+		// Instructions targeting exclusively the contents of the accumulator
+		// may or may not be denoted by using an explicit "A" as the operand,
+		// depending on the flavor of syntax. (This may be regarded as a
+		// special address mode of its own, but it is really a special case of
+		// an implied instruction. It is still a single-byte instruction and no
+		// operand is provided in machine language.)
+        const $code: AddrMode = AddrMode::IMP;
+	};
+
+	([$code:ident] (&LLHH)) => {
+		// Indirect
+		//
+		// OPC ($LLHH)
+		//
+		// operand is address; effective address is contents of word at address: C.w($HHLL)
+		//
+		// This mode looks up a given address and uses the contents of this
+		// address and the next one (in LLHH little-endian order) as the
+		// effective address. In its basic form, this mode is available for the
+		// JMP instruction only. (Its generally use is jump vectors and jump tables.)
+		//
+		// Like the absolute JMP instruction it uses a 16-bit address (3 bytes
+		// in total), but takes two additional CPU cycles to execute, since
+		// there are two additional bytes to fetch for the lookup of the
+		// effective jump target.
+		//
+		// Generally, indirect addressing is denoted by putting the lookup
+		// address in parenthesis.
+        const $code: AddrMode = AddrMode::IND;
+	};
+
+	([$code:ident] (&LL,X)) => {
+		// Indirect, X-indexed
+		//
+		// OPC ($LL,X)
+		//
+		// operand is zeropage address; effective address is word in (LL + X, LL + X + 1), inc. without carry: C.w($00LL + X)
+		//
+		// Indexed indirect address modes are generally available only for
+		// instructions supplying an operand to the accumulator (LDA, STA, ADC,
+		// SBC, AND, ORA, EOR, etc). The placement of the index register inside
+		// or outside of the parenthesis indicating the address lookup will
+		// give you clue what these instructions are doing.
+		//
+		// Pre-indexed indirect address mode is only available in combination
+		// with the X-register. It works much like the "zero-page,X" mode, but,
+		// after the X-register has been added to the base address, instead of
+		// directly accessing this, an additional lookup is performed, reading
+		// the contents of resulting address and the next one (in LLHH little-
+		// endian order), in order to determine the effective address.
+		//
+		// Like with "zero-page,X" mode, the total instruction length is 2
+		// bytes, but there are two additional CPU cycles in order to fetch
+		// the effective 16-bit address. As "zero-page,X" mode, a lookup address
+		// will never overflow into the next page, but will simply wrap around
+		// in the zero-page.
+		//
+		// These instructions are useful, whenever we want to loop over a table
+		// of pointers to disperse addresses, or where we want to apply the
+		// same operation to various addresses, which we have stored as a table
+		// in the zero-page.
+        const $code: AddrMode = AddrMode::IZX;
+	};
+
+	([$code:ident] (&LL),Y) => {
+		// Indirect, Y-indexed
+		//
+		// OPC ($LL),Y
+		//
+		// operand is zeropage address; effective address is word in (LL, LL + 1) incremented by Y with carry: C.w($00LL) + Y
+		//
+		// Post-indexed indirect addressing is only available in combination
+		// with the Y-register. As indicated by the indexing term ",Y" being
+		// appended to the outside of the parenthesis indicating the indirect
+		// lookup, here, a pointer is first read (from the given zero-page
+		// address) and resolved and only then the contents of the Y-register
+		// is added to this to give the effective address.
+		//
+		// Like with "zero-page,Y" mode, the total instruction length is 2
+		// bytes, but there it takes an additional CPU cycles to resolve and
+		// index the 16-bit pointer. As with "absolute,X" mode, the effective
+		// address may overflow into the next page, in the case of which the
+		// execution uses an extra CPU cycle.
+		//
+		// These instructions are useful, wherever we want to perform lookups
+		// on varying bases addresses or whenever we want to loop over tables,
+		// the base address of which we have stored in the zero-page.
+        const $code: AddrMode = AddrMode::IZY;
+	};
+
+	([$code:ident] &BB) => {
+		// Relative
+		//
+		// OPC $BB
+		//
+		// branch target is PC + signed offset BB ***
+		//
+		// This final address mode is exlusive to conditional branch
+		// instructions, which branch in the execution path depending on the
+		// state of a given CPU flag. Here, the instruction provides only a
+		// relative offset, which is added to the contents of the program
+		// counter (PC) as it points to the immediate next instruction. The
+		// relative offset is a signed single byte value in two's complement
+		// encoding (giving a range of −128…+127), which allows for branching
+		// up to half a page forwards and backwards.
+		//
+		// On the one hand, this makes these instructions compact, fast and
+		// relocatable at the same time. On the other hand, we have to mind
+		// that our branch target is no farther away than half a memory page.
+		//
+		// Generally, an assembler will take care of this and we only have to
+		// provide the target address, not having to worry about relative
+		// addressing.
+		//
+		// These instructions are always of 2 bytes length and perform in 2 CPU
+		// cycles, if the branch is not taken (the condition resolving to
+		// 'false'), and 3 cycles, if the branch is taken (when the condition
+		// is true). If a branch is taken and the target is on a different
+		// page, this adds another CPU cycle (4 in total).
+		const $code: AddrMode = AddrMode::REL;
+	};
+
+	([$code:ident] &LL) => {
+		// Zeropage
+		//
+		// OPC $LL
+		//
+		// operand is zeropage address (hi-byte is zero, address = $00LL)
+		//
+		// The 16-bit address space available to the 6502 is thought to consist
+		// of 256 "pages" of 256 memory locations each ($00…$FF). In this model
+		// the high-byte of an address gives the page number and the low-byte a
+		// location inside this page. The very first of these pages, where the
+		// high-byte is zero (addresses $0000…$00FF), is somewhat special.
+		//
+		// The zero-page address mode is similar to absolute address mode, but
+		// these instructions use only a single byte for the operand, the low-
+		// byte, while the high-byte is assumed to be zero by definition.
+		// Therefore, these instructions have a total length of just two bytes
+		// (one less than absolute mode) and take one CPU cycle less to
+		// execute, as there is one byte less to fetch.
+        const $code: AddrMode = AddrMode::ZPG;
+	};
+
+	([$code:ident] &LL,X) => {
+		// Zeropage, X-indexed
+		//
+		// OPC $LL,X
+		//
+		// operand is zeropage address; effective address is address incremented by X without carry **
+		//
+		// As with absolute addressing, there is also a zero-page mode for
+		// indexed addressing. However, this is generally only available with
+		// the X-register. (The only exception to this is LDX, which has an
+		// indexed zero-page mode utilizing the Y-register.)
+		//
+		// As we have already seen with normal zero-page mode, these
+		// instructions are one byte less in total length (two bytes) and take
+		// one CPU cycle less than instructions in absolute indexed mode.
+		//
+		// Unlike absolute indexed instructions with 16-bit base addresses,
+		// zero-page indexed instructions never affect the high-byte of the
+		// effective address, which will simply wrap around in the zero-page,
+		// and there is no penalty for crossing any page boundaries.
+        const $code: AddrMode = AddrMode::ZPX;
+	};
+
+	([$code:ident] &LL,Y) => {
+		// Zeropage, Y-indexed
+		//
+		// OPC $LL,Y
+		//
+		// operand is zeropage address; effective address is address incremented by Y without carry **
+		//
+		// As with absolute addressing, there is also a zero-page mode for
+		// indexed addressing. However, this is generally only available with
+		// the X-register. (The only exception to this is LDX, which has an
+		// indexed zero-page mode utilizing the Y-register.)
+		//
+		// As we have already seen with normal zero-page mode, these
+		// instructions are one byte less in total length (two bytes) and take
+		// one CPU cycle less than instructions in absolute indexed mode.
+		//
+		// Unlike absolute indexed instructions with 16-bit base addresses,
+		// zero-page indexed instructions never affect the high-byte of the
+		// effective address, which will simply wrap around in the zero-page,
+		// and there is no penalty for crossing any page boundaries.
+        const $code: AddrMode = AddrMode::ZPY;
+	};
+}
+
+
 const NEG_MASK: u16 = 0x0080;
 
 fn is_lo_zero(v: u16) -> bool {
@@ -850,8 +1211,12 @@ fn is_neg(v: u16) -> bool {
 }
 
 macro_rules! op {
-	(#$opc:tt $($rest:tt)*) => {
-		op!([$opc] $($rest)*);
+	(#[$opc:tt, $am:tt, $inst:tt] $op:tt $($rest:tt)*) => {
+		am_const!([$am] $($rest)*);
+
+		const $inst: Instruction = Instruction::$op;
+
+		op!([$opc] $op $($rest)*);
 
 		//op_tests!(#$opc $($rest)*);
 	};
@@ -2209,228 +2574,228 @@ macro_rules! op {
 	};
 }
 
-op![#op_69 ADC #&BB   ];
-op![#op_65 ADC &LL    ];
-op![#op_75 ADC &LL,X  ];
-op![#op_6d ADC &LLHH  ];
-op![#op_7d ADC &LLHH,X];
-op![#op_79 ADC &LLHH,Y];
-op![#op_61 ADC (&LL,X)];
-op![#op_71 ADC (&LL),Y];
+op![#[op_69, AM_69, IN_69] ADC #&BB   ];
+op![#[op_65, AM_65, IN_65] ADC &LL    ];
+op![#[op_75, AM_75, IN_75] ADC &LL,X  ];
+op![#[op_6d, AM_6D, IN_6D] ADC &LLHH  ];
+op![#[op_7d, AM_7D, IN_7D] ADC &LLHH,X];
+op![#[op_79, AM_79, IN_79] ADC &LLHH,Y];
+op![#[op_61, AM_61, IN_61] ADC (&LL,X)];
+op![#[op_71, AM_71, IN_71] ADC (&LL),Y];
 
-op![#op_29 AND #&BB   ];
-op![#op_25 AND &LL    ];
-op![#op_35 AND &LL,X  ];
-op![#op_2d AND &LLHH  ];
-op![#op_3d AND &LLHH,X];
-op![#op_39 AND &LLHH,Y];
-op![#op_21 AND (&LL,X)];
-op![#op_31 AND (&LL),Y];
+op![#[op_29, AM_29, IN_29] AND #&BB   ];
+op![#[op_25, AM_25, IN_25] AND &LL    ];
+op![#[op_35, AM_35, IN_35] AND &LL,X  ];
+op![#[op_2d, AM_2D, IN_2D] AND &LLHH  ];
+op![#[op_3d, AM_3D, IN_3D] AND &LLHH,X];
+op![#[op_39, AM_39, IN_39] AND &LLHH,Y];
+op![#[op_21, AM_21, IN_21] AND (&LL,X)];
+op![#[op_31, AM_31, IN_31] AND (&LL),Y];
 
-op![#op_0a ASL A      ];
-op![#op_06 ASL &LL    ];
-op![#op_16 ASL &LL,X  ];
-op![#op_0e ASL &LLHH  ];
-op![#op_1e ASL &LLHH,X];
+op![#[op_0a, AM_0A, IN_0A] ASL A      ];
+op![#[op_06, AM_06, IN_06] ASL &LL    ];
+op![#[op_16, AM_16, IN_16] ASL &LL,X  ];
+op![#[op_0e, AM_0E, IN_0E] ASL &LLHH  ];
+op![#[op_1e, AM_1E, IN_1E] ASL &LLHH,X];
 
-op![#op_90 BCC &BB    ];
+op![#[op_90, AM_90, IN_90] BCC &BB    ];
 
-op![#op_b0 BCS &BB    ];
+op![#[op_b0, AM_B0, IN_B0] BCS &BB    ];
 
-op![#op_f0 BEQ &BB    ];
+op![#[op_f0, AM_F0, IN_F0] BEQ &BB    ];
 
-op![#op_24 BIT &BB    ];
-op![#op_2c BIT &LLHH  ];
+op![#[op_24, AM_24, IN_24] BIT &BB    ];
+op![#[op_2c, AM_2C, IN_2C] BIT &LLHH  ];
 
-op![#op_30 BMI &BB    ];
+op![#[op_30, AM_30, IN_30] BMI &BB    ];
 
-op![#op_d0 BNE &BB    ];
+op![#[op_d0, AM_D0, IN_D0] BNE &BB    ];
 
-op![#op_10 BPL &BB    ];
+op![#[op_10, AM_10, IN_10] BPL &BB    ];
 
-op![#op_00 BRK        ];
+op![#[op_00, AM_00, IN_00] BRK        ];
 
-op![#op_50 BVC &BB    ];
+op![#[op_50, AM_50, IN_50] BVC &BB    ];
 
-op![#op_70 BVS &BB    ];
+op![#[op_70, AM_70, IN_70] BVS &BB    ];
 
-op![#op_18 CLC        ];
+op![#[op_18, AM_18, IN_18] CLC        ];
 
-op![#op_d8 CLD        ];
+op![#[op_d8, AM_D8, IN_D8] CLD        ];
 
-op![#op_58 CLI        ];
+op![#[op_58, AM_58, IN_58] CLI        ];
 
-op![#op_b8 CLV        ];
+op![#[op_b8, AM_B8, IN_B8] CLV        ];
 
-op![#op_c9 CMP #&BB   ];
-op![#op_c5 CMP &LL    ];
-op![#op_d5 CMP &LL,X  ];
-op![#op_cd CMP &LLHH  ];
-op![#op_dd CMP &LLHH,X];
-op![#op_d9 CMP &LLHH,Y];
-op![#op_c1 CMP (&LL,X)];
-op![#op_d1 CMP (&LL),Y];
+op![#[op_c9, AM_C9, IN_C9] CMP #&BB   ];
+op![#[op_c5, AM_C5, IN_C5] CMP &LL    ];
+op![#[op_d5, AM_D5, IN_D5] CMP &LL,X  ];
+op![#[op_cd, AM_CD, IN_CD] CMP &LLHH  ];
+op![#[op_dd, AM_DD, IN_DD] CMP &LLHH,X];
+op![#[op_d9, AM_D9, IN_D9] CMP &LLHH,Y];
+op![#[op_c1, AM_C1, IN_C1] CMP (&LL,X)];
+op![#[op_d1, AM_D1, IN_D1] CMP (&LL),Y];
 
-op![#op_e0 CPX #&BB   ];
-op![#op_e4 CPX &LL    ];
-op![#op_ec CPX &LLHH  ];
+op![#[op_e0, AM_E0, IN_E0] CPX #&BB   ];
+op![#[op_e4, AM_E4, IN_E4] CPX &LL    ];
+op![#[op_ec, AM_EC, IN_EC] CPX &LLHH  ];
 
-op![#op_c0 CPY #&BB   ];
-op![#op_c4 CPY &LL    ];
-op![#op_cc CPY &LLHH  ];
+op![#[op_c0, AM_C0, IN_C0] CPY #&BB   ];
+op![#[op_c4, AM_C4, IN_C4] CPY &LL    ];
+op![#[op_cc, AM_CC, IN_CC] CPY &LLHH  ];
 
-op![#op_c6 DEC &LL    ];
-op![#op_d6 DEC &LL,X  ];
-op![#op_ce DEC &LLHH  ];
-op![#op_de DEC &LLHH,X];
+op![#[op_c6, AM_C6, IN_C6] DEC &LL    ];
+op![#[op_d6, AM_D6, IN_D6] DEC &LL,X  ];
+op![#[op_ce, AM_CE, IN_CE] DEC &LLHH  ];
+op![#[op_de, AM_DE, IN_DE] DEC &LLHH,X];
 
-op![#op_ca DEX        ];
+op![#[op_ca, AM_CA, IN_CA] DEX        ];
 
-op![#op_88 DEY        ];
+op![#[op_88, AM_88, IN_88] DEY        ];
 
-op![#op_49 EOR #&BB   ];
-op![#op_45 EOR &LL    ];
-op![#op_55 EOR &LL,X  ];
-op![#op_4d EOR &LLHH  ];
-op![#op_5d EOR &LLHH,X];
-op![#op_59 EOR &LLHH,Y];
-op![#op_41 EOR (&LL,X)];
-op![#op_51 EOR (&LL),Y];
+op![#[op_49, AM_49, IN_49] EOR #&BB   ];
+op![#[op_45, AM_45, IN_45] EOR &LL    ];
+op![#[op_55, AM_55, IN_55] EOR &LL,X  ];
+op![#[op_4d, AM_4D, IN_4D] EOR &LLHH  ];
+op![#[op_5d, AM_5D, IN_5D] EOR &LLHH,X];
+op![#[op_59, AM_59, IN_59] EOR &LLHH,Y];
+op![#[op_41, AM_41, IN_41] EOR (&LL,X)];
+op![#[op_51, AM_51, IN_51] EOR (&LL),Y];
 
-op![#op_e6 INC &LL    ];
-op![#op_f6 INC &LL,X  ];
-op![#op_ee INC &LLHH  ];
-op![#op_fe INC &LLHH,X];
+op![#[op_e6, AM_E6, IN_E6] INC &LL    ];
+op![#[op_f6, AM_F6, IN_F6] INC &LL,X  ];
+op![#[op_ee, AM_EE, IN_EE] INC &LLHH  ];
+op![#[op_fe, AM_FE, IN_FE] INC &LLHH,X];
 
-op![#op_e8 INX        ];
+op![#[op_e8, AM_E8, IN_E8] INX        ];
 
-op![#op_c8 INY        ];
+op![#[op_c8, AM_C8, IN_C8] INY        ];
 
-op![#op_4c JMP &LLHH  ];
-op![#op_6c JMP (&LLHH)];
+op![#[op_4c, AM_4C, IN_4C] JMP &LLHH  ];
+op![#[op_6c, AM_6C, IN_6C] JMP (&LLHH)];
 
-op![#op_20 JSR &LLHH  ];
+op![#[op_20, AM_20, IN_20] JSR &LLHH  ];
 
-op![#op_a9 LDA #&BB   ];
-op![#op_a5 LDA &LL    ];
-op![#op_b5 LDA &LL,X  ];
-op![#op_ad LDA &LLHH  ];
-op![#op_bd LDA &LLHH,X];
-op![#op_b9 LDA &LLHH,Y];
-op![#op_a1 LDA (&LL,X)];
-op![#op_b1 LDA (&LL),Y];
+op![#[op_a9, AM_A9, IN_A9] LDA #&BB   ];
+op![#[op_a5, AM_A5, IN_A5] LDA &LL    ];
+op![#[op_b5, AM_B5, IN_B5] LDA &LL,X  ];
+op![#[op_ad, AM_AD, IN_AD] LDA &LLHH  ];
+op![#[op_bd, AM_BD, IN_BD] LDA &LLHH,X];
+op![#[op_b9, AM_B9, IN_B9] LDA &LLHH,Y];
+op![#[op_a1, AM_A1, IN_A1] LDA (&LL,X)];
+op![#[op_b1, AM_B1, IN_B1] LDA (&LL),Y];
 
-op![#op_a2 LDX #&BB   ];
-op![#op_a6 LDX &LL    ];
-op![#op_b6 LDX &LL,Y  ];
-op![#op_ae LDX &LLHH  ];
-op![#op_be LDX &LLHH,Y];
+op![#[op_a2, AM_A2, IN_A2] LDX #&BB   ];
+op![#[op_a6, AM_A6, IN_A6] LDX &LL    ];
+op![#[op_b6, AM_B6, IN_B6] LDX &LL,Y  ];
+op![#[op_ae, AM_AE, IN_AE] LDX &LLHH  ];
+op![#[op_be, AM_BE, IN_BE] LDX &LLHH,Y];
 
-op![#op_a0 LDY #&BB   ];
-op![#op_a4 LDY &LL    ];
-op![#op_b4 LDY &LL,X  ];
-op![#op_ac LDY &LLHH  ];
-op![#op_bc LDY &LLHH,X];
+op![#[op_a0, AM_A0, IN_A0] LDY #&BB   ];
+op![#[op_a4, AM_A4, IN_A4] LDY &LL    ];
+op![#[op_b4, AM_B4, IN_B4] LDY &LL,X  ];
+op![#[op_ac, AM_AC, IN_AC] LDY &LLHH  ];
+op![#[op_bc, AM_BC, IN_BC] LDY &LLHH,X];
 
-op![#op_4a LSR A      ];
-op![#op_46 LSR &LL    ];
-op![#op_56 LSR &LL,X  ];
-op![#op_4e LSR &LLHH  ];
-op![#op_5e LSR &LLHH,X];
+op![#[op_4a, AM_4A, IN_4A] LSR A      ];
+op![#[op_46, AM_46, IN_46] LSR &LL    ];
+op![#[op_56, AM_56, IN_56] LSR &LL,X  ];
+op![#[op_4e, AM_4E, IN_4E] LSR &LLHH  ];
+op![#[op_5e, AM_5E, IN_5E] LSR &LLHH,X];
 
-op![#op_ea NOP        ];
+op![#[op_ea, AM_EA, IN_EA] NOP        ];
 
-op![#op_09 ORA #&BB   ];
-op![#op_05 ORA &LL    ];
-op![#op_15 ORA &LL,X  ];
-op![#op_0d ORA &LLHH  ];
-op![#op_1d ORA &LLHH,X];
-op![#op_19 ORA &LLHH,Y];
-op![#op_01 ORA (&LL,X)];
-op![#op_11 ORA (&LL),Y];
+op![#[op_09, AM_09, IN_09] ORA #&BB   ];
+op![#[op_05, AM_05, IN_05] ORA &LL    ];
+op![#[op_15, AM_15, IN_15] ORA &LL,X  ];
+op![#[op_0d, AM_0D, IN_0D] ORA &LLHH  ];
+op![#[op_1d, AM_1D, IN_1D] ORA &LLHH,X];
+op![#[op_19, AM_19, IN_19] ORA &LLHH,Y];
+op![#[op_01, AM_01, IN_01] ORA (&LL,X)];
+op![#[op_11, AM_11, IN_11] ORA (&LL),Y];
 
-op![#op_48 PHA        ];
+op![#[op_48, AM_48, IN_48] PHA        ];
 
-op![#op_08 PHP        ];
+op![#[op_08, AM_08, IN_08] PHP        ];
 
-op![#op_68 PLA        ];
+op![#[op_68, AM_68, IN_68] PLA        ];
 
-op![#op_28 PLP        ];
+op![#[op_28, AM_28, IN_28] PLP        ];
 
-op![#op_2a ROL        ];
-op![#op_26 ROL &LL    ];
-op![#op_36 ROL &LL,X  ];
-op![#op_2e ROL &LLHH  ];
-op![#op_3e ROL &LLHH,X];
+op![#[op_2a, AM_2A, IN_2A] ROL        ];
+op![#[op_26, AM_26, IN_26] ROL &LL    ];
+op![#[op_36, AM_36, IN_36] ROL &LL,X  ];
+op![#[op_2e, AM_2E, IN_2E] ROL &LLHH  ];
+op![#[op_3e, AM_3E, IN_3E] ROL &LLHH,X];
 
-op![#op_6a ROR        ];
-op![#op_66 ROR &LL    ];
-op![#op_76 ROR &LL,X  ];
-op![#op_6e ROR &LLHH  ];
-op![#op_7e ROR &LLHH,X];
+op![#[op_6a, AM_6A, IN_6A] ROR        ];
+op![#[op_66, AM_66, IN_66] ROR &LL    ];
+op![#[op_76, AM_76, IN_76] ROR &LL,X  ];
+op![#[op_6e, AM_6E, IN_6E] ROR &LLHH  ];
+op![#[op_7e, AM_7E, IN_7E] ROR &LLHH,X];
 
-op![#op_40 RTI        ];
+op![#[op_40, AM_40, IN_40] RTI        ];
 
-op![#op_60 RTS        ];
+op![#[op_60, AM_60, IN_60] RTS        ];
 
-op![#op_e9 SBC #&BB   ];
-op![#op_e5 SBC &LL    ];
-op![#op_f5 SBC &LL,X  ];
-op![#op_ed SBC &LLHH  ];
-op![#op_fd SBC &LLHH,X];
-op![#op_f9 SBC &LLHH,Y];
-op![#op_e1 SBC (&LL,X)];
-op![#op_f1 SBC (&LL),Y];
+op![#[op_e9, AM_E9, IN_E9] SBC #&BB   ];
+op![#[op_e5, AM_E5, IN_E5] SBC &LL    ];
+op![#[op_f5, AM_F5, IN_F5] SBC &LL,X  ];
+op![#[op_ed, AM_ED, IN_ED] SBC &LLHH  ];
+op![#[op_fd, AM_FD, IN_FD] SBC &LLHH,X];
+op![#[op_f9, AM_F9, IN_F9] SBC &LLHH,Y];
+op![#[op_e1, AM_E1, IN_E1] SBC (&LL,X)];
+op![#[op_f1, AM_F1, IN_F1] SBC (&LL),Y];
 
-op![#op_38 SEC        ];
+op![#[op_38, AM_38, IN_38] SEC        ];
 
-op![#op_f8 SED        ];
+op![#[op_f8, AM_F8, IN_F8] SED        ];
 
-op![#op_78 SEI        ];
+op![#[op_78, AM_78, IN_78] SEI        ];
 
-op![#op_85 STA &LL    ];
-op![#op_95 STA &LL,X  ];
-op![#op_8d STA &LLHH  ];
-op![#op_9d STA &LLHH,X];
-op![#op_99 STA &LLHH,Y];
-op![#op_81 STA (&LL,X)];
-op![#op_91 STA (&LL),Y];
+op![#[op_85, AM_85, IN_85] STA &LL    ];
+op![#[op_95, AM_95, IN_95] STA &LL,X  ];
+op![#[op_8d, AM_8D, IN_8D] STA &LLHH  ];
+op![#[op_9d, AM_9D, IN_9D] STA &LLHH,X];
+op![#[op_99, AM_99, IN_99] STA &LLHH,Y];
+op![#[op_81, AM_81, IN_81] STA (&LL,X)];
+op![#[op_91, AM_91, IN_91] STA (&LL),Y];
 
-op![#op_86 STX &LL    ];
-op![#op_96 STX &LL,Y  ];
-op![#op_8e STX &LLHH,Y];
+op![#[op_86, AM_86, IN_86] STX &LL    ];
+op![#[op_96, AM_96, IN_96] STX &LL,Y  ];
+op![#[op_8e, AM_8E, IN_8E] STX &LLHH,Y];
 
-op![#op_84 STY &LL    ];
-op![#op_94 STY &LL,X  ];
-op![#op_8c STY &LLHH,X];
+op![#[op_84, AM_84, IN_84] STY &LL    ];
+op![#[op_94, AM_94, IN_94] STY &LL,X  ];
+op![#[op_8c, AM_8C, IN_8C] STY &LLHH,X];
 
-op![#op_aa TAX        ];
+op![#[op_aa, AM_AA, IN_AA] TAX        ];
 
-op![#op_a8 TAY        ];
+op![#[op_a8, AM_A8, IN_A8] TAY        ];
 
-op![#op_ba TSX        ];
+op![#[op_ba, AM_BA, IN_BA] TSX        ];
 
-op![#op_8a TXA        ];
+op![#[op_8a, AM_8A, IN_8A] TXA        ];
 
-op![#op_9a TXS        ];
+op![#[op_9a, AM_9A, IN_9A] TXS        ];
 
-op![#op_98 TYA        ];
+op![#[op_98, AM_98, IN_98] TYA        ];
 
 // Illegal 
 
 // JAMS 02, 12, 22, 32, 42, 52, 62, 72, 92, B2, D2, F2
-op![#op_02 JAM        ];
-op![#op_12 JAM        ];
-op![#op_22 JAM        ];
-op![#op_32 JAM        ];
-op![#op_42 JAM        ];
-op![#op_52 JAM        ];
-op![#op_62 JAM        ];
-op![#op_72 JAM        ];
-op![#op_92 JAM        ];
-op![#op_b2 JAM        ];
-op![#op_d2 JAM        ];
-op![#op_f2 JAM        ];
+op![#[op_02, AM_02, IN_02] JAM        ];
+op![#[op_12, AM_12, IN_12] JAM        ];
+op![#[op_22, AM_22, IN_22] JAM        ];
+op![#[op_32, AM_32, IN_32] JAM        ];
+op![#[op_42, AM_42, IN_42] JAM        ];
+op![#[op_52, AM_52, IN_52] JAM        ];
+op![#[op_62, AM_62, IN_62] JAM        ];
+op![#[op_72, AM_72, IN_72] JAM        ];
+op![#[op_92, AM_92, IN_92] JAM        ];
+op![#[op_b2, AM_B2, IN_B2] JAM        ];
+op![#[op_d2, AM_D2, IN_D2] JAM        ];
+op![#[op_f2, AM_F2, IN_F2] JAM        ];
 
 //#[cfg(test)]
 // mod test {
