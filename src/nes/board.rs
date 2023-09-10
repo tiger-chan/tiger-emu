@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc, ops::AddAssign};
 
 use egui::RichText;
 
@@ -78,6 +78,36 @@ impl Bus for BoardBus {
 
     fn write(&mut self, addr: u16, data: u8) {
         self.ram.borrow_mut()[addr as usize] = data;
+    }
+}
+
+pub struct ClockBusContext<'a> {
+    source: &'a mut dyn Bus,
+	pub rw_count: RefCell<u8>,
+}
+
+impl<'a> ClockBusContext<'a> {
+    pub fn new(bus: &'a mut dyn Bus) -> Self {
+        Self {
+            source: bus,
+			rw_count: RefCell::new(0),
+        }
+    }
+}
+
+impl Bus for ClockBusContext<'_> {
+    fn read(&self, addr: u16) -> u8 {
+		self.rw_count.borrow_mut().add_assign(1);
+        self.source.read(addr)
+    }
+
+    fn read_only(&self, addr: u16) -> u8 {
+        self.source.read_only(addr)
+    }
+
+    fn write(&mut self, addr: u16, data: u8) {
+		self.rw_count.borrow_mut().add_assign(1);
+        self.source.write(addr, data);
     }
 }
 
@@ -171,11 +201,11 @@ impl CpuDisplay for Board {
 
     fn step(&mut self) {
         let mut cpu = self.cpu.borrow_mut();
-        while cpu.state.cc != 0 {
+        while cpu.cc != 0 {
             cpu.clock(&mut self.bus);
         }
         cpu.clock(&mut self.bus);
-        while cpu.state.cc != 0 {
+        while cpu.cc != 0 {
             cpu.clock(&mut self.bus);
         }
     }

@@ -7,32 +7,15 @@ use self::address_mode::AddrMode;
 
 use super::board::{PS, RES_LO, RES_HI, IRQ_LO, IRQ_HI, NMI_LO, NMI_HI};
 use crate::gui::{CpuDisplay, CURSOR, DIAGNOSTIC_FONT, DISABLED, ENABLED};
+use crate::nes::board::ClockBusContext;
 use crate::nes::cpu6502::registers::StatusReg;
 use crate::{bus::Bus, cpu::CPU};
 use std::ops::Range;
 
 use egui::RichText;
 use log::debug;
-use opcode::{Operation, OPERATIONS, ADDER_MODE, INSTRUCTION_TYPE, OPER};
+use opcode::{ ADDER_MODE, INSTRUCTION_TYPE, OPER };
 use registers::Registers;
-
-#[derive(Default)]
-pub(super) struct State {
-    // Represents the working input value to the ALU
-    pub fetched: u8,
-    // All used memory addresses end up in here
-    pub addr_abs: u16,
-    // Represents absolute address following a branch
-    pub addr_rel: u16,
-    // Is the instruction byte
-    pub opcode: u8,
-    // A global accumulation of the number of clocks
-    pub clock_count: u32,
-    // Current remaining cycles
-    pub cc: u8,
-    // The current operation value
-    pub op: Operation,
-}
 
 struct Assembly {
     lines: Vec<String>,
@@ -95,7 +78,10 @@ impl Assembly {
 
 pub struct Cpu6502 {
     pub(super) reg: Registers,
-    pub(super) state: State,
+	/// Clock Count
+	pub(crate) cc: u8,
+	// Total Clock Count
+	pub(crate) tcc: u8,
     asm: Assembly,
 }
 
@@ -103,8 +89,9 @@ impl Cpu6502 {
     pub fn new() -> Self {
         Self {
             reg: Registers::default(),
-            state: State::default(),
             asm: Assembly::new(),
+			cc: 0,
+			tcc: 0,
         }
     }
 
@@ -225,42 +212,41 @@ impl Cpu6502 {
 
 impl CPU for Cpu6502 {
     fn clock(&mut self, bus: &mut dyn Bus) {
+		let mut bus = ClockBusContext::new(bus);
 		log::trace!("clock");
-        if self.state.cc == 0 {
-			let pc = self.reg.pc;
-            self.state.opcode = bus.read(self.reg.pc);
+        if self.cc == 0 {
+			let mut reg = &mut self.reg;
+			let opc = bus.read(reg.pc) as usize;
+			reg.pc += 1;
+			
+			let am = ADDER_MODE[opc];
+			let op = INSTRUCTION_TYPE[opc];
+			let oper = OPER[opc];
 
-            self.reg.p.set(StatusReg::U, true);
-            self.reg.pc += 1;
+			reg.p.set(StatusReg::U, true);
+			oper(reg, &mut bus);
 
-            self.state.op = OPERATIONS[self.state.opcode as usize].into();
-            self.state.cc = self.state.op.cc;
+			reg.p.set(StatusReg::U, true);
 
-            let am_additional_cc = (self.state.op.am_fn)(self, bus);
-            let op_additional_cc = (self.state.op.op_fn)(self, bus);
-
-            self.state.cc += am_additional_cc & op_additional_cc;
-
-			self.reg.p.set(StatusReg::U, true);
-
+			self.cc = *bus.rw_count.borrow();
 			{
 				let f = |f, i, e| {
-					match self.reg.p.get(f) == 1 {
+					match reg.p.get(f) == 1 {
 						true => i,
 						false => e
 					}
 				};
 
-				debug!("{:>010}:00 {} ({}) PC:{:>04X} XXX AC:{:>02X} X:{:>02X} Y:{:>02X} {:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?} SP:{:>02X}",
-				self.state.clock_count, self.state.op.op, self.state.op.am, pc, self.reg.ac, self.reg.x, self.reg.y,
-				f(StatusReg::N, 'N', '.'), f(StatusReg::V, 'V', '.'),	f(StatusReg::U, '-', '.'),	
-				f(StatusReg::B, 'B', '.'), f(StatusReg::D, 'D', '.'),	f(StatusReg::I, 'I', '.'),	
-				f(StatusReg::Z, 'Z', '.'),	f(StatusReg::C, 'C', '.'), self.reg.sp);
+				debug!("{:>010}:{:>02X} {} ({}) PC:{:>04X} XXX AC:{:>02X} X:{:>02X} Y:{:>02X} {:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?} SP:{:>02X}",
+					self.cc, opc, op, am, reg.pc, reg.ac, reg.x, reg.y,
+					f(StatusReg::N, 'N', '.'), f(StatusReg::V, 'V', '.'),	f(StatusReg::U, '-', '.'),	
+					f(StatusReg::B, 'B', '.'), f(StatusReg::D, 'D', '.'),	f(StatusReg::I, 'I', '.'),	
+					f(StatusReg::Z, 'Z', '.'),	f(StatusReg::C, 'C', '.'), reg.sp);
 			}
         }
 
-        self.state.clock_count += 1;
-        self.state.cc -= 1;
+        self.tcc += 1;
+        self.cc -= 1;
     }
 
 	/// Start/Reset Operations
@@ -286,11 +272,7 @@ impl CPU for Cpu6502 {
         self.reg.sp = 0xFD;
         self.reg.p = StatusReg::U;
 
-        self.state.fetched = 0;
-        self.state.addr_abs = 0;
-        self.state.addr_rel = 0;
-
-        self.state.cc = 8;
+		self.cc = 8;
     }
 
 	/// A hardware interrupt (maskable IRQ and non-maskable NMI), will cause
@@ -344,7 +326,7 @@ impl CPU for Cpu6502 {
             self.reg.sp = sp as u8;
             self.reg.pc = pc;
 
-            self.state.cc = 7;
+            self.cc = 7;
         }
     }
 
@@ -398,7 +380,7 @@ impl CPU for Cpu6502 {
         self.reg.sp = sp as u8;
         self.reg.pc = pc;
 
-        self.state.cc = 8;
+        self.cc = 8;
     }
 }
 
