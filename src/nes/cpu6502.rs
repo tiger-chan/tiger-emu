@@ -81,7 +81,7 @@ pub struct Cpu6502 {
 	/// Clock Count
 	pub(crate) cc: u8,
 	// Total Clock Count
-	pub(crate) tcc: u8,
+	pub(crate) tcc: u64,
     asm: Assembly,
 }
 
@@ -109,46 +109,41 @@ impl Cpu6502 {
 			let am = ADDER_MODE[opcode];
 
             let line = match am {
-                AddrMode::A | AddrMode::IMP => format!("${:>04X}: {:?} {{{:?}}}", ln_addr, op, am),
-                AddrMode::IMM | AddrMode::ZPG => {
+                AddrMode::A => {
+					format!("${:>04X}: {:?} A            {{{:?}}}", ln_addr, op, am)
+				},
+                AddrMode::IMP => {
+					format!("${:>04X}: {:?}              {{{:?}}}", ln_addr, op, am)
+				},
+                AddrMode::IMM => {
                     let lo = bus.read_only(addr as u16);
                     addr += 1;
-                    format!(
-                        "${:>04X}: {:?} #${:>02X} {{{:?}}}",
-                        ln_addr, op, lo, am
-                    )
+                    format!("${:>04X}: {:?} #${:>02X}         {{{:?}}}", ln_addr, op, lo, am)
+                }
+                AddrMode::ZPG => {
+                    let lo = bus.read_only(addr as u16);
+                    addr += 1;
+                    format!("${:>04X}: {:?} ${:>02X}          {{{:?}}}", ln_addr, op, lo, am)
                 }
                 AddrMode::ZPX => {
                     let lo = bus.read_only(addr as u16);
                     addr += 1;
-                    format!(
-                        "${:>04X}: {:?} #${:>02X}, X {{{:?}}}",
-                        ln_addr, op, lo, am
-                    )
+                    format!("${:>04X}: {:?} ${:>02X},X         {{{:?}}}", ln_addr, op, lo, am)
                 }
                 AddrMode::ZPY => {
                     let lo = bus.read_only(addr as u16);
                     addr += 1;
-                    format!(
-                        "${:>04X}: {:?} #${:>02X}, Y {{{:?}}}",
-                        ln_addr, op, lo, am
-                    )
+                    format!("${:>04X}: {:?} ${:>02X},Y         {{{:?}}}", ln_addr, op, lo, am)
                 }
                 AddrMode::IZX => {
                     let lo = bus.read_only(addr as u16);
                     addr += 1;
-                    format!(
-                        "${:>04X}: {:?} (${:>02X}, X) {{{:?}}}",
-                        ln_addr, op, lo, am
-                    )
+                    format!("${:>04X}: {:?} (${:>02X},X) {{{:?}}}", ln_addr, op, lo, am)
                 }
                 AddrMode::IZY => {
                     let lo = bus.read_only(addr as u16);
                     addr += 1;
-                    format!(
-                        "${:>04X}: {:?} (${:>02X}, Y) {{{:?}}}",
-                        ln_addr, op, lo, am
-                    )
+					format!("${:>04X}: {:?} (${:>02X}),Y {{{:?}}}", ln_addr, op, lo, am)
                 }
                 AddrMode::ABS => {
                     let lo = bus.read_only(addr as u16) as u16;
@@ -156,10 +151,7 @@ impl Cpu6502 {
                     let hi = (bus.read_only(addr as u16) as u16) << 8;
                     addr += 1;
                     let val = hi | lo;
-                    format!(
-                        "${:>04X}: {:?} ${:>04X} {{{:?}}}",
-                        ln_addr, op, val, am
-                    )
+                    format!("${:>04X}: {:?} ${:>04X}        {{{:?}}}", ln_addr, op, val, am)
                 }
                 AddrMode::ABX => {
                     let lo = bus.read_only(addr as u16) as u16;
@@ -168,7 +160,7 @@ impl Cpu6502 {
                     addr += 1;
                     let val = hi | lo;
                     format!(
-                        "${:>04X}: {:?} ${:>04X}, X {{{:?}}}",
+                        "${:>04X}: {:?} ${:>04X},X       {{{:?}}}",
                         ln_addr, op, val, am
                     )
                 }
@@ -179,7 +171,7 @@ impl Cpu6502 {
                     addr += 1;
                     let val = hi | lo;
                     format!(
-                        "${:>04X}: {:?} ${:>04X}, Y {{{:?}}}",
+                        "${:>04X}: {:?} ${:>04X},Y       {{{:?}}}",
                         ln_addr, op, val, am
                     )
                 }
@@ -190,7 +182,7 @@ impl Cpu6502 {
                     addr += 1;
                     let val = hi | lo;
                     format!(
-                        "${:>04X}: {:?} (${:>04X}) {{{:?}}}",
+                        "${:>04X}: {:?} (${:>04X})       {{{:?}}}",
                         ln_addr, op, val, am
                     )
                 }
@@ -199,7 +191,7 @@ impl Cpu6502 {
                     addr += 1;
                     let rel = addr as u16 + lo;
                     format!(
-                        "${:>04X}: {:?} ${:>02X} [${:>04X}] {{{:?}}}",
+                        "${:>04X}: {:?} ${:>02X} [${:>04X}]  {{{:?}}}",
                         ln_addr, op, lo, rel, am
                     )
                 }
@@ -217,18 +209,11 @@ impl CPU for Cpu6502 {
         if self.cc == 0 {
 			let mut reg = &mut self.reg;
 			let opc = bus.read(reg.pc) as usize;
-			reg.pc += 1;
-			
+
 			let am = ADDER_MODE[opc];
 			let op = INSTRUCTION_TYPE[opc];
 			let oper = OPER[opc];
 
-			reg.p.set(StatusReg::U, true);
-			oper(reg, &mut bus);
-
-			reg.p.set(StatusReg::U, true);
-
-			self.cc = *bus.rw_count.borrow();
 			{
 				let f = |f, i, e| {
 					match reg.p.get(f) == 1 {
@@ -238,10 +223,27 @@ impl CPU for Cpu6502 {
 				};
 
 				debug!("{:>010}:{:>02X} {} ({}) PC:{:>04X} XXX AC:{:>02X} X:{:>02X} Y:{:>02X} {:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?} SP:{:>02X}",
-					self.cc, opc, op, am, reg.pc, reg.ac, reg.x, reg.y,
+					self.tcc, opc, op, am, reg.pc, reg.ac, reg.x, reg.y,
 					f(StatusReg::N, 'N', '.'), f(StatusReg::V, 'V', '.'),	f(StatusReg::U, '-', '.'),	
 					f(StatusReg::B, 'B', '.'), f(StatusReg::D, 'D', '.'),	f(StatusReg::I, 'I', '.'),	
 					f(StatusReg::Z, 'Z', '.'),	f(StatusReg::C, 'C', '.'), reg.sp);
+			}
+
+			reg.pc += 1;
+			
+
+			reg.p.set(StatusReg::U, true);
+			oper(reg, &mut bus);
+
+			reg.p.set(StatusReg::U, true);
+
+			// Minimum amount of cycles for a command is two once for the
+			// initial reading of the op code and another dead read (likely)
+			// to prefech the next value
+			self.cc = *bus.rw_count.borrow();
+
+			{
+				log::trace!("{:>010}:{:>02X} CC:{:>02X}", self.tcc, opc, self.cc);
 			}
         }
 

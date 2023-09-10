@@ -7,7 +7,7 @@ use crate::{
     bus::Bus,
     nes::{Addr, HI_MASK, IRQ_HI, IRQ_LO, LO_MASK, PS},
 };
-use log::debug;
+use log::trace;
 
 pub type Instruc = fn (&mut Registers, &mut dyn Bus);
 
@@ -108,7 +108,7 @@ macro_rules! am {
 		// an implied instruction. It is still a single-byte instruction and no
 		// operand is provided in machine language.)
 		{
-            debug!("A	Accumulator	OPC A	operand is AC (implied single byte instruction)");
+            trace!("A	Accumulator	OPC A	operand is AC (implied single byte instruction)");
             let &mut _ = $reg;
             let &mut _ = $bus;
             0 as Addr
@@ -134,12 +134,10 @@ macro_rules! am {
 		// JSR to provide the address for the next instruction to continue with
 		// in the control flow.
         {
-            debug!("abs	absolute	OPC $LLHH	operand is address $HHLL *");
+            trace!("abs	absolute	OPC $LLHH	operand is address $HHLL *");
             let addr: Addr = $bus.read($reg.pc) as Addr;
-            // Add cycle
             $reg.pc += 1;
             let addr = addr | ($bus.read($reg.pc) as Addr) << 8;
-            // Add cycle
             $reg.pc += 1;
             addr
         }
@@ -171,12 +169,10 @@ macro_rules! am {
 		// operation to increment the high-byte takes another CPU cycle. This
 		// is also known as a crossing of page boundaries.
         {
-            debug!("abs,X	absolute, X-indexed	OPC $LLHH,X	operand is address; effective address is address incremented by X with carry **");
+            trace!("abs,X	absolute, X-indexed	OPC $LLHH,X	operand is address; effective address is address incremented by X with carry **");
             let lo = $bus.read($reg.pc) as Addr;
-            // Add cycle
             $reg.pc += 1;
             let hi = ($bus.read($reg.pc) as Addr) << 8;
-            // Add cycle
             $reg.pc += 1;
             let addr = lo | hi;
             let addr = addr + $reg.x as Addr;
@@ -217,18 +213,16 @@ macro_rules! am {
 		// operation to increment the high-byte takes another CPU cycle. This
 		// is also known as a crossing of page boundaries.
         {
-            debug!("abs,X	absolute, X-indexed	OPC $LLHH,X	operand is address; effective address is address incremented by X with carry **");
+            trace!("abs,X	absolute, X-indexed	OPC $LLHH,X	operand is address; effective address is address incremented by X with carry **");
             let lo = $bus.read($reg.pc) as Addr;
-            // Add cycle
             $reg.pc += 1;
             let hi = ($bus.read($reg.pc) as Addr) << 8;
-            // Add cycle
             $reg.pc += 1;
             let addr = lo | hi;
             let addr = addr + $reg.y as Addr;
 
             if addr & HI_MASK != hi {
-                // Add cycle
+                $bus.read(0x0000); // Add cycle
                 addr
             }
             else {
@@ -250,7 +244,7 @@ macro_rules! am {
 		// following immediately after the instruction code. In assembler, the
 		// mode is usually indicated by a "#" prefix adjacent to the operand.
         {
-            debug!("{}", "#	immediate	OPC #$BB	operand is byte BB");
+            trace!("{}", "#	immediate	OPC #$BB	operand is byte BB");
             let _ = $bus;
             let addr: Addr = $reg.pc;
             $reg.pc += 1;
@@ -281,7 +275,7 @@ macro_rules! am {
 		// an implied instruction. It is still a single-byte instruction and no
 		// operand is provided in machine language.)
         {
-            debug!("impl	implied	OPC	operand implied");
+            trace!("impl	implied	OPC	operand implied");
             let &mut _ = $reg;
             let &mut _ = $bus;
             0 as Addr
@@ -308,28 +302,22 @@ macro_rules! am {
 		// Generally, indirect addressing is denoted by putting the lookup
 		// address in parenthesis.
         {
-            debug!("ind	indirect	OPC ($LLHH)	operand is address; effective address is contents of word at address: C.w($HHLL)");
+            trace!("ind	indirect	OPC ($LLHH)	operand is address; effective address is contents of word at address: C.w($HHLL)");
             let lo = $bus.read($reg.pc) as Addr;
-            // Add cycle
             $reg.pc += 1;
             let hi = ($bus.read($reg.pc) as Addr) << 8;
-            // Add cycle
             $reg.pc += 1;
             let ptr = lo | hi;
 
             if lo == LO_MASK {
                 // Simulate page boundary hardware bug
                 let lo = $bus.read(ptr + 0x0000) as Addr;
-                // Add cycle
                 let hi = ($bus.read(ptr & 0xFF00) as Addr) << 8;
-                // Add cycle
                 lo | hi
             }
             else {
                 let lo = $bus.read(ptr + 0x0000) as Addr;
-                // Add cycle
                 let hi = ($bus.read(ptr + 0x0001) as Addr) << 8;
-                // Add cycle
                 lo | hi
             }
         }
@@ -366,18 +354,14 @@ macro_rules! am {
 		// same operation to various addresses, which we have stored as a table
 		// in the zero-page.
         {
-            debug!("X,ind	X-indexed, indirect	OPC ($LL,X)	operand is zeropage address; effective address is word in (LL + X, LL + X + 1), inc. without carry: C.w($00LL + X)");
+            trace!("X,ind	X-indexed, indirect	OPC ($LL,X)	operand is zeropage address; effective address is word in (LL + X, LL + X + 1), inc. without carry: C.w($00LL + X)");
             let lo = $bus.read($reg.pc) as Addr;
-            // Add cycle
             $reg.pc += 1;
             let x = $reg.x as Addr;
             let ptr = lo + x;
 
             let lo = $bus.read(ptr + 0) as Addr;
-            // Add cycle
             let hi = ($bus.read(ptr + 1) as Addr) << 8;
-            // Add cycle
-
             lo | hi
         }
 	};
@@ -406,23 +390,20 @@ macro_rules! am {
 		// on varying bases addresses or whenever we want to loop over tables,
 		// the base address of which we have stored in the zero-page.
         {
-            debug!("ind,Y	indirect, Y-indexed	OPC ($LL),Y	operand is zeropage address; effective address is word in (LL, LL + 1) incremented by Y with carry: C.w($00LL) + Y");
+            trace!("ind,Y	indirect, Y-indexed	OPC ($LL),Y	operand is zeropage address; effective address is word in (LL, LL + 1) incremented by Y with carry: C.w($00LL) + Y");
             let lo = $bus.read($reg.pc) as Addr;
-            // Add cycle
             $reg.pc += 1;
             let ptr = lo;
 
             let lo = $bus.read(ptr + 0) as Addr;
-            // Add cycle
             let hi = ($bus.read(ptr + 1) as Addr) << 8;
-            // Add cycle
 
             let addr = lo | hi;
             let y = $reg.y as Addr;
             let addr = addr + y;
 
             if addr & HI_MASK != hi {
-                // Extra cycle to get the new page
+				$bus.read(0x0000); // Add cycle
                 addr
             }
             else {
@@ -461,13 +442,11 @@ macro_rules! am {
 		// is true). If a branch is taken and the target is on a different
 		// page, this adds another CPU cycle (4 in total).
 		{
-            debug!("rel	relative	OPC $BB	branch target is PC + signed offset BB ***");
+            trace!("rel	relative	OPC $BB	branch target is PC + signed offset BB ***");
             let addr = $bus.read($reg.pc) as Addr;
-            // Add cycle
             $reg.pc += 1;
-            if addr & 0x0080 == 0x0080 {
-                let addr = addr | HI_MASK;
-                addr
+            if is_neg(addr) {
+                addr | HI_MASK
             }
             else {
                 addr
@@ -495,9 +474,8 @@ macro_rules! am {
 		// (one less than absolute mode) and take one CPU cycle less to
 		// execute, as there is one byte less to fetch.
         {
-            debug!("zpg	zeropage	OPC $LL	operand is zeropage address (hi-byte is zero, address = $00LL)");
+            trace!("zpg	zeropage	OPC $LL	operand is zeropage address (hi-byte is zero, address = $00LL)");
             let addr: Addr = $bus.read($reg.pc) as Addr;
-            // Add cycle
             $reg.pc += 1;
             addr
         }
@@ -524,9 +502,8 @@ macro_rules! am {
 		// effective address, which will simply wrap around in the zero-page,
 		// and there is no penalty for crossing any page boundaries.
         {
-            debug!("zpg,X	zeropage, X-indexed	OPC $LL,X	operand is zeropage address; effective address is address incremented by X without carry **");
+            trace!("zpg,X	zeropage, X-indexed	OPC $LL,X	operand is zeropage address; effective address is address incremented by X without carry **");
             let addr: Addr = $bus.read($reg.pc) as Addr;
-            // Add cycle
             let addr =  addr + $reg.x as Addr;
             let addr = addr & LO_MASK;
             $reg.pc += 1;
@@ -555,9 +532,8 @@ macro_rules! am {
 		// effective address, which will simply wrap around in the zero-page,
 		// and there is no penalty for crossing any page boundaries.
         {
-            debug!("zpg,Y	zeropage, Y-indexed	OPC $LL,Y	operand is zeropage address; effective address is address incremented by Y without carry **");
+            trace!("zpg,Y	zeropage, Y-indexed	OPC $LL,Y	operand is zeropage address; effective address is address incremented by Y without carry **");
             let addr: Addr = $bus.read($reg.pc) as Addr;
-            // Add cycle
             let addr =  addr + $reg.y as Addr;
             let addr = addr & LO_MASK;
             $reg.pc += 1;
@@ -924,12 +900,10 @@ macro_rules! op {
 		/// absolute,Y   ADC oper,Y      79     3        4*
 		/// (indirect,X) ADC (oper,X)    61     2        6
 		/// (indirect),Y ADC (oper),Y    71     2        5*
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
 
             let data = bus.read(addr) as u16;
-            // Add cycle
             let ac = reg.ac as u16;
 
             let tmp = data + ac + reg.p.get(StatusReg::C);
@@ -957,13 +931,11 @@ macro_rules! op {
 		/// absolute,Y   AND oper,Y      39      3       4*
 		/// (indirect,X) AND (oper,X)    21      2       6
 		/// (indirect),Y AND (oper),Y    31      2       5*
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
 
             let mut p = reg.p;
             let data = bus.read(addr);
-            // Add cycle
             let ac = reg.ac;
             let tmp = data & ac;
             p.set(StatusReg::Z, is_zero(tmp))
@@ -985,12 +957,10 @@ macro_rules! op {
 		/// zeropage,X   ASL oper,X      16      2       6
 		/// absolute     ASL oper        0E      3       6
 		/// absolute,X   ASL oper,X      1E      3       7
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
 
             let data = bus.read(addr) as u16;
-            // Add cycle
             let tmp = data << 1;
             let mut p = reg.p;
 
@@ -1016,12 +986,11 @@ macro_rules! op {
 		///                                   -  -  -  -  -  -
 		/// addressing	assembler   	opc 	bytes	cycles
 		/// relative     BCC oper        90      2       2**
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
+			let addr = am!(reg, bus, $($rest)*);
             if reg.p.get(StatusReg::C) == 0 {
                 bus.read(0x0000); // Add cycle
 
-                let addr = am!(reg, bus, $($rest)*);
                 let pc = reg.pc;
                 let addr = pc.wrapping_add(addr);
 
@@ -1042,12 +1011,11 @@ macro_rules! op {
 		///                                         - - - - - -
 		/// addressing	assembler   	opc 	bytes	cycles
 		/// relative     BCS oper        B0      2       2**
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
+			let addr = am!(reg, bus, $($rest)*);
             if reg.p.get(StatusReg::C) == 1 {
                 bus.read(0x0000); // Add cycle
 
-                let addr = am!(reg, bus, $($rest)*);
                 let pc = reg.pc;
                 let addr = pc.wrapping_add(addr);
 
@@ -1068,12 +1036,11 @@ macro_rules! op {
 		///                                   -  -  -  -  -  -
 		/// addressing	assembler   	opc 	bytes	cycles
 		/// relative     BEQ oper        F0      2       2**
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
+			let addr = am!(reg, bus, $($rest)*);
             if reg.p.get(StatusReg::Z) == 1 {
                 bus.read(0x0000); // Add cycle
 
-                let addr = am!(reg, bus, $($rest)*);
                 let pc = reg.pc;
                 let addr = pc.wrapping_add(addr);
 
@@ -1101,11 +1068,9 @@ macro_rules! op {
 		/// addressing	assembler   	opc 	bytes	cycles
 		/// zeropage     BIT oper        24      2       3
 		/// absolute     BIT oper        2C      3       4
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
             let data = bus.read(addr);
-            // Add cycles
             let tmp = data & reg.ac;
 
             let mut p = reg.p;
@@ -1124,12 +1089,11 @@ macro_rules! op {
 		///                                   -  -  -  -  -  -
 		/// addressing	assembler   	opc 	bytes	cycles
 		/// relative     BMI oper        30      2       2**
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
+			let addr = am!(reg, bus, $($rest)*);
             if reg.p.get(StatusReg::N) == 1 {
                 bus.read(0x0000); // Add cycle
 
-                let addr = am!(reg, bus, $($rest)*);
                 let pc = reg.pc;
                 let addr = pc.wrapping_add(addr);
 
@@ -1150,12 +1114,11 @@ macro_rules! op {
 		///                                   -  -  -  -  -  -
 		/// addressing	assembler   	opc 	bytes	cycles
 		/// relative    BNE oper        D0      2       2**
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
+			let addr = am!(reg, bus, $($rest)*);
             if reg.p.get(StatusReg::Z) == 0 {
 				bus.read(0x0000); // Add cycle
 
-                let addr = am!(reg, bus, $($rest)*);
                 let pc = reg.pc;
                 let addr = pc.wrapping_add(addr);
 
@@ -1176,12 +1139,11 @@ macro_rules! op {
 		///                                   -  -  -  -  -  -
 		/// addressing	assembler   	opc 	bytes	cycles
 		/// relative     BPL oper        10      2       2**
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
+			let addr = am!(reg, bus, $($rest)*);
             if reg.p.get(StatusReg::N) == 0 {
                 bus.read(0x0000); // Add cycle
 
-                let addr = am!(reg, bus, $($rest)*);
                 let pc = reg.pc;
                 let addr = pc.wrapping_add(addr);
 
@@ -1211,7 +1173,6 @@ macro_rules! op {
 		/// push PC+2, push SR                -  -  -  1  -  -
 		/// addressing	assembler   	opc 	bytes	cycles
 		/// implied      BRK             00      1       7
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			reg.pc += 1;
             let mut p = reg.p;
@@ -1220,24 +1181,19 @@ macro_rules! op {
             let mut sp = reg.sp as Addr;
             let pc = reg.pc;
             bus.write(PS + sp, (pc >> 8) as u8);
-            // Add cycle
             sp -= 1;
 
             bus.write(PS + sp, pc as u8);
-            // Add cycle
             sp -= 1;
 
             p.set(StatusReg::B, true);
             bus.write(PS + sp, p.into());
-            // Add cycle
             p.set(StatusReg::B, false);
 
             reg.p = p;
             reg.sp = sp as u8;
             let lo = bus.read(IRQ_LO) as Addr;
-            // Add cycles
             let hi = (bus.read(IRQ_HI) as Addr) << 8;
-            // Add cycles
             reg.pc = lo | hi;
 		}
 	};
@@ -1250,12 +1206,11 @@ macro_rules! op {
 		///                                   -  -  -  -  -  -
 		/// addressing	assembler   	opc 	bytes	cycles
 		/// relative     BVC oper        50      2       2**
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
+			let addr = am!(reg, bus, $($rest)*);
             if reg.p.get(StatusReg::V) == 0 {
                 bus.read(0x0000); // Add cycle
 
-                let addr = am!(reg, bus, $($rest)*);
                 let pc = reg.pc;
                 let addr = pc.wrapping_add(addr);
 
@@ -1276,12 +1231,11 @@ macro_rules! op {
 		///                                   -  -  -  -  -  -
 		/// addressing	assembler   	opc 	bytes	cycles
 		/// relative     BVS oper        70      2       2**
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
+			let addr = am!(reg, bus, $($rest)*);
             if reg.p.get(StatusReg::V) == 1 {
                 bus.read(0x0000); // Add cycle
 
-                let addr = am!(reg, bus, $($rest)*);
                 let pc = reg.pc;
                 let addr = pc.wrapping_add(addr);
 
@@ -1302,7 +1256,6 @@ macro_rules! op {
 		//                                   -  -  0  -  -  -
 		// addressing	assembler   	opc 	bytes	cycles
 		// implied      CLC             18      1       2
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let _ = am!(reg, bus, $($rest)*);
             reg.p.set(StatusReg::C, false);
@@ -1317,7 +1270,6 @@ macro_rules! op {
 		///                                   -  -  -  -  0  -
 		/// addressing	assembler   	opc 	bytes	cycles
 		/// implied      CLD             D8      1       2
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let _ = am!(reg, bus, $($rest)*);
             reg.p.set(StatusReg::D, false);
@@ -1332,7 +1284,6 @@ macro_rules! op {
 		///                                   -  -  -  0  -  -
 		/// addressing	assembler   	opc 	bytes	cycles
 		/// implied      CLI             58      1       2
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let _ = am!(reg, bus, $($rest)*);
             reg.p.set(StatusReg::I, false);
@@ -1347,7 +1298,6 @@ macro_rules! op {
 		///                                   -  -  -  -  -  0
 		/// addressing	assembler   	opc 	bytes	cycles
 		/// implied      CLV             B8      1       2
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let _ = am!(reg, bus, $($rest)*);
             reg.p.set(StatusReg::V, false);
@@ -1369,11 +1319,9 @@ macro_rules! op {
 		/// absolute,Y   CMP oper,Y      D9      3       4*
 		/// (indirect,X) CMP (oper,X)    C1      2       6
 		/// (indirect),Y CMP (oper),Y    D1      2       5*
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
             let data = bus.read(addr);
-            // Add cycle
             let ac = reg.ac;
             let tmp = ac as u16 - data as u16;
 
@@ -1393,11 +1341,9 @@ macro_rules! op {
 		/// immediate    CPX #oper       E0      2       2
 		/// zeropage     CPX oper        E4      2       3
 		/// absolute     CPX oper        EC      3       4
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
             let data = bus.read(addr);
-            // Add cycle
             let x = reg.x;
             let tmp = x as u16 - data as u16;
 
@@ -1417,11 +1363,9 @@ macro_rules! op {
 		/// immediate    CPY #oper       C0      2       2
 		/// zeropage     CPY oper        C4      2       3
 		/// absolute     CPY oper        CC      3       4
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
             let data = bus.read(addr);
-            // Add cycle
             let y = reg.y;
             let tmp = y as u16 - data as u16;
 
@@ -1442,7 +1386,6 @@ macro_rules! op {
 		/// zeropage,X   DEC oper,X      D6      2       6
 		/// absolute     DEC oper        CE      3       6
 		/// absolute,X   DEC oper,X      DE      3       7
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
             let data = bus.read(addr) as u16;
@@ -1462,7 +1405,6 @@ macro_rules! op {
 		//                                   +  +  -  -  -  -
 		// addressing	assembler   	opc 	bytes	cycles
 		// implied      DEX             CA      1       2
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let _ = am!(reg, bus, $($rest)*);
             let tmp = reg.x.wrapping_sub(1);
@@ -1481,7 +1423,6 @@ macro_rules! op {
 		///                                   +  +  -  -  -  -
 		/// addressing	assembler   	opc 	bytes	cycles
 		/// implied      DEY             88      1       2
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let _ = am!(reg, bus, $($rest)*);
             let tmp = reg.y.wrapping_sub(1);
@@ -1508,11 +1449,9 @@ macro_rules! op {
 		/// absolute,Y   EOR oper,Y      59     3        4*
 		/// (indirect,X) EOR (oper,X)    41     2        6
 		/// (indirect),Y EOR (oper),Y    51     2        5*
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
 			let data = bus.read(addr) as u16;
-            // Add cycle
             let tmp = reg.ac as u16 ^ data;
 			reg.ac = tmp as u8;
 
@@ -1532,15 +1471,12 @@ macro_rules! op {
 		/// zeropage,X   INC oper,X      F6     2        6
 		/// absolute     INC oper        EE     3        6
 		/// absolute,X   INC oper,X      FE     3        7
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
             let data = bus.read(addr) as u16;
-            // Add cycle
             let tmp = data.wrapping_add(1);
 
             bus.write(addr, tmp as u8);
-            // Add cycle
             reg.p.set(StatusReg::Z, is_lo_zero(tmp))
             .set(StatusReg::N, is_neg(tmp));
 		}
@@ -1554,7 +1490,6 @@ macro_rules! op {
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      INX             E8     1        2
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let _ = am!(reg, bus, $($rest)*);
             let tmp = reg.x.wrapping_add(1);
@@ -1573,7 +1508,6 @@ macro_rules! op {
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      INY             C8     1        2
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let _ = am!(reg, bus, $($rest)*);
             let tmp = reg.y.wrapping_add(1);
@@ -1585,7 +1519,6 @@ macro_rules! op {
 	};
 
 	([$opc:ident] JAM $($rest:tt)*) => {
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 		}
@@ -1601,7 +1534,6 @@ macro_rules! op {
 		/// addressing   assembler       opc    bytes    cycles
 		/// absolute     JMP oper        4C     3        3
 		/// indirect     JMP (oper)      6C     3        5
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             reg.pc = am!(reg, bus, $($rest)*);
 		}
@@ -1616,17 +1548,14 @@ macro_rules! op {
 		/// (PC+2) -> PCH
 		/// addressing   assembler       opc    bytes    cycles
 		/// absolute     JSR oper        20     3        6
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
 			let pc = reg.pc;
 			let mut sp = reg.sp as u16;
 
 			bus.write(PS + sp, (pc >> 8) as u8);
-			// Add cycle
 			sp -= 1;
 			bus.write(PS + sp, pc as u8);
-			// Add cycle
 			sp -= 1;
 
 			reg.sp = sp as u8;
@@ -1649,11 +1578,9 @@ macro_rules! op {
 		/// absolute,Y   LDA oper,Y      B9     3        4*
 		/// (indirect,X) LDA (oper,X)    A1     2        6
 		/// (indirect),Y LDA (oper),Y    B1     2        5*
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
 			let data = bus.read(addr);
-			// Add cycle
 			reg.ac = data;
 			reg.p.set(StatusReg::Z, is_zero(data))
 			 .set(StatusReg::N, is_neg(data as u16));
@@ -1672,11 +1599,9 @@ macro_rules! op {
 		/// zeropage,Y   LDX oper,Y      B6     2        4
 		/// absolute     LDX oper        AE     3        4
 		/// absolute,Y   LDX oper,Y      BE     3        4*
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
 			let data = bus.read(addr);
-			// Add cycle
 			reg.x = data;
 			reg.p.set(StatusReg::Z, is_zero(data))
 			 .set(StatusReg::N, is_neg(data as u16));
@@ -1695,11 +1620,9 @@ macro_rules! op {
 		/// zeropage,X   LDY oper,X      B4     2        4
 		/// absolute     LDY oper        AC     3        4
 		/// absolute,X   LDY oper,X      BC     3        4*
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
 			let data = bus.read(addr);
-			// Add cycle
 			reg.y = data;
 			reg.p.set(StatusReg::Z, is_zero(data))
 			 .set(StatusReg::N, is_neg(data as u16));
@@ -1718,11 +1641,9 @@ macro_rules! op {
 		/// zeropage,X   LSR oper,X      56     2        6
 		/// absolute     LSR oper        4E     3        6
 		/// absolute,X   LSR oper,X      5E     3        7
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
 			let data = bus.read(addr);
-			// Add cycle
 			let tmp = data >> 1;
 			reg.x = data;
 			reg.p.set(StatusReg::C, data & 0x0001 == 0x0001)
@@ -1745,7 +1666,6 @@ macro_rules! op {
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      NOP             EA     1        2
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let _ = am!(reg, bus, $($rest)*);
 		}
@@ -1766,11 +1686,9 @@ macro_rules! op {
 		/// absolute,Y   ORA oper,Y      19     3        4*
 		/// (indirect,X) ORA (oper,X)    01     2        6
 		/// (indirect),Y ORA (oper),Y    11     2        5*
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let addr = am!(reg, bus, $($rest)*);
 			let data = bus.read(addr);
-			// Add cycle
 			let ac = reg.ac | data;
 
 			reg.ac = ac;
@@ -1787,11 +1705,9 @@ macro_rules! op {
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      PHA             48     1        3
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			bus.write(PS + reg.sp as Addr, reg.ac);
-			// Add cycle
 			reg.sp -= 1;
 		}
 	};
@@ -1807,13 +1723,11 @@ macro_rules! op {
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      PHP             08     1        3
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 
 			let p = reg.p;
 			bus.write(PS + reg.sp as Addr, (p | StatusReg::B | StatusReg::U).into());
-			// Add cycle
 			reg.p.set(StatusReg::B, false).set(StatusReg::U, false);
 			reg.sp -= 1;
 		}
@@ -1827,12 +1741,10 @@ macro_rules! op {
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      PLA             68     1        4
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			let sp = (reg.sp + 1) as Addr;
 			let ac = bus.read(PS + sp);
-			// Add cycle
 			reg.p.set(StatusReg::Z, is_zero(ac))
 			.set(StatusReg::N, is_neg(ac as u16));
 			reg.sp = sp as u8;
@@ -1851,12 +1763,10 @@ macro_rules! op {
 		///                                      from stack
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      PLP             28     1        4
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			let sp = (reg.sp + 1) as Addr;
 			let mut p = StatusReg::from(bus.read(PS + sp));
-			// Add cycle
 			p.set(StatusReg::U, true);
 			reg.sp = sp as u8;
 			reg.p = p;
@@ -1875,11 +1785,9 @@ macro_rules! op {
 		/// zeropage,X   ROL oper,X      36     2        6
 		/// absolute     ROL oper        2E     3        6
 		/// absolute,X   ROL oper,X      3E     3        7
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let addr = am!(reg, bus, $($rest)*);
 			let data = bus.read(addr) as u16;
-			// Add cycle
 			let tmp = u16::from(reg.p.get(StatusReg::C)) << 7 | data >> 1;
 			reg.p.set(StatusReg::C, tmp & 0x01 == 0x01)
 			.set(StatusReg::Z, is_lo_zero(tmp))
@@ -1904,11 +1812,9 @@ macro_rules! op {
 		/// zeropage,X   ROR oper,X      76     2        6
 		/// absolute     ROR oper        6E     3        6
 		/// absolute,X   ROR oper,X      7E     3        7
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let addr = am!(reg, bus, $($rest)*);
 			let data = bus.read(addr) as u16;
-			// Add cycle
 			let tmp = u16::from(reg.p.get(StatusReg::C)) | data << 1;
 			reg.p.set(StatusReg::C, tmp & HI_MASK > 0)
 			.set(StatusReg::Z, is_lo_zero(tmp))
@@ -1933,22 +1839,18 @@ macro_rules! op {
 		///                                      from stack
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      RTI             40     1        6
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest:tt)*);
 			let mut sp = reg.sp as Addr + 1;
 			let status = bus.read(PS + sp);
-			// Add cycle
 			reg.p = StatusReg::from(status);
 			reg.p &= !StatusReg::B;
 			reg.p &= !StatusReg::U;
 
 			sp += 1;
 			let lo_pc = bus.read(PS + sp) as Addr;
-			// Add cycle
 			sp += 1;
 			let hi_pc = (bus.read(PS + sp) as Addr) << 8;
-			// Add cycle
 			reg.pc = lo_pc | hi_pc;
 			reg.sp = sp as u8;
 		}
@@ -1962,16 +1864,13 @@ macro_rules! op {
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      RTS             60     1        6
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest:tt)*);
 
 			let mut sp = reg.sp as Addr + 1;
 			let lo_pc = bus.read(PS + sp) as Addr;
-			// Add cycle
 			sp += 1;
 			let hi_pc = (bus.read(PS + sp) as Addr) << 8;
-			// Add cycle
 			reg.pc = lo_pc | hi_pc;
 			reg.sp = sp as u8;
 		}
@@ -1992,13 +1891,11 @@ macro_rules! op {
 		/// absolute,Y   SBC oper,Y      F9     3        4*
 		/// (indirect,X) SBC (oper,X)    E1     2        6
 		/// (indirect),Y SBC (oper),Y    F1     2        5*
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let addr = am!(reg, bus, $($rest)*);
 			// Operating in 16-bit domain to capture carry out
 			let data = bus.read(addr) as u16;
 			let ac = reg.ac as u16;
-			// Add cycle
 			let val = data ^ LO_MASK;
 
 			let tmp = ac + val + u16::from(reg.p.get(StatusReg::C));
@@ -2020,7 +1917,6 @@ macro_rules! op {
 		///                                   -  -  1  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      SEC             38     1        2
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			reg.p.set(StatusReg::C, true);
@@ -2035,7 +1931,6 @@ macro_rules! op {
 		///                                   -  -  -  -  1  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      SED             F8     1        2
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			reg.p.set(StatusReg::D, true);
@@ -2050,7 +1945,6 @@ macro_rules! op {
 		///                                   -  -  -  1  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      SEI             78     1        2
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			reg.p.set(StatusReg::I, true);
@@ -2071,11 +1965,9 @@ macro_rules! op {
 		/// absolute,Y   STA oper,Y      99     3        5
 		/// (indirect,X) STA (oper,X)    81     2        6
 		/// (indirect),Y STA (oper),Y    91     2        6
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let addr = am!(reg, bus, $($rest)*);
 			bus.write(addr, reg.ac);
-			// Add Cycle
 		}
 	};
 
@@ -2119,7 +2011,6 @@ macro_rules! op {
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      TAX             AA     1        2
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			reg.x = reg.ac;
@@ -2137,7 +2028,6 @@ macro_rules! op {
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      TAY             A8     1        2
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			reg.y = reg.ac;
@@ -2155,7 +2045,6 @@ macro_rules! op {
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      TSX             BA     1        2
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			reg.x = reg.sp;
@@ -2173,7 +2062,6 @@ macro_rules! op {
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      TAX             AA     1        2
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			reg.x = reg.ac;
@@ -2194,7 +2082,6 @@ macro_rules! op {
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      TXA             8A     1        2
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			reg.ac = reg.x;
@@ -2212,7 +2099,6 @@ macro_rules! op {
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      TXS             9A     1        2
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			reg.sp = reg.x;
@@ -2227,7 +2113,6 @@ macro_rules! op {
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      TYA             98     1        2
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			reg.ac = reg.x;
@@ -2245,7 +2130,6 @@ macro_rules! op {
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      TYA             98     1        2
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			reg.ac = reg.x;
