@@ -21,6 +21,47 @@ use winit_input_helper::WinitInputHelper;
 const WIDTH: u32 = 1024;
 const HEIGHT: u32 = 768;
 
+#[allow(dead_code)]
+fn asm_fibonacci() -> [u8;RAM] {
+	/*
+		*=$8000
+        VAL = $01
+        OLD = $FD
+        NEW = $FE
+        JMP RESET   ; Sets up the inital conditions
+LOOP:   ADC OLD     ; Adds the old value to last value
+        BCS RESET   ; Resets if carry flags is set
+        LDX NEW     ; Moves the last value to old
+        STX OLD
+        STA NEW     ; Stores the new number in new
+        JMP LOOP    ; Loop
+		RESET:  CLC
+        LDA #VAL    ; Resets values to inital loop conditions
+        STA OLD
+        LDA #$00
+        STA NEW
+        JMP LOOP    ; Returns to loop
+		*/
+		// Convert hex string into bytes for RAM
+		let mut ram: [u8; RAM] = [0; RAM];
+		let rom: Vec<u8> =
+			"4C 10 80 65 FD B0 09 A6 FE 86 FD 85 FE 4C 03 80 18 A9 01 85 FD A9 00 85 FE 4C 03 80"
+				.split(" ")
+				.map(|x| u8::from_str_radix(x, 16).expect("Invalid value for hex"))
+				.collect();
+		
+		for (i, v) in rom.iter().enumerate() {
+			ram[0x8000 + i] = *v;
+		}
+		
+		// Set Reset Vector
+		ram[RES_LO as usize] = 0x00;
+		ram[RES_HI as usize] = 0x80;
+		
+		ram
+}
+
+#[allow(dead_code)]
 fn sample_program() -> [u8; RAM] {
     // Load Program (assembled at https://www.masswerk.at/6502/assembler.html)
     /*
@@ -94,7 +135,8 @@ fn main() -> Result<(), Error> {
         (pixels, framework)
     };
 
-    let ram = sample_program();
+    //let ram = sample_program();
+    let ram = asm_fibonacci();
     let mut board = Board::new();
     board.set_prog(&ram);
 
