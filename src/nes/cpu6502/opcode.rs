@@ -1,6 +1,6 @@
 use super::{
-    address_mode::{AddrFn, AddrMode},
-    instructions::{Instruction, OperFn},
+    address_mode::AddrMode,
+    instructions::Instruction,
     Registers, StatusReg,
 };
 use crate::{
@@ -8,317 +8,6 @@ use crate::{
     nes::{Addr, HI_MASK, IRQ_HI, IRQ_LO, LO_MASK, PS},
 };
 use log::debug;
-
-use AddrMode::*;
-use Instruction::*;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct InstructionSet {
-    pub op: Instruction,
-    pub am: AddrMode,
-    pub cc: u8,
-}
-
-impl InstructionSet {
-    pub const fn new(ins: Instruction, am: AddrMode, cycles: u8) -> Self {
-        Self {
-            op: ins,
-            am,
-            cc: cycles,
-        }
-    }
-}
-
-pub struct Operation {
-    pub op: Instruction,
-    pub am: AddrMode,
-    pub cc: u8,
-    pub op_fn: OperFn,
-    pub am_fn: AddrFn,
-}
-
-impl Default for Operation {
-    fn default() -> Self {
-        Self {
-            op: Instruction::ADC,
-            am: AddrMode::ABS,
-            cc: 2,
-            op_fn: Instruction::ADC.into(),
-            am_fn: AddrMode::ABS.into(),
-        }
-    }
-}
-
-impl From<InstructionSet> for Operation {
-    fn from(value: InstructionSet) -> Self {
-        Self {
-            op: value.op,
-            am: value.am,
-            cc: value.cc,
-            op_fn: value.op.into(),
-            am_fn: value.am.into(),
-        }
-    }
-}
-
-pub const OPERATIONS: [InstructionSet; 256] = [
-    InstructionSet::new(BRK, IMM, 7),
-    InstructionSet::new(ORA, IZX, 6),
-    InstructionSet::new(XXX, IMP, 2),
-    InstructionSet::new(XXX, IMP, 8),
-    InstructionSet::new(NOP, IMP, 3),
-    InstructionSet::new(ORA, ZPG, 3),
-    InstructionSet::new(ASL, ZPG, 5),
-    InstructionSet::new(XXX, IMP, 5),
-    InstructionSet::new(PHP, IMP, 3),
-    InstructionSet::new(ORA, IMM, 2),
-    InstructionSet::new(ASL, IMP, 2),
-    InstructionSet::new(XXX, IMP, 2),
-    InstructionSet::new(NOP, IMP, 4),
-    InstructionSet::new(ORA, ABS, 4),
-    InstructionSet::new(ASL, ABS, 6),
-    InstructionSet::new(XXX, IMP, 6),
-    InstructionSet::new(BPL, REL, 2),
-    InstructionSet::new(ORA, IZY, 5),
-    InstructionSet::new(XXX, IMP, 2),
-    InstructionSet::new(XXX, IMP, 8),
-    InstructionSet::new(NOP, IMP, 4),
-    InstructionSet::new(ORA, ZPX, 4),
-    InstructionSet::new(ASL, ZPX, 6),
-    InstructionSet::new(XXX, IMP, 6),
-    InstructionSet::new(CLC, IMP, 2),
-    InstructionSet::new(ORA, ABY, 4),
-    InstructionSet::new(NOP, IMP, 2),
-    InstructionSet::new(XXX, IMP, 7),
-    InstructionSet::new(NOP, IMP, 4),
-    InstructionSet::new(ORA, ABX, 4),
-    InstructionSet::new(ASL, ABX, 7),
-    InstructionSet::new(XXX, IMP, 7),
-    InstructionSet::new(JSR, ABS, 6),
-    InstructionSet::new(AND, IZX, 6),
-    InstructionSet::new(XXX, IMP, 2),
-    InstructionSet::new(XXX, IMP, 8),
-    InstructionSet::new(BIT, ZPG, 3),
-    InstructionSet::new(AND, ZPG, 3),
-    InstructionSet::new(ROL, ZPG, 5),
-    InstructionSet::new(XXX, IMP, 5),
-    InstructionSet::new(PLP, IMP, 4),
-    InstructionSet::new(AND, IMM, 2),
-    InstructionSet::new(ROL, IMP, 2),
-    InstructionSet::new(XXX, IMP, 2),
-    InstructionSet::new(BIT, ABS, 4),
-    InstructionSet::new(AND, ABS, 4),
-    InstructionSet::new(ROL, ABS, 6),
-    InstructionSet::new(XXX, IMP, 6),
-    InstructionSet::new(BMI, REL, 2),
-    InstructionSet::new(AND, IZY, 5),
-    InstructionSet::new(XXX, IMP, 2),
-    InstructionSet::new(XXX, IMP, 8),
-    InstructionSet::new(NOP, IMP, 4),
-    InstructionSet::new(AND, ZPX, 4),
-    InstructionSet::new(ROL, ZPX, 6),
-    InstructionSet::new(XXX, IMP, 6),
-    InstructionSet::new(SEC, IMP, 2),
-    InstructionSet::new(AND, ABY, 4),
-    InstructionSet::new(NOP, IMP, 2),
-    InstructionSet::new(XXX, IMP, 7),
-    InstructionSet::new(NOP, IMP, 4),
-    InstructionSet::new(AND, ABX, 4),
-    InstructionSet::new(ROL, ABX, 7),
-    InstructionSet::new(XXX, IMP, 7),
-    InstructionSet::new(RTI, IMP, 6),
-    InstructionSet::new(EOR, IZX, 6),
-    InstructionSet::new(XXX, IMP, 2),
-    InstructionSet::new(XXX, IMP, 8),
-    InstructionSet::new(NOP, IMP, 3),
-    InstructionSet::new(EOR, ZPG, 3),
-    InstructionSet::new(LSR, ZPG, 5),
-    InstructionSet::new(XXX, IMP, 5),
-    InstructionSet::new(PHA, IMP, 3),
-    InstructionSet::new(EOR, IMM, 2),
-    InstructionSet::new(LSR, IMP, 2),
-    InstructionSet::new(XXX, IMP, 2),
-    InstructionSet::new(JMP, ABS, 3),
-    InstructionSet::new(EOR, ABS, 4),
-    InstructionSet::new(LSR, ABS, 6),
-    InstructionSet::new(XXX, IMP, 6),
-    InstructionSet::new(BVC, REL, 2),
-    InstructionSet::new(EOR, IZY, 5),
-    InstructionSet::new(XXX, IMP, 2),
-    InstructionSet::new(XXX, IMP, 8),
-    InstructionSet::new(NOP, IMP, 4),
-    InstructionSet::new(EOR, ZPX, 4),
-    InstructionSet::new(LSR, ZPX, 6),
-    InstructionSet::new(XXX, IMP, 6),
-    InstructionSet::new(CLI, IMP, 2),
-    InstructionSet::new(EOR, ABY, 4),
-    InstructionSet::new(NOP, IMP, 2),
-    InstructionSet::new(XXX, IMP, 7),
-    InstructionSet::new(NOP, IMP, 4),
-    InstructionSet::new(EOR, ABX, 4),
-    InstructionSet::new(LSR, ABX, 7),
-    InstructionSet::new(XXX, IMP, 7),
-    InstructionSet::new(RTS, IMP, 6),
-    InstructionSet::new(ADC, IZX, 6),
-    InstructionSet::new(XXX, IMP, 2),
-    InstructionSet::new(XXX, IMP, 8),
-    InstructionSet::new(NOP, IMP, 3),
-    InstructionSet::new(ADC, ZPG, 3),
-    InstructionSet::new(ROR, ZPG, 5),
-    InstructionSet::new(XXX, IMP, 5),
-    InstructionSet::new(PLA, IMP, 4),
-    InstructionSet::new(ADC, IMM, 2),
-    InstructionSet::new(ROR, IMP, 2),
-    InstructionSet::new(XXX, IMP, 2),
-    InstructionSet::new(JMP, IND, 5),
-    InstructionSet::new(ADC, ABS, 4),
-    InstructionSet::new(ROR, ABS, 6),
-    InstructionSet::new(XXX, IMP, 6),
-    InstructionSet::new(BVS, REL, 2),
-    InstructionSet::new(ADC, IZY, 5),
-    InstructionSet::new(XXX, IMP, 2),
-    InstructionSet::new(XXX, IMP, 8),
-    InstructionSet::new(NOP, IMP, 4),
-    InstructionSet::new(ADC, ZPX, 4),
-    InstructionSet::new(ROR, ZPX, 6),
-    InstructionSet::new(XXX, IMP, 6),
-    InstructionSet::new(SEI, IMP, 2),
-    InstructionSet::new(ADC, ABY, 4),
-    InstructionSet::new(NOP, IMP, 2),
-    InstructionSet::new(XXX, IMP, 7),
-    InstructionSet::new(NOP, IMP, 4),
-    InstructionSet::new(ADC, ABX, 4),
-    InstructionSet::new(ROR, ABX, 7),
-    InstructionSet::new(XXX, IMP, 7),
-    InstructionSet::new(NOP, IMP, 2),
-    InstructionSet::new(STA, IZX, 6),
-    InstructionSet::new(NOP, IMP, 2),
-    InstructionSet::new(XXX, IMP, 6),
-    InstructionSet::new(STY, ZPG, 3),
-    InstructionSet::new(STA, ZPG, 3),
-    InstructionSet::new(STX, ZPG, 3),
-    InstructionSet::new(XXX, IMP, 3),
-    InstructionSet::new(DEY, IMP, 2),
-    InstructionSet::new(NOP, IMP, 2),
-    InstructionSet::new(TXA, IMP, 2),
-    InstructionSet::new(XXX, IMP, 2),
-    InstructionSet::new(STY, ABS, 4),
-    InstructionSet::new(STA, ABS, 4),
-    InstructionSet::new(STX, ABS, 4),
-    InstructionSet::new(XXX, IMP, 4),
-    InstructionSet::new(BCC, REL, 2),
-    InstructionSet::new(STA, IZY, 6),
-    InstructionSet::new(XXX, IMP, 2),
-    InstructionSet::new(XXX, IMP, 6),
-    InstructionSet::new(STY, ZPX, 4),
-    InstructionSet::new(STA, ZPX, 4),
-    InstructionSet::new(STX, ZPY, 4),
-    InstructionSet::new(XXX, IMP, 4),
-    InstructionSet::new(TYA, IMP, 2),
-    InstructionSet::new(STA, ABY, 5),
-    InstructionSet::new(TXS, IMP, 2),
-    InstructionSet::new(XXX, IMP, 5),
-    InstructionSet::new(NOP, IMP, 5),
-    InstructionSet::new(STA, ABX, 5),
-    InstructionSet::new(XXX, IMP, 5),
-    InstructionSet::new(XXX, IMP, 5),
-    InstructionSet::new(LDY, IMM, 2),
-    InstructionSet::new(LDA, IZX, 6),
-    InstructionSet::new(LDX, IMM, 2),
-    InstructionSet::new(XXX, IMP, 6),
-    InstructionSet::new(LDY, ZPG, 3),
-    InstructionSet::new(LDA, ZPG, 3),
-    InstructionSet::new(LDX, ZPG, 3),
-    InstructionSet::new(XXX, IMP, 3),
-    InstructionSet::new(TAY, IMP, 2),
-    InstructionSet::new(LDA, IMM, 2),
-    InstructionSet::new(TAX, IMP, 2),
-    InstructionSet::new(XXX, IMP, 2),
-    InstructionSet::new(LDY, ABS, 4),
-    InstructionSet::new(LDA, ABS, 4),
-    InstructionSet::new(LDX, ABS, 4),
-    InstructionSet::new(XXX, IMP, 4),
-    InstructionSet::new(BCS, REL, 2),
-    InstructionSet::new(LDA, IZY, 5),
-    InstructionSet::new(XXX, IMP, 2),
-    InstructionSet::new(XXX, IMP, 5),
-    InstructionSet::new(LDY, ZPX, 4),
-    InstructionSet::new(LDA, ZPX, 4),
-    InstructionSet::new(LDX, ZPY, 4),
-    InstructionSet::new(XXX, IMP, 4),
-    InstructionSet::new(CLV, IMP, 2),
-    InstructionSet::new(LDA, ABY, 4),
-    InstructionSet::new(TSX, IMP, 2),
-    InstructionSet::new(XXX, IMP, 4),
-    InstructionSet::new(LDY, ABX, 4),
-    InstructionSet::new(LDA, ABX, 4),
-    InstructionSet::new(LDX, ABY, 4),
-    InstructionSet::new(XXX, IMP, 4),
-    InstructionSet::new(CPY, IMM, 2),
-    InstructionSet::new(CMP, IZX, 6),
-    InstructionSet::new(NOP, IMP, 2),
-    InstructionSet::new(XXX, IMP, 8),
-    InstructionSet::new(CPY, ZPG, 3),
-    InstructionSet::new(CMP, ZPG, 3),
-    InstructionSet::new(DEC, ZPG, 5),
-    InstructionSet::new(XXX, IMP, 5),
-    InstructionSet::new(INY, IMP, 2),
-    InstructionSet::new(CMP, IMM, 2),
-    InstructionSet::new(DEX, IMP, 2),
-    InstructionSet::new(XXX, IMP, 2),
-    InstructionSet::new(CPY, ABS, 4),
-    InstructionSet::new(CMP, ABS, 4),
-    InstructionSet::new(DEC, ABS, 6),
-    InstructionSet::new(XXX, IMP, 6),
-    InstructionSet::new(BNE, REL, 2),
-    InstructionSet::new(CMP, IZY, 5),
-    InstructionSet::new(XXX, IMP, 2),
-    InstructionSet::new(XXX, IMP, 8),
-    InstructionSet::new(NOP, IMP, 4),
-    InstructionSet::new(CMP, ZPX, 4),
-    InstructionSet::new(DEC, ZPX, 6),
-    InstructionSet::new(XXX, IMP, 6),
-    InstructionSet::new(CLD, IMP, 2),
-    InstructionSet::new(CMP, ABY, 4),
-    InstructionSet::new(NOP, IMP, 2),
-    InstructionSet::new(XXX, IMP, 7),
-    InstructionSet::new(NOP, IMP, 4),
-    InstructionSet::new(CMP, ABX, 4),
-    InstructionSet::new(DEC, ABX, 7),
-    InstructionSet::new(XXX, IMP, 7),
-    InstructionSet::new(CPX, IMM, 2),
-    InstructionSet::new(SBC, IZX, 6),
-    InstructionSet::new(NOP, IMP, 2),
-    InstructionSet::new(XXX, IMP, 8),
-    InstructionSet::new(CPX, ZPG, 3),
-    InstructionSet::new(SBC, ZPG, 3),
-    InstructionSet::new(INC, ZPG, 5),
-    InstructionSet::new(XXX, IMP, 5),
-    InstructionSet::new(INX, IMP, 2),
-    InstructionSet::new(SBC, IMM, 2),
-    InstructionSet::new(NOP, IMP, 2),
-    InstructionSet::new(SBC, IMP, 2),
-    InstructionSet::new(CPX, ABS, 4),
-    InstructionSet::new(SBC, ABS, 4),
-    InstructionSet::new(INC, ABS, 6),
-    InstructionSet::new(XXX, IMP, 6),
-    InstructionSet::new(BEQ, REL, 2),
-    InstructionSet::new(SBC, IZY, 5),
-    InstructionSet::new(XXX, IMP, 2),
-    InstructionSet::new(XXX, IMP, 8),
-    InstructionSet::new(NOP, IMP, 4),
-    InstructionSet::new(SBC, ZPX, 4),
-    InstructionSet::new(INC, ZPX, 6),
-    InstructionSet::new(XXX, IMP, 6),
-    InstructionSet::new(SED, IMP, 2),
-    InstructionSet::new(SBC, ABY, 4),
-    InstructionSet::new(NOP, IMP, 2),
-    InstructionSet::new(XXX, IMP, 7),
-    InstructionSet::new(NOP, IMP, 4),
-    InstructionSet::new(SBC, ABX, 4),
-    InstructionSet::new(INC, ABX, 7),
-    InstructionSet::new(XXX, IMP, 7),
-];
 
 pub type Instruc = fn (&mut Registers, &mut dyn Bus);
 
@@ -896,8 +585,7 @@ macro_rules! am_const {
 		// special address mode of its own, but it is really a special case of
 		// an implied instruction. It is still a single-byte instruction and no
 		// operand is provided in machine language.)
-		const $code: AddrMode = AddrMode::IMP;
-		//const $code: AddrMode = AddrMode::A;
+		const $code: AddrMode = AddrMode::A;
 	};
 
 	([$code:ident] &LLHH) => {
@@ -1331,14 +1019,14 @@ macro_rules! op {
 		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             if reg.p.get(StatusReg::C) == 0 {
-                // Add cycle
+                bus.read(0x0000); // Add cycle
 
                 let addr = am!(reg, bus, $($rest)*);
                 let pc = reg.pc;
-                let addr = pc + addr;
+                let addr = pc.wrapping_add(addr);
 
                 if addr & HI_MASK != pc & HI_MASK {
-                    // Add cycle
+                    bus.read(0x0000); // Add cycle
                 }
 
                 reg.pc = addr;
@@ -1357,14 +1045,14 @@ macro_rules! op {
 		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             if reg.p.get(StatusReg::C) == 1 {
-                // Add cycle
+                bus.read(0x0000); // Add cycle
 
                 let addr = am!(reg, bus, $($rest)*);
                 let pc = reg.pc;
-                let addr = pc + addr;
+                let addr = pc.wrapping_add(addr);
 
                 if addr & HI_MASK != pc & HI_MASK {
-                    // Add cycle
+                    bus.read(0x0000); // Add cycle
                 }
 
                 reg.pc = addr;
@@ -1383,14 +1071,14 @@ macro_rules! op {
 		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             if reg.p.get(StatusReg::Z) == 1 {
-                // Add cycle
+                bus.read(0x0000); // Add cycle
 
                 let addr = am!(reg, bus, $($rest)*);
                 let pc = reg.pc;
-                let addr = pc + addr;
+                let addr = pc.wrapping_add(addr);
 
                 if addr & HI_MASK != pc & HI_MASK {
-                    // Add cycle
+                    bus.read(0x0000); // Add cycle
                 }
 
                 reg.pc = addr;
@@ -1439,14 +1127,14 @@ macro_rules! op {
 		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             if reg.p.get(StatusReg::N) == 1 {
-                // Add cycle
+                bus.read(0x0000); // Add cycle
 
                 let addr = am!(reg, bus, $($rest)*);
                 let pc = reg.pc;
-                let addr = pc + addr;
+                let addr = pc.wrapping_add(addr);
 
                 if addr & HI_MASK != pc & HI_MASK {
-                    // Add cycle
+                    bus.read(0x0000); // Add cycle
                 }
 
                 reg.pc = addr;
@@ -1461,18 +1149,18 @@ macro_rules! op {
 		/// branch on Z = 0                   N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
 		/// addressing	assembler   	opc 	bytes	cycles
-		/// relative     BNE oper        D0      2       2**
+		/// relative    BNE oper        D0      2       2**
 		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             if reg.p.get(StatusReg::Z) == 0 {
-                // Add cycle
+				bus.read(0x0000); // Add cycle
 
                 let addr = am!(reg, bus, $($rest)*);
                 let pc = reg.pc;
-                let addr = pc + addr;
+                let addr = pc.wrapping_add(addr);
 
                 if addr & HI_MASK != pc & HI_MASK {
-                    // Add cycle
+                    bus.read(0x0000); // Add cycle
                 }
 
                 reg.pc = addr;
@@ -1491,14 +1179,14 @@ macro_rules! op {
 		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             if reg.p.get(StatusReg::N) == 0 {
-                // Add cycle
+                bus.read(0x0000); // Add cycle
 
                 let addr = am!(reg, bus, $($rest)*);
                 let pc = reg.pc;
-                let addr = pc + addr;
+                let addr = pc.wrapping_add(addr);
 
                 if addr & HI_MASK != pc & HI_MASK {
-                    // Add cycle
+                    bus.read(0x0000); // Add cycle
                 }
 
                 reg.pc = addr;
@@ -1565,14 +1253,14 @@ macro_rules! op {
 		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             if reg.p.get(StatusReg::V) == 0 {
-                // Add cycle
+                bus.read(0x0000); // Add cycle
 
                 let addr = am!(reg, bus, $($rest)*);
                 let pc = reg.pc;
-                let addr = pc + addr;
+                let addr = pc.wrapping_add(addr);
 
                 if addr & HI_MASK != pc & HI_MASK {
-                    // Add cycle
+                    bus.read(0x0000); // Add cycle
                 }
 
                 reg.pc = addr;
@@ -1591,14 +1279,14 @@ macro_rules! op {
 		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             if reg.p.get(StatusReg::V) == 1 {
-                // Add cycle
+                bus.read(0x0000); // Add cycle
 
                 let addr = am!(reg, bus, $($rest)*);
                 let pc = reg.pc;
-                let addr = pc + addr;
+                let addr = pc.wrapping_add(addr);
 
                 if addr & HI_MASK != pc & HI_MASK {
-                    // Add cycle
+                    bus.read(0x0000); // Add cycle
                 }
 
                 reg.pc = addr;
@@ -1758,11 +1446,9 @@ macro_rules! op {
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
             let data = bus.read(addr) as u16;
-            // Add cycle
             let tmp = data.wrapping_sub(1);
 
             bus.write(addr, tmp as u8);
-            // Add cycle
             reg.p.set(StatusReg::Z, is_lo_zero(tmp))
             .set(StatusReg::N, is_neg(tmp));
 		}
@@ -1799,7 +1485,7 @@ macro_rules! op {
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let _ = am!(reg, bus, $($rest)*);
             let tmp = reg.y.wrapping_sub(1);
-            reg.x = tmp;
+            reg.y = tmp;
 
             reg.p.set(StatusReg::Z, is_zero(tmp))
             .set(StatusReg::N, is_neg(tmp as u16));
@@ -2403,11 +2089,9 @@ macro_rules! op {
 		/// zeropage     STX oper        86     2        3
 		/// zeropage,Y   STX oper,Y      96     2        4
 		/// absolute     STX oper        8E     3        4
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let addr = am!(reg, bus, $($rest)*);
-			bus.write(addr, reg.ac);
-			// Add Cycle
+			bus.write(addr, reg.x);
 		}
 	};
 
@@ -2421,11 +2105,9 @@ macro_rules! op {
 		/// zeropage     STY oper        84     2        3
 		/// zeropage,X   STY oper,X      94     2        4
 		/// absolute     STY oper        8C     3        4
-		#[allow(dead_code)]
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let addr = am!(reg, bus, $($rest)*);
-			bus.write(addr, reg.ac);
-			// Add Cycle
+			bus.write(addr, reg.y);
 		}
 	};
 
