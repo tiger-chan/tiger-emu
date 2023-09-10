@@ -355,13 +355,14 @@ macro_rules! am {
 		// in the zero-page.
         {
             trace!("X,ind	X-indexed, indirect	OPC ($LL,X)	operand is zeropage address; effective address is word in (LL + X, LL + X + 1), inc. without carry: C.w($00LL + X)");
-            let lo = $bus.read($reg.pc) as Addr;
+            let lo_ptr = $bus.read($reg.pc) as Addr;
             $reg.pc += 1;
             let x = $reg.x as Addr;
-            let ptr = lo + x;
-
+            let ptr = lo_ptr + x;
+			
             let lo = $bus.read(ptr + 0) as Addr;
             let hi = ($bus.read(ptr + 1) as Addr) << 8;
+			$bus.read(0x0000); // Add cycle
             lo | hi
         }
 	};
@@ -391,9 +392,8 @@ macro_rules! am {
 		// the base address of which we have stored in the zero-page.
         {
             trace!("ind,Y	indirect, Y-indexed	OPC ($LL),Y	operand is zeropage address; effective address is word in (LL, LL + 1) incremented by Y with carry: C.w($00LL) + Y");
-            let lo = $bus.read($reg.pc) as Addr;
+            let ptr = $bus.read($reg.pc) as Addr;
             $reg.pc += 1;
-            let ptr = lo;
 
             let lo = $bus.read(ptr + 0) as Addr;
             let hi = ($bus.read(ptr + 1) as Addr) << 8;
@@ -886,9 +886,9 @@ macro_rules! op {
 	};
 
     ([$opc:ident] ADC $($rest:tt)*) => {
-		/// ADC
+		/// # ADC 
 		/// Add Memory to Accumulator with Carry
-		///
+		///```
 		/// A + M + C -> A, C                 N  Z  C  I  D  V
 		///                                   +  +  +  -  -  +
 		/// addressing   assembler       opc    bytes    cycles
@@ -900,6 +900,7 @@ macro_rules! op {
 		/// absolute,Y   ADC oper,Y      79     3        4*
 		/// (indirect,X) ADC (oper,X)    61     2        6
 		/// (indirect),Y ADC (oper),Y    71     2        5*
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
 
@@ -912,7 +913,7 @@ macro_rules! op {
              .set(StatusReg::V, is_neg(!(ac ^ data as u16) & ac ^ tmp))
              .set(StatusReg::N, is_neg(tmp));
 
-            reg.ac = (tmp & LO_MASK) as u8;
+            reg.ac = tmp as u8;
 		}
 	};
 
@@ -2363,184 +2364,196 @@ op![#[op_b2, AM_B2, IN_B2] JAM        ];
 op![#[op_d2, AM_D2, IN_D2] JAM        ];
 op![#[op_f2, AM_F2, IN_F2] JAM        ];
 
-//#[cfg(test)]
-// mod test {
-//     use crate::nes::BoardBus;
+#[cfg(test)]
+mod test {
+    use crate::nes::{BoardBus, board::ClockBusContext};
 
-//     use super::*;
+    use super::*;
 
-//     #[test]
-//     fn adc() {
-//         let mut reg = Registers::default();
-//         let mut bus = BoardBus::new();
-//         op_69(&mut reg, &mut bus);
-//         op_65(&mut reg, &mut bus);
-//         op_75(&mut reg, &mut bus);
-//         op_6d(&mut reg, &mut bus);
-//         op_7d(&mut reg, &mut bus);
-//         op_79(&mut reg, &mut bus);
-//         op_61(&mut reg, &mut bus);
-//         op_71(&mut reg, &mut bus);
-//     }
+    #[test]
+    fn adc() {
+		env_logger::builder()
+        .filter_module("nes_ultra", log::LevelFilter::Debug)
+        .init();
+		
+		{
+			let mut reg = Registers::default();
+			let mut bus = BoardBus::new();
+	
+			reg.p = StatusReg::U;
+			reg.ac = 0x05;
+			reg.pc = 0x00; // Where the next instruction will be loaded
+			bus.write(0x00, 0x05); // Immediate mode value
+			
+			let mut bus = ClockBusContext::new(&mut bus);
+			bus.read(0x0000); // Cycle to simulate the op code read.
+			op_69(&mut reg, &mut bus);
+			
+			assert_eq!(reg.ac, 0x0A);
+			assert_eq!(reg.p.get(StatusReg::N), 0);
+			assert_eq!(reg.p.get(StatusReg::C), 0);
+			assert_eq!(reg.p.get(StatusReg::Z), 0);
+			assert_eq!(*bus.rw_count.borrow(), 2, "rw_count");
+		}
 
-//     #[test]
-//     fn and() {
-//         let mut reg = Registers::default();
-//         let mut bus = BoardBus::new();
-//         op_29(&mut reg, &mut bus);
-//         op_25(&mut reg, &mut bus);
-//         op_35(&mut reg, &mut bus);
-//         op_2d(&mut reg, &mut bus);
-//         op_3d(&mut reg, &mut bus);
-//         op_39(&mut reg, &mut bus);
-//         op_21(&mut reg, &mut bus);
-//         op_31(&mut reg, &mut bus);
-//     }
+		{
+			let mut reg = Registers::default();
+			let mut bus = BoardBus::new();
+	
+			reg.p = StatusReg::U;
+			reg.ac = 0xE8;
+			reg.pc = 0x00; // Where the next instruction will be loaded
+			bus.write(0x00, 0xFD); // Zeropage mode value
+			bus.write(0xFD, 0x08); // Pointed to value
+			
+			let mut bus = ClockBusContext::new(&mut bus);
+			bus.read(0x0000); // Cycle to simulate the op code read.
+			op_65(&mut reg, &mut bus);
+			
+			assert_eq!(reg.ac, 0xF0);
+			assert_eq!(reg.p.get(StatusReg::N), 1);
+			assert_eq!(reg.p.get(StatusReg::C), 0);
+			assert_eq!(reg.p.get(StatusReg::Z), 0);
+			assert_eq!(*bus.rw_count.borrow(), 3, "rw_count");
+		}
+		
+		{
+			let mut reg = Registers::default();
+			let mut bus = BoardBus::new();
+	
+			reg.p = StatusReg::U;
+			reg.ac = 0xFF;
+			reg.x = 1;
+			reg.pc = 0x00; // Where the next instruction will be loaded
+			bus.write(0x00, 0xFD); // Zeropage,X mode value
+			bus.write(0xFE, 0x01); // Pointed to value
 
-//     #[test]
-//     fn asl() {
-//         let mut reg = Registers::default();
-//         let mut bus = BoardBus::new();
-//         op_0a(&mut reg, &mut bus);
-//         op_06(&mut reg, &mut bus);
-//         op_16(&mut reg, &mut bus);
-//         op_0e(&mut reg, &mut bus);
-//         op_1e(&mut reg, &mut bus);
-//     }
+			let mut bus = ClockBusContext::new(&mut bus);
+			bus.read(0x0000); // Cycle to simulate the op code read.
+			op_75(&mut reg, &mut bus);
+			
+			assert_eq!(reg.ac, 0x00);
+			assert_eq!(reg.p.get(StatusReg::N), 0, "N");
+			assert_eq!(reg.p.get(StatusReg::C), 1, "C");
+			assert_eq!(reg.p.get(StatusReg::Z), 1, "Z");
+			assert_eq!(*bus.rw_count.borrow(), 3, "rw_count");
+		}
+		
+		{
+			let mut reg = Registers::default();
+			let mut bus = BoardBus::new();
+	
+			reg.p = StatusReg::U;
+			reg.ac = 0xEF;
+			reg.x = 1;
+			reg.pc = 0x00; // Where the next instruction will be loaded
+			bus.write(0x0000, 0xFE); // ABS LL mode value
+			bus.write(0x0001, 0x01); // ABS HH mode value
+			bus.write(0x01FE, 0x01); // Pointed to value (HHLL)
 
-//     #[test]
-//     fn bcc() {
-//         let mut reg = Registers::default();
-//         let mut bus = BoardBus::new();
-//         op_90(&mut reg, &mut bus);
-//     }
+			let mut bus = ClockBusContext::new(&mut bus);
+			bus.read(0x0000); // Cycle to simulate the op code read.
+			op_6d(&mut reg, &mut bus);
+			
+			assert_eq!(reg.ac, 0xF0);
+			assert_eq!(reg.p.get(StatusReg::N), 1, "N");
+			assert_eq!(reg.p.get(StatusReg::C), 0, "C");
+			assert_eq!(reg.p.get(StatusReg::Z), 0, "Z");
+			assert_eq!(*bus.rw_count.borrow(), 4, "rw_count");
+		}
+		
+		{
+			let mut reg = Registers::default();
+			let mut bus = BoardBus::new();
+	
+			reg.p = StatusReg::U;
+			reg.ac = 0xEF;
+			reg.x = 1;
+			reg.pc = 0x00; // Where the next instruction will be loaded
+			bus.write(0x0000, 0xFE); // ABS,X LL mode value
+			bus.write(0x0001, 0x01); // ABS,X HH mode value
+			bus.write(0x01FF, 0x01); // Pointed to value (HHLL)
 
-//     #[test]
-//     fn bcs() {
-//         let mut reg = Registers::default();
-//         let mut bus = BoardBus::new();
-//         op_b0(&mut reg, &mut bus);
-//     }
+			let mut bus = ClockBusContext::new(&mut bus);
+			bus.read(0x0000); // Cycle to simulate the op code read.
+			op_7d(&mut reg, &mut bus);
+			
+			assert_eq!(reg.ac, 0xF0);
+			assert_eq!(reg.p.get(StatusReg::N), 1, "N");
+			assert_eq!(reg.p.get(StatusReg::C), 0, "C");
+			assert_eq!(reg.p.get(StatusReg::Z), 0, "Z");
+			assert_eq!(*bus.rw_count.borrow(), 4, "rw_count");
+		}
 
-//     #[test]
-//     fn beq() {
-//         let mut reg = Registers::default();
-//         let mut bus = BoardBus::new();
-//         op_f0(&mut reg, &mut bus);
-//     }
+		{
+			let mut reg = Registers::default();
+			let mut bus = BoardBus::new();
+	
+			reg.p = StatusReg::U;
+			reg.ac = 0xEF;
+			reg.y = 2;
+			reg.pc = 0x00; // Where the next instruction will be loaded
+			bus.write(0x0000, 0xFE); // ABS,Y LL mode value
+			bus.write(0x0001, 0x01); // ABS,Y HH mode value
+			bus.write(0x0200, 0x01); // Pointed to value (HHLL)
 
-//     #[test]
-//     fn bit() {
-//         let mut reg = Registers::default();
-//         let mut bus = BoardBus::new();
-//         op_24(&mut reg, &mut bus);
-//         op_2c(&mut reg, &mut bus);
-//     }
+			let mut bus = ClockBusContext::new(&mut bus);
+			bus.read(0x0000); // Cycle to simulate the op code read.
+			op_79(&mut reg, &mut bus);
+			
+			assert_eq!(reg.ac, 0xF0);
+			assert_eq!(reg.p.get(StatusReg::N), 1, "N");
+			assert_eq!(reg.p.get(StatusReg::C), 0, "C");
+			assert_eq!(reg.p.get(StatusReg::Z), 0, "Z");
+			assert_eq!(*bus.rw_count.borrow(), 5, "rw_count");
+		}
 
-//     #[test]
-//     fn brk() {
-//         let mut reg = Registers::default();
-//         reg.sp = 10;
-//         let mut bus = BoardBus::new();
-//         op_00(&mut reg, &mut bus);
-//     }
+		{
+			let mut reg = Registers::default();
+			let mut bus = BoardBus::new();
+	
+			reg.p = StatusReg::U;
+			reg.ac = 0xEF;
+			reg.x = 2;
+			reg.pc = 0x00; // Where the next instruction will be loaded
+			bus.write(0x0000, 0xFE); // (OPER,X) IND mode value
+			bus.write(0x0100, 0x01); // IND addr LL
+			bus.write(0x0101, 0x04); // IND addr HH
+			bus.write(0x0401, 0x01); // Pointed to value (HHLL)
 
-//     #[test]
-//     fn bvc() {
-//         let mut reg = Registers::default();
-//         let mut bus = BoardBus::new();
-//         op_50(&mut reg, &mut bus);
-//     }
+			let mut bus = ClockBusContext::new(&mut bus);
+			bus.read(0x0000); // Cycle to simulate the op code read.
+			op_61(&mut reg, &mut bus);
+			
+			assert_eq!(reg.ac, 0xF0);
+			assert_eq!(reg.p.get(StatusReg::N), 1, "N");
+			assert_eq!(reg.p.get(StatusReg::C), 0, "C");
+			assert_eq!(reg.p.get(StatusReg::Z), 0, "Z");
+			assert_eq!(*bus.rw_count.borrow(), 6, "rw_count");
+		}
+		
+		{
+			let mut reg = Registers::default();
+			let mut bus = BoardBus::new();
+	
+			reg.p = StatusReg::U;
+			reg.ac = 0x48;
+			reg.y = 1;
+			reg.pc = 0x00; // Where the next instruction will be loaded
+			bus.write(0x0000, 0xFD); // (OPER,X) IND mode value
+			bus.write(0x00FD, 0x01); // IND addr LL
+			bus.write(0x00FE, 0x04); // IND addr HH
+			bus.write(0x0402, 0x08); // Pointed to value (HHLL)
 
-//     #[test]
-//     fn clc() {
-//         let mut reg = Registers::default();
-//         let mut bus = BoardBus::new();
-//         op_18(&mut reg, &mut bus);
-//     }
+			let mut bus = ClockBusContext::new(&mut bus);
+			bus.read(0x0000); // Cycle to simulate the op code read.
+			op_71(&mut reg, &mut bus);
 
-//     #[test]
-//     fn cld() {
-//         let mut reg = Registers::default();
-//         let mut bus = BoardBus::new();
-//         op_d8(&mut reg, &mut bus);
-//     }
-
-//     #[test]
-//     fn cli() {
-//         let mut reg = Registers::default();
-//         let mut bus = BoardBus::new();
-//         op_58(&mut reg, &mut bus);
-//     }
-
-//     #[test]
-//     fn clv() {
-//         let mut reg = Registers::default();
-//         let mut bus = BoardBus::new();
-//         op_b8(&mut reg, &mut bus);
-//     }
-
-//     #[test]
-//     fn cmp() {
-//         let mut reg = Registers::default();
-//         let mut bus = BoardBus::new();
-//         op_c9(&mut reg, &mut bus);
-//         op_c5(&mut reg, &mut bus);
-//         op_d5(&mut reg, &mut bus);
-//         op_cd(&mut reg, &mut bus);
-//         op_dd(&mut reg, &mut bus);
-//         op_d9(&mut reg, &mut bus);
-//         op_c1(&mut reg, &mut bus);
-//         op_d1(&mut reg, &mut bus);
-//     }
-
-//     #[test]
-//     fn cpx() {
-//         let mut reg = Registers::default();
-//         let mut bus = BoardBus::new();
-//         op_e0(&mut reg, &mut bus);
-//         op_e4(&mut reg, &mut bus);
-//         op_ec(&mut reg, &mut bus);
-//     }
-
-//     #[test]
-//     fn cpy() {
-//         let mut reg = Registers::default();
-//         let mut bus = BoardBus::new();
-//         op_c0(&mut reg, &mut bus);
-//         op_c4(&mut reg, &mut bus);
-//         op_cc(&mut reg, &mut bus);
-//     }
-
-//     #[test]
-//     fn dec() {
-//         let mut reg = Registers::default();
-//         let mut bus = BoardBus::new();
-//         op_c6(&mut reg, &mut bus);
-//         op_d6(&mut reg, &mut bus);
-//         op_ce(&mut reg, &mut bus);
-//         op_de(&mut reg, &mut bus);
-//     }
-
-//     #[test]
-//     fn dex() {
-//         let mut reg = Registers::default();
-//         let mut bus = BoardBus::new();
-//         op_ca(&mut reg, &mut bus);
-//     }
-
-//     #[test]
-//     fn dey() {
-//         let mut reg = Registers::default();
-//         let mut bus = BoardBus::new();
-//         op_88(&mut reg, &mut bus);
-//     }
-
-//     #[test]
-//     fn ora() {
-//         let mut reg = Registers::default();
-//         let mut bus = BoardBus::new();
-//         op_01(&mut reg, &mut bus);
-//         op_05(&mut reg, &mut bus);
-//     }
-// }
+			assert_eq!(reg.ac, 0x50);
+			assert_eq!(reg.p.get(StatusReg::N), 0, "N");
+			assert_eq!(reg.p.get(StatusReg::C), 0, "C");
+			assert_eq!(reg.p.get(StatusReg::Z), 0, "Z");
+			assert_eq!(*bus.rw_count.borrow(), 5, "rw_count");
+		}
+    }
+}

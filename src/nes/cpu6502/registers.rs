@@ -1,4 +1,5 @@
 use std::ops::{Add, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not};
+use core::fmt;
 
 ///
 /// PC   program counter              (16 bit)
@@ -44,7 +45,7 @@ pub struct Registers {
 /// Z	Zero
 /// C	Carry
 
-#[derive(Default, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct StatusReg(u8);
 
 impl StatusReg {
@@ -270,4 +271,26 @@ impl Not for StatusReg {
     fn not(self) -> Self::Output {
         Self(!self.0)
     }
+}
+
+impl fmt::Display for StatusReg {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		let func = |f, i, e| {
+			match self.get(f) == 1 {
+				true => i,
+				false => e
+			}
+		};
+		
+		let n = func(StatusReg::N, 'N', '.');
+		let v = func(StatusReg::V, 'V', '.');
+		let u = func(StatusReg::U, '-', '.');
+		let b = func(StatusReg::B, 'B', '.');
+		let d = func(StatusReg::D, 'D', '.');
+		let i = func(StatusReg::I, 'I', '.');
+		let z = func(StatusReg::Z, 'Z', '.');
+		let c = func(StatusReg::C, 'C', '.');
+
+		write!(f, "{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}", n, v, u, b, d, i, z, c)
+	}
 }
