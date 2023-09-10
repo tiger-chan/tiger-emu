@@ -13,7 +13,7 @@ use std::ops::Range;
 
 use egui::RichText;
 use log::debug;
-use opcode::{Operation, OPERATIONS};
+use opcode::{Operation, OPERATIONS, ADDER_MODE, INSTRUCTION_TYPE, OPER};
 use registers::Registers;
 
 #[derive(Default)]
@@ -116,18 +116,19 @@ impl Cpu6502 {
         while addr < end as u32 {
             let ln_addr = addr as u16;
 
-            let opcode = bus.read_only(ln_addr);
+            let opcode = bus.read_only(ln_addr) as usize;
             addr += 1;
-            let op = &OPERATIONS[opcode as usize];
+            let op = INSTRUCTION_TYPE[opcode];
+			let am = ADDER_MODE[opcode];
 
-            let line = match op.am {
-                AddrMode::A | AddrMode::IMP => format!("${:>04X}: {:?} {{{:?}}}", ln_addr, op.op, op.am),
+            let line = match am {
+                AddrMode::A | AddrMode::IMP => format!("${:>04X}: {:?} {{{:?}}}", ln_addr, op, am),
                 AddrMode::IMM | AddrMode::ZPG => {
                     let lo = bus.read_only(addr as u16);
                     addr += 1;
                     format!(
                         "${:>04X}: {:?} #${:>02X} {{{:?}}}",
-                        ln_addr, op.op, lo, op.am
+                        ln_addr, op, lo, am
                     )
                 }
                 AddrMode::ZPX => {
@@ -135,7 +136,7 @@ impl Cpu6502 {
                     addr += 1;
                     format!(
                         "${:>04X}: {:?} #${:>02X}, X {{{:?}}}",
-                        ln_addr, op.op, lo, op.am
+                        ln_addr, op, lo, am
                     )
                 }
                 AddrMode::ZPY => {
@@ -143,7 +144,7 @@ impl Cpu6502 {
                     addr += 1;
                     format!(
                         "${:>04X}: {:?} #${:>02X}, Y {{{:?}}}",
-                        ln_addr, op.op, lo, op.am
+                        ln_addr, op, lo, am
                     )
                 }
                 AddrMode::IZX => {
@@ -151,7 +152,7 @@ impl Cpu6502 {
                     addr += 1;
                     format!(
                         "${:>04X}: {:?} (${:>02X}, X) {{{:?}}}",
-                        ln_addr, op.op, lo, op.am
+                        ln_addr, op, lo, am
                     )
                 }
                 AddrMode::IZY => {
@@ -159,7 +160,7 @@ impl Cpu6502 {
                     addr += 1;
                     format!(
                         "${:>04X}: {:?} (${:>02X}, Y) {{{:?}}}",
-                        ln_addr, op.op, lo, op.am
+                        ln_addr, op, lo, am
                     )
                 }
                 AddrMode::ABS => {
@@ -170,7 +171,7 @@ impl Cpu6502 {
                     let val = hi | lo;
                     format!(
                         "${:>04X}: {:?} ${:>04X} {{{:?}}}",
-                        ln_addr, op.op, val, op.am
+                        ln_addr, op, val, am
                     )
                 }
                 AddrMode::ABX => {
@@ -181,7 +182,7 @@ impl Cpu6502 {
                     let val = hi | lo;
                     format!(
                         "${:>04X}: {:?} ${:>04X}, X {{{:?}}}",
-                        ln_addr, op.op, val, op.am
+                        ln_addr, op, val, am
                     )
                 }
                 AddrMode::ABY => {
@@ -192,7 +193,7 @@ impl Cpu6502 {
                     let val = hi | lo;
                     format!(
                         "${:>04X}: {:?} ${:>04X}, Y {{{:?}}}",
-                        ln_addr, op.op, val, op.am
+                        ln_addr, op, val, am
                     )
                 }
                 AddrMode::IND => {
@@ -203,7 +204,7 @@ impl Cpu6502 {
                     let val = hi | lo;
                     format!(
                         "${:>04X}: {:?} (${:>04X}) {{{:?}}}",
-                        ln_addr, op.op, val, op.am
+                        ln_addr, op, val, am
                     )
                 }
                 AddrMode::REL => {
@@ -212,7 +213,7 @@ impl Cpu6502 {
                     let rel = addr as u16 + lo;
                     format!(
                         "${:>04X}: {:?} ${:>02X} [${:>04X}] {{{:?}}}",
-                        ln_addr, op.op, lo, rel, op.am
+                        ln_addr, op, lo, rel, am
                     )
                 }
             };
