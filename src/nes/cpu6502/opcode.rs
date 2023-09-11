@@ -2366,7 +2366,9 @@ op![#[op_f2, AM_F2, IN_F2] JAM        ];
 
 #[cfg(test)]
 mod test {
-    use crate::nes::{BoardBus, board::ClockBusContext};
+    use std::{rc::Rc, cell::RefCell};
+
+    use crate::nes::{BoardBus, board::ClockBusContext, RAM};
 
     use super::*;
 
@@ -2378,7 +2380,8 @@ mod test {
 		
 		{
 			let mut reg = Registers::default();
-			let mut bus = BoardBus::new();
+			let ram = Rc::new(RefCell::new([0; RAM]));
+			let mut bus = BoardBus::new_cpu(&ram);
 	
 			reg.p = StatusReg::U;
 			reg.ac = 0x05;
@@ -2398,7 +2401,8 @@ mod test {
 
 		{
 			let mut reg = Registers::default();
-			let mut bus = BoardBus::new();
+			let ram = Rc::new(RefCell::new([0; RAM]));
+			let mut bus = BoardBus::new_cpu(&ram);
 	
 			reg.p = StatusReg::U;
 			reg.ac = 0xE8;
@@ -2419,7 +2423,8 @@ mod test {
 		
 		{
 			let mut reg = Registers::default();
-			let mut bus = BoardBus::new();
+			let ram = Rc::new(RefCell::new([0; RAM]));
+			let mut bus = BoardBus::new_cpu(&ram);
 	
 			reg.p = StatusReg::U;
 			reg.ac = 0xFF;
@@ -2441,7 +2446,8 @@ mod test {
 		
 		{
 			let mut reg = Registers::default();
-			let mut bus = BoardBus::new();
+			let ram = Rc::new(RefCell::new([0; RAM]));
+			let mut bus = BoardBus::new_cpu(&ram);
 	
 			reg.p = StatusReg::U;
 			reg.ac = 0xEF;
@@ -2464,7 +2470,8 @@ mod test {
 		
 		{
 			let mut reg = Registers::default();
-			let mut bus = BoardBus::new();
+			let ram = Rc::new(RefCell::new([0; RAM]));
+			let mut bus = BoardBus::new_cpu(&ram);
 	
 			reg.p = StatusReg::U;
 			reg.ac = 0xEF;
@@ -2487,7 +2494,8 @@ mod test {
 
 		{
 			let mut reg = Registers::default();
-			let mut bus = BoardBus::new();
+			let ram = Rc::new(RefCell::new([0; RAM]));
+			let mut bus = BoardBus::new_cpu(&ram);
 	
 			reg.p = StatusReg::U;
 			reg.ac = 0xEF;
@@ -2510,7 +2518,8 @@ mod test {
 
 		{
 			let mut reg = Registers::default();
-			let mut bus = BoardBus::new();
+			let ram = Rc::new(RefCell::new([0; RAM]));
+			let mut bus = BoardBus::new_cpu(&ram);
 	
 			reg.p = StatusReg::U;
 			reg.ac = 0xEF;
@@ -2534,7 +2543,8 @@ mod test {
 		
 		{
 			let mut reg = Registers::default();
-			let mut bus = BoardBus::new();
+			let ram = Rc::new(RefCell::new([0; RAM]));
+			let mut bus = BoardBus::new_cpu(&ram);
 	
 			reg.p = StatusReg::U;
 			reg.ac = 0x48;

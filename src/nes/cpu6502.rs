@@ -247,7 +247,7 @@ impl CPU for Cpu6502 {
 			}
         }
 
-        self.tcc += 1;
+        self.tcc = self.tcc.wrapping_add(1);
         self.cc -= 1;
     }
 

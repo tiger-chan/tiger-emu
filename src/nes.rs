@@ -1,4 +1,5 @@
 mod board;
+mod cartridge;
 mod cpu6502;
 mod ppu2c02;
 
@@ -7,3 +8,4 @@ pub use board::{
 };
 pub use cpu6502::Cpu6502;
 pub use ppu2c02::Ppu2C02;
+pub use cartridge::Cartridge;

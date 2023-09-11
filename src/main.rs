@@ -1,8 +1,10 @@
 mod bus;
+mod cartridge;
 mod cpu;
 mod gui;
 mod motherboard;
 mod nes;
+mod ppu_bus;
 
 use crate::gui::Framework;
 use crate::nes::{RAM, RES_HI, RES_LO};
