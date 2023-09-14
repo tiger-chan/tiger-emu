@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    ops::AddAssign,
+    ops::{AddAssign, RangeInclusive},
     rc::{Rc, Weak},
 };
 
@@ -10,11 +10,10 @@ use crate::{
     bus::Bus,
     cpu::CPU,
     gui::{CpuDisplay, MemoryDisplay, DIAGNOSTIC_FONT},
-    motherboard::Motherboard, ppu_bus::PpuBus,
-	cartridge::Cartridge,
+    motherboard::Motherboard,
 };
 
-use super::{Cpu6502, Ppu2C02, Cartridge as Cart};
+use super::{ppu2c02::PpuBus, Cartridge as Cart, Cpu6502, Ppu2C02, RangeRWCpuBus};
 
 /// Bytes, Words, Addressing
 /// 8 bit bytes, 16 bit words in lobyte-hibyte representation (Little-Endian).
@@ -65,102 +64,125 @@ pub const CPU_RAM: Addr = 0x0800;
 pub const CPU_RAM_MASK: Addr = 0x07FF;
 pub const PPU_RAM_MASK: Addr = 0x0007;
 
-pub struct BoardBus {
-    ram: Weak<RefCell<[u8; RAM]>>,
-    ppu: Weak<RefCell<Ppu2C02>>,
-    cart: Weak<RefCell<Cart>>,
+pub struct RangedBoardBus {
+    devices: Vec<Weak<RefCell<dyn RangeRWCpuBus>>>,
 }
 
-impl BoardBus {
-	#[allow(unused)]
-    pub fn new_cpu(ram: &Rc<RefCell<[u8; RAM]>>) -> Self {
-        Self {
-            ram: Rc::downgrade(ram),
-			ppu: Weak::new(),
-			cart: Weak::new(),
-        }
+impl RangedBoardBus {
+    pub fn new() -> Self {
+        Self { devices: vec![] }
     }
-   
-    pub fn new(ram: &Rc<RefCell<[u8; RAM]>>, ppu: &Rc<RefCell<Ppu2C02>>, cart: &Rc<RefCell<Cart>>) -> Self {
-        Self {
-            ram: Rc::downgrade(ram),
-			ppu: Rc::downgrade(ppu),
-			cart: Rc::downgrade(cart),
-        }
+
+    pub fn push<T>(&mut self, device: &Rc<RefCell<T>>)
+    where
+        T: RangeRWCpuBus + 'static,
+    {
+        let tmp = Rc::downgrade(device);
+        self.devices.push(tmp);
     }
 }
 
-impl Bus for BoardBus {
+impl Bus for RangedBoardBus {
     fn read(&self, addr: u16) -> u8 {
-		let result = match self.cart.upgrade() {
-			Some(cart) => cart.borrow().cpu_read(addr),
-			None => None
-		};
+        for device in &self.devices {
+            let result = match device.upgrade() {
+                Some(device) => {
+                    if device.borrow().accepted_range().contains(&addr) {
+                        device.borrow().read(addr)
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            };
 
-		match result {
-			Some(v) => v,
-			None => {
-				match addr {
-					0x0000..=0x1FFF => {
-						let addr = (addr & CPU_RAM_MASK) as usize;
-						self.ram.upgrade().expect("Ram is connected").borrow()[addr]
-					}
-					0x2000..=0x3FFF => {
-						let addr = (addr & PPU_RAM_MASK) as usize;
-						self.ppu.upgrade().expect("PPU is connected").borrow().cpu_read(addr as Addr)
-					}
-					_ => 0
-				}
-			}
-		}
+            match result {
+                Some(r) => {
+                    return r;
+                }
+                _ => continue,
+            }
+        }
+
+        0
     }
 
     fn read_only(&self, addr: u16) -> u8 {
-		let result = match self.cart.upgrade() {
-			Some(cart) => cart.borrow().cpu_read_only(addr),
-			None => None
-		};
+        for device in &self.devices {
+            let result = match device.upgrade() {
+                Some(device) => {
+                    if device.borrow().accepted_range().contains(&addr) {
+                        device.borrow().read_only(addr)
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            };
 
-		match result {
-			Some(v) => v,
-			None => {
-				match addr {
-					0x0000..=0x1FFF => {
-						let addr = (addr & CPU_RAM_MASK) as usize;
-						self.ram.upgrade().expect("Ram is connected").borrow()[addr]
-					}
-					0x2000..=0x3FFF => {
-						let addr = (addr & PPU_RAM_MASK) as usize;
-						self.ppu.upgrade().expect("PPU is connected").borrow().cpu_read_only(addr as Addr)
-					}
-					_ => 0
-				}
-			}
-		}
+            match result {
+                Some(r) => {
+                    return r;
+                }
+                _ => continue,
+            }
+        }
+
+        0
     }
 
     fn write(&mut self, addr: u16, data: u8) {
-		let result = match self.cart.upgrade() {
-			Some(cart) => cart.borrow().cpu_read(addr),
-			None => None
-		};
+        for device in &self.devices {
+            let result = match device.upgrade() {
+                Some(device) => {
+                    if device.borrow().accepted_range().contains(&addr) {
+                        device.borrow_mut().write(addr, data)
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            };
 
-		match result {
-			Some(_) => (),
-			None => {
-				match addr {
-					0x0000..=0x1FFF => {
-						let addr = (addr & CPU_RAM_MASK) as usize;
-						self.ram.upgrade().expect("Ram is connected").borrow_mut()[addr] = data
-					}
-					0x2000..=0x3FFF => {
-						let addr = (addr & PPU_RAM_MASK) as usize;
-						self.ppu.upgrade().expect("PPU is connected").borrow_mut().cpu_write(addr as Addr, data)
-					}
-					_ => ()
-				}
-			}
-		}
+            match result {
+                Some(_) => {
+                    return;
+                }
+                _ => continue,
+            }
+        }
+    }
+}
+
+pub struct BoardRam {
+    ram: [u8; RAM],
+}
+
+impl RangeRWCpuBus for BoardRam {
+    fn accepted_range(&self) -> RangeInclusive<Addr> {
+        0x0000..=0x1FFF
+    }
+
+    fn read(&self, addr: Addr) -> Option<u8> {
+        let addr = (addr & CPU_RAM_MASK) as usize;
+        Some(self.ram[addr])
+    }
+
+    fn read_only(&self, addr: Addr) -> Option<u8> {
+        let addr = (addr & CPU_RAM_MASK) as usize;
+        Some(self.ram[addr])
+    }
+
+    fn write(&mut self, addr: Addr, data: u8) -> Option<()> {
+        let addr = (addr & CPU_RAM_MASK) as usize;
+        self.ram[addr] = data;
+        Some(())
+    }
+}
+
+impl BoardRam {
+    pub fn new() -> Self {
+        Self { ram: [0; RAM] }
     }
 }
 
@@ -196,30 +218,45 @@ impl Bus for ClockBusContext<'_> {
 
 pub struct Board {
     cpu: Rc<RefCell<Cpu6502>>,
+    #[allow(unused)]
     ppu: Rc<RefCell<Ppu2C02>>,
-    ram: Rc<RefCell<[u8; RAM]>>,
-	cart: Rc<RefCell<Cart>>,
-    bus: BoardBus,
-	tcc: u64,
+    ram: Rc<RefCell<BoardRam>>,
+    #[allow(unused)]
+    cart: Rc<RefCell<Cart>>,
+    bus: RangedBoardBus,
+    #[allow(unused)]
+    ppu_bus: PpuBus,
+    tcc: u64,
 }
 
 impl Board {
     pub fn new() -> Self {
-        let ram = Rc::new(RefCell::new([0; RAM]));
-		let ppu = Rc::new(RefCell::new(Ppu2C02::new()));
-		let cart = Rc::new(RefCell::new(Cart::new()));
+        let ram = Rc::new(RefCell::new(BoardRam::new()));
+        let ppu = Rc::new(RefCell::new(Ppu2C02::new()));
+        let cart = Rc::new(RefCell::new(Cart::new()));
+
+        let mut bus = RangedBoardBus::new();
+        bus.push(&cart);
+        bus.push(&ram);
+        bus.push(&ppu);
+
+        let mut ppu_bus = PpuBus::new(&ppu);
+        ppu_bus.cartridge(&cart);
+
         Self {
             cpu: Rc::new(RefCell::new(Cpu6502::new())),
-            bus: BoardBus::new(&ram, &ppu, &cart),
-            ppu: ppu,
-			cart: cart,
-            ram: ram,
-			tcc: 0,
+            bus,
+            ppu_bus,
+            ppu,
+            cart,
+            ram,
+            tcc: 0,
         }
     }
 
+    #[allow(unused)]
     pub fn set_prog(&mut self, program: &[u8; RAM]) {
-        *self.ram.borrow_mut() = *program;
+        self.ram.borrow_mut().ram = *program;
 
         self.cpu.borrow_mut().disssemble(&self.bus, 0x0000, 0xFFFF);
     }
@@ -241,12 +278,12 @@ impl Bus for Board {
 
 impl Motherboard for Board {
     fn clock(&mut self) {
-		self.cpu.borrow_mut().clock(&mut self.bus);
-		self.tcc = self.tcc.wrapping_add(1);
+        self.cpu.borrow_mut().clock(&mut self.bus);
+        self.tcc = self.tcc.wrapping_add(1);
     }
 
     fn reset(&mut self) {
-		self.tcc = 0;
+        self.tcc = 0;
         self.cpu.borrow_mut().reset(&mut self.bus);
     }
 
@@ -265,6 +302,7 @@ impl MemoryDisplay for Board {
             let mem_block: Vec<u8> = self
                 .ram
                 .borrow()
+                .ram
                 .iter()
                 .skip(addr as usize)
                 .take(rows as usize * cols as usize)

@@ -207,7 +207,7 @@ impl CPU for Cpu6502 {
 		let mut bus = ClockBusContext::new(bus);
 		log::trace!("clock");
         if self.cc == 0 {
-			let mut reg = &mut self.reg;
+			let reg = &mut self.reg;
 			let opc = bus.read(reg.pc) as usize;
 
 			let am = ADDER_MODE[opc];

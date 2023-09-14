@@ -1,77 +1,85 @@
-use super::{
-    address_mode::AddrMode,
-    instructions::Instruction,
-    Registers, StatusReg,
-};
+use super::{address_mode::AddrMode, instructions::Instruction, Registers, StatusReg};
 use crate::{
     bus::Bus,
     nes::{Addr, HI_MASK, IRQ_HI, IRQ_LO, LO_MASK, PS},
 };
 use log::trace;
 
-pub type Instruc = fn (&mut Registers, &mut dyn Bus);
+pub type Instruc = fn(&mut Registers, &mut dyn Bus);
 
 const INOOP: Instruc = op_ea;
 
 pub const OPER: [Instruc; 256] = [
-	op_00, op_01, op_02, INOOP, INOOP, op_05, op_06, INOOP, op_08, op_09, op_0a, INOOP, INOOP, op_0d, op_0e, INOOP,
-	op_10, op_11, op_12, INOOP, INOOP, op_15, op_16, INOOP, op_18, op_19, INOOP, INOOP, INOOP, op_1d, op_1e, INOOP,
-	op_20, op_21, op_22, INOOP, op_24, op_25, op_26, INOOP, op_28, op_29, op_2a, INOOP, op_2c, op_2d, op_2e, INOOP,
-	op_30, op_31, op_32, INOOP, INOOP, op_35, op_36, INOOP, op_38, op_39, INOOP, INOOP, INOOP, op_3d, op_3e, INOOP,
-	op_40, op_41, op_42, INOOP, INOOP, op_45, op_46, INOOP, op_48, op_49, op_4a, INOOP, op_4c, op_4d, op_4e, INOOP,
-	op_50, op_51, op_52, INOOP, INOOP, op_55, op_56, INOOP, op_58, op_59, INOOP, INOOP, INOOP, op_5d, op_5e, INOOP,
-	op_60, op_61, op_62, INOOP, INOOP, op_65, op_66, INOOP, op_68, op_69, op_6a, INOOP, op_6c, op_6d, op_6e, INOOP,
-	op_70, op_71, op_72, INOOP, INOOP, op_75, op_76, INOOP, op_78, op_79, INOOP, INOOP, INOOP, op_7d, op_7e, INOOP,
-	INOOP, op_81, INOOP, INOOP, op_84, op_85, op_86, INOOP, op_88, INOOP, op_8a, INOOP, op_8c, op_8d, op_8e, INOOP,
-	op_90, op_91, op_92, INOOP, op_94, op_95, op_96, INOOP, op_98, op_99, op_9a, INOOP, INOOP, op_9d, INOOP, INOOP,
-	op_a0, op_a1, op_a2, INOOP, op_a4, op_a5, op_a6, INOOP, op_a8, op_a9, op_aa, INOOP, op_ac, op_ad, op_ae, INOOP,
-	op_b0, op_b1, op_b2, INOOP, op_b4, op_b5, op_b6, INOOP, op_b8, op_b9, op_ba, INOOP, op_bc, op_bd, op_be, INOOP,
-	op_c0, op_c1, INOOP, INOOP, op_c4, op_c5, op_c6, INOOP, op_c8, op_c9, op_ca, INOOP, op_cc, op_cd, op_ce, INOOP,
-	op_d0, op_d1, op_d2, INOOP, INOOP, op_d5, op_d6, INOOP, op_d8, op_d9, INOOP, INOOP, INOOP, op_dd, op_de, INOOP,
-	op_e0, op_e1, INOOP, INOOP, op_e4, op_e5, op_e6, INOOP, op_e8, op_e9, op_ea, INOOP, op_ec, op_ed, op_ee, INOOP,
-	op_f0, op_f1, op_f2, INOOP, INOOP, op_f5, op_f6, INOOP, op_f8, op_f9, INOOP, INOOP, INOOP, op_fd, op_fe, INOOP,
+    op_00, op_01, op_02, INOOP, INOOP, op_05, op_06, INOOP, op_08, op_09, op_0a, INOOP, INOOP,
+    op_0d, op_0e, INOOP, op_10, op_11, op_12, INOOP, INOOP, op_15, op_16, INOOP, op_18, op_19,
+    INOOP, INOOP, INOOP, op_1d, op_1e, INOOP, op_20, op_21, op_22, INOOP, op_24, op_25, op_26,
+    INOOP, op_28, op_29, op_2a, INOOP, op_2c, op_2d, op_2e, INOOP, op_30, op_31, op_32, INOOP,
+    INOOP, op_35, op_36, INOOP, op_38, op_39, INOOP, INOOP, INOOP, op_3d, op_3e, INOOP, op_40,
+    op_41, op_42, INOOP, INOOP, op_45, op_46, INOOP, op_48, op_49, op_4a, INOOP, op_4c, op_4d,
+    op_4e, INOOP, op_50, op_51, op_52, INOOP, INOOP, op_55, op_56, INOOP, op_58, op_59, INOOP,
+    INOOP, INOOP, op_5d, op_5e, INOOP, op_60, op_61, op_62, INOOP, INOOP, op_65, op_66, INOOP,
+    op_68, op_69, op_6a, INOOP, op_6c, op_6d, op_6e, INOOP, op_70, op_71, op_72, INOOP, INOOP,
+    op_75, op_76, INOOP, op_78, op_79, INOOP, INOOP, INOOP, op_7d, op_7e, INOOP, INOOP, op_81,
+    INOOP, INOOP, op_84, op_85, op_86, INOOP, op_88, INOOP, op_8a, INOOP, op_8c, op_8d, op_8e,
+    INOOP, op_90, op_91, op_92, INOOP, op_94, op_95, op_96, INOOP, op_98, op_99, op_9a, INOOP,
+    INOOP, op_9d, INOOP, INOOP, op_a0, op_a1, op_a2, INOOP, op_a4, op_a5, op_a6, INOOP, op_a8,
+    op_a9, op_aa, INOOP, op_ac, op_ad, op_ae, INOOP, op_b0, op_b1, op_b2, INOOP, op_b4, op_b5,
+    op_b6, INOOP, op_b8, op_b9, op_ba, INOOP, op_bc, op_bd, op_be, INOOP, op_c0, op_c1, INOOP,
+    INOOP, op_c4, op_c5, op_c6, INOOP, op_c8, op_c9, op_ca, INOOP, op_cc, op_cd, op_ce, INOOP,
+    op_d0, op_d1, op_d2, INOOP, INOOP, op_d5, op_d6, INOOP, op_d8, op_d9, INOOP, INOOP, INOOP,
+    op_dd, op_de, INOOP, op_e0, op_e1, INOOP, INOOP, op_e4, op_e5, op_e6, INOOP, op_e8, op_e9,
+    op_ea, INOOP, op_ec, op_ed, op_ee, INOOP, op_f0, op_f1, op_f2, INOOP, INOOP, op_f5, op_f6,
+    INOOP, op_f8, op_f9, INOOP, INOOP, INOOP, op_fd, op_fe, INOOP,
 ];
 
 const INOAM: AddrMode = AddrMode::IMP;
 
 pub const ADDER_MODE: [AddrMode; 256] = [
-	AM_00, AM_01, AM_02, INOAM, INOAM, AM_05, AM_06, INOAM, AM_08, AM_09, AM_0A, INOAM, INOAM, AM_0D, AM_0E, INOAM,
-	AM_10, AM_11, AM_12, INOAM, INOAM, AM_15, AM_16, INOAM, AM_18, AM_19, INOAM, INOAM, INOAM, AM_1D, AM_1E, INOAM,
-	AM_20, AM_21, AM_22, INOAM, AM_24, AM_25, AM_26, INOAM, AM_28, AM_29, AM_2A, INOAM, AM_2C, AM_2D, AM_2E, INOAM,
-	AM_30, AM_31, AM_32, INOAM, INOAM, AM_35, AM_36, INOAM, AM_38, AM_39, INOAM, INOAM, INOAM, AM_3D, AM_3E, INOAM,
-	AM_40, AM_41, AM_42, INOAM, INOAM, AM_45, AM_46, INOAM, AM_48, AM_49, AM_4A, INOAM, AM_4C, AM_4D, AM_4E, INOAM,
-	AM_50, AM_51, AM_52, INOAM, INOAM, AM_55, AM_56, INOAM, AM_58, AM_59, INOAM, INOAM, INOAM, AM_5D, AM_5E, INOAM,
-	AM_60, AM_61, AM_62, INOAM, INOAM, AM_65, AM_66, INOAM, AM_68, AM_69, AM_6A, INOAM, AM_6C, AM_6D, AM_6E, INOAM,
-	AM_70, AM_71, AM_72, INOAM, INOAM, AM_75, AM_76, INOAM, AM_78, AM_79, INOAM, INOAM, INOAM, AM_7D, AM_7E, INOAM,
-	INOAM, AM_81, INOAM, INOAM, AM_84, AM_85, AM_86, INOAM, AM_88, INOAM, AM_8A, INOAM, AM_8C, AM_8D, AM_8E, INOAM,
-	AM_90, AM_91, AM_92, INOAM, AM_94, AM_95, AM_96, INOAM, AM_98, AM_99, AM_9A, INOAM, INOAM, AM_9D, INOAM, INOAM,
-	AM_A0, AM_A1, AM_A2, INOAM, AM_A4, AM_A5, AM_A6, INOAM, AM_A8, AM_A9, AM_AA, INOAM, AM_AC, AM_AD, AM_AE, INOAM,
-	AM_B0, AM_B1, AM_B2, INOAM, AM_B4, AM_B5, AM_B6, INOAM, AM_B8, AM_B9, AM_BA, INOAM, AM_BC, AM_BD, AM_BE, INOAM,
-	AM_C0, AM_C1, INOAM, INOAM, AM_C4, AM_C5, AM_C6, INOAM, AM_C8, AM_C9, AM_CA, INOAM, AM_CC, AM_CD, AM_CE, INOAM,
-	AM_D0, AM_D1, AM_D2, INOAM, INOAM, AM_D5, AM_D6, INOAM, AM_D8, AM_D9, INOAM, INOAM, INOAM, AM_DD, AM_DE, INOAM,
-	AM_E0, AM_E1, INOAM, INOAM, AM_E4, AM_E5, AM_E6, INOAM, AM_E8, AM_E9, AM_EA, INOAM, AM_EC, AM_ED, AM_EE, INOAM,
-	AM_F0, AM_F1, AM_F2, INOAM, INOAM, AM_F5, AM_F6, INOAM, AM_F8, AM_F9, INOAM, INOAM, INOAM, AM_FD, AM_FE, INOAM,
+    AM_00, AM_01, AM_02, INOAM, INOAM, AM_05, AM_06, INOAM, AM_08, AM_09, AM_0A, INOAM, INOAM,
+    AM_0D, AM_0E, INOAM, AM_10, AM_11, AM_12, INOAM, INOAM, AM_15, AM_16, INOAM, AM_18, AM_19,
+    INOAM, INOAM, INOAM, AM_1D, AM_1E, INOAM, AM_20, AM_21, AM_22, INOAM, AM_24, AM_25, AM_26,
+    INOAM, AM_28, AM_29, AM_2A, INOAM, AM_2C, AM_2D, AM_2E, INOAM, AM_30, AM_31, AM_32, INOAM,
+    INOAM, AM_35, AM_36, INOAM, AM_38, AM_39, INOAM, INOAM, INOAM, AM_3D, AM_3E, INOAM, AM_40,
+    AM_41, AM_42, INOAM, INOAM, AM_45, AM_46, INOAM, AM_48, AM_49, AM_4A, INOAM, AM_4C, AM_4D,
+    AM_4E, INOAM, AM_50, AM_51, AM_52, INOAM, INOAM, AM_55, AM_56, INOAM, AM_58, AM_59, INOAM,
+    INOAM, INOAM, AM_5D, AM_5E, INOAM, AM_60, AM_61, AM_62, INOAM, INOAM, AM_65, AM_66, INOAM,
+    AM_68, AM_69, AM_6A, INOAM, AM_6C, AM_6D, AM_6E, INOAM, AM_70, AM_71, AM_72, INOAM, INOAM,
+    AM_75, AM_76, INOAM, AM_78, AM_79, INOAM, INOAM, INOAM, AM_7D, AM_7E, INOAM, INOAM, AM_81,
+    INOAM, INOAM, AM_84, AM_85, AM_86, INOAM, AM_88, INOAM, AM_8A, INOAM, AM_8C, AM_8D, AM_8E,
+    INOAM, AM_90, AM_91, AM_92, INOAM, AM_94, AM_95, AM_96, INOAM, AM_98, AM_99, AM_9A, INOAM,
+    INOAM, AM_9D, INOAM, INOAM, AM_A0, AM_A1, AM_A2, INOAM, AM_A4, AM_A5, AM_A6, INOAM, AM_A8,
+    AM_A9, AM_AA, INOAM, AM_AC, AM_AD, AM_AE, INOAM, AM_B0, AM_B1, AM_B2, INOAM, AM_B4, AM_B5,
+    AM_B6, INOAM, AM_B8, AM_B9, AM_BA, INOAM, AM_BC, AM_BD, AM_BE, INOAM, AM_C0, AM_C1, INOAM,
+    INOAM, AM_C4, AM_C5, AM_C6, INOAM, AM_C8, AM_C9, AM_CA, INOAM, AM_CC, AM_CD, AM_CE, INOAM,
+    AM_D0, AM_D1, AM_D2, INOAM, INOAM, AM_D5, AM_D6, INOAM, AM_D8, AM_D9, INOAM, INOAM, INOAM,
+    AM_DD, AM_DE, INOAM, AM_E0, AM_E1, INOAM, INOAM, AM_E4, AM_E5, AM_E6, INOAM, AM_E8, AM_E9,
+    AM_EA, INOAM, AM_EC, AM_ED, AM_EE, INOAM, AM_F0, AM_F1, AM_F2, INOAM, INOAM, AM_F5, AM_F6,
+    INOAM, AM_F8, AM_F9, INOAM, INOAM, INOAM, AM_FD, AM_FE, INOAM,
 ];
 
 const INOIN: Instruction = Instruction::XXX;
 
-pub const INSTRUCTION_TYPE: [Instruction; 256] =[
-	IN_00, IN_01, IN_02, INOIN, INOIN, IN_05, IN_06, INOIN, IN_08, IN_09, IN_0A, INOIN, INOIN, IN_0D, IN_0E, INOIN,
-	IN_10, IN_11, IN_12, INOIN, INOIN, IN_15, IN_16, INOIN, IN_18, IN_19, INOIN, INOIN, INOIN, IN_1D, IN_1E, INOIN,
-	IN_20, IN_21, IN_22, INOIN, IN_24, IN_25, IN_26, INOIN, IN_28, IN_29, IN_2A, INOIN, IN_2C, IN_2D, IN_2E, INOIN,
-	IN_30, IN_31, IN_32, INOIN, INOIN, IN_35, IN_36, INOIN, IN_38, IN_39, INOIN, INOIN, INOIN, IN_3D, IN_3E, INOIN,
-	IN_40, IN_41, IN_42, INOIN, INOIN, IN_45, IN_46, INOIN, IN_48, IN_49, IN_4A, INOIN, IN_4C, IN_4D, IN_4E, INOIN,
-	IN_50, IN_51, IN_52, INOIN, INOIN, IN_55, IN_56, INOIN, IN_58, IN_59, INOIN, INOIN, INOIN, IN_5D, IN_5E, INOIN,
-	IN_60, IN_61, IN_62, INOIN, INOIN, IN_65, IN_66, INOIN, IN_68, IN_69, IN_6A, INOIN, IN_6C, IN_6D, IN_6E, INOIN,
-	IN_70, IN_71, IN_72, INOIN, INOIN, IN_75, IN_76, INOIN, IN_78, IN_79, INOIN, INOIN, INOIN, IN_7D, IN_7E, INOIN,
-	INOIN, IN_81, INOIN, INOIN, IN_84, IN_85, IN_86, INOIN, IN_88, INOIN, IN_8A, INOIN, IN_8C, IN_8D, IN_8E, INOIN,
-	IN_90, IN_91, IN_92, INOIN, IN_94, IN_95, IN_96, INOIN, IN_98, IN_99, IN_9A, INOIN, INOIN, IN_9D, INOIN, INOIN,
-	IN_A0, IN_A1, IN_A2, INOIN, IN_A4, IN_A5, IN_A6, INOIN, IN_A8, IN_A9, IN_AA, INOIN, IN_AC, IN_AD, IN_AE, INOIN,
-	IN_B0, IN_B1, IN_B2, INOIN, IN_B4, IN_B5, IN_B6, INOIN, IN_B8, IN_B9, IN_BA, INOIN, IN_BC, IN_BD, IN_BE, INOIN,
-	IN_C0, IN_C1, INOIN, INOIN, IN_C4, IN_C5, IN_C6, INOIN, IN_C8, IN_C9, IN_CA, INOIN, IN_CC, IN_CD, IN_CE, INOIN,
-	IN_D0, IN_D1, IN_D2, INOIN, INOIN, IN_D5, IN_D6, INOIN, IN_D8, IN_D9, INOIN, INOIN, INOIN, IN_DD, IN_DE, INOIN,
-	IN_E0, IN_E1, INOIN, INOIN, IN_E4, IN_E5, IN_E6, INOIN, IN_E8, IN_E9, IN_EA, INOIN, IN_EC, IN_ED, IN_EE, INOIN,
-	IN_F0, IN_F1, IN_F2, INOIN, INOIN, IN_F5, IN_F6, INOIN, IN_F8, IN_F9, INOIN, INOIN, INOIN, IN_FD, IN_FE, INOIN,
+pub const INSTRUCTION_TYPE: [Instruction; 256] = [
+    IN_00, IN_01, IN_02, INOIN, INOIN, IN_05, IN_06, INOIN, IN_08, IN_09, IN_0A, INOIN, INOIN,
+    IN_0D, IN_0E, INOIN, IN_10, IN_11, IN_12, INOIN, INOIN, IN_15, IN_16, INOIN, IN_18, IN_19,
+    INOIN, INOIN, INOIN, IN_1D, IN_1E, INOIN, IN_20, IN_21, IN_22, INOIN, IN_24, IN_25, IN_26,
+    INOIN, IN_28, IN_29, IN_2A, INOIN, IN_2C, IN_2D, IN_2E, INOIN, IN_30, IN_31, IN_32, INOIN,
+    INOIN, IN_35, IN_36, INOIN, IN_38, IN_39, INOIN, INOIN, INOIN, IN_3D, IN_3E, INOIN, IN_40,
+    IN_41, IN_42, INOIN, INOIN, IN_45, IN_46, INOIN, IN_48, IN_49, IN_4A, INOIN, IN_4C, IN_4D,
+    IN_4E, INOIN, IN_50, IN_51, IN_52, INOIN, INOIN, IN_55, IN_56, INOIN, IN_58, IN_59, INOIN,
+    INOIN, INOIN, IN_5D, IN_5E, INOIN, IN_60, IN_61, IN_62, INOIN, INOIN, IN_65, IN_66, INOIN,
+    IN_68, IN_69, IN_6A, INOIN, IN_6C, IN_6D, IN_6E, INOIN, IN_70, IN_71, IN_72, INOIN, INOIN,
+    IN_75, IN_76, INOIN, IN_78, IN_79, INOIN, INOIN, INOIN, IN_7D, IN_7E, INOIN, INOIN, IN_81,
+    INOIN, INOIN, IN_84, IN_85, IN_86, INOIN, IN_88, INOIN, IN_8A, INOIN, IN_8C, IN_8D, IN_8E,
+    INOIN, IN_90, IN_91, IN_92, INOIN, IN_94, IN_95, IN_96, INOIN, IN_98, IN_99, IN_9A, INOIN,
+    INOIN, IN_9D, INOIN, INOIN, IN_A0, IN_A1, IN_A2, INOIN, IN_A4, IN_A5, IN_A6, INOIN, IN_A8,
+    IN_A9, IN_AA, INOIN, IN_AC, IN_AD, IN_AE, INOIN, IN_B0, IN_B1, IN_B2, INOIN, IN_B4, IN_B5,
+    IN_B6, INOIN, IN_B8, IN_B9, IN_BA, INOIN, IN_BC, IN_BD, IN_BE, INOIN, IN_C0, IN_C1, INOIN,
+    INOIN, IN_C4, IN_C5, IN_C6, INOIN, IN_C8, IN_C9, IN_CA, INOIN, IN_CC, IN_CD, IN_CE, INOIN,
+    IN_D0, IN_D1, IN_D2, INOIN, INOIN, IN_D5, IN_D6, INOIN, IN_D8, IN_D9, INOIN, INOIN, INOIN,
+    IN_DD, IN_DE, INOIN, IN_E0, IN_E1, INOIN, INOIN, IN_E4, IN_E5, IN_E6, INOIN, IN_E8, IN_E9,
+    IN_EA, INOIN, IN_EC, IN_ED, IN_EE, INOIN, IN_F0, IN_F1, IN_F2, INOIN, INOIN, IN_F5, IN_F6,
+    INOIN, IN_F8, IN_F9, INOIN, INOIN, INOIN, IN_FD, IN_FE, INOIN,
 ];
 
 macro_rules! is_implied {
@@ -359,7 +367,7 @@ macro_rules! am {
             $reg.pc += 1;
             let x = $reg.x as Addr;
             let ptr = lo_ptr + x;
-			
+
             let lo = $bus.read(ptr + 0) as Addr;
             let hi = ($bus.read(ptr + 1) as Addr) << 8;
 			$bus.read(0x0000); // Add cycle
@@ -543,322 +551,321 @@ macro_rules! am {
 }
 
 macro_rules! am_const {
-	([$code:ident] A) => {
-		// A Accumulator
-		//
-		// OPC A
-		//
-		// operand is AC (implied single byte instruction)
-		//
-		// These instructions act directly on one or more registers or flags
-		// internal to the CPU. Therefor, these instructions are principally
-		// single-byte instructions, lacking an explicit operand. The operand
-		// is implied, as it is already provided by the very instruction.
-		//
-		// Instructions targeting exclusively the contents of the accumulator
-		// may or may not be denoted by using an explicit "A" as the operand,
-		// depending on the flavor of syntax. (This may be regarded as a
-		// special address mode of its own, but it is really a special case of
-		// an implied instruction. It is still a single-byte instruction and no
-		// operand is provided in machine language.)
-		const $code: AddrMode = AddrMode::A;
-	};
+    ([$code:ident] A) => {
+        // A Accumulator
+        //
+        // OPC A
+        //
+        // operand is AC (implied single byte instruction)
+        //
+        // These instructions act directly on one or more registers or flags
+        // internal to the CPU. Therefor, these instructions are principally
+        // single-byte instructions, lacking an explicit operand. The operand
+        // is implied, as it is already provided by the very instruction.
+        //
+        // Instructions targeting exclusively the contents of the accumulator
+        // may or may not be denoted by using an explicit "A" as the operand,
+        // depending on the flavor of syntax. (This may be regarded as a
+        // special address mode of its own, but it is really a special case of
+        // an implied instruction. It is still a single-byte instruction and no
+        // operand is provided in machine language.)
+        const $code: AddrMode = AddrMode::A;
+    };
 
-	([$code:ident] &LLHH) => {
-		// Absolute
-		//
-		// OPC $LLHH
-		//
-		// operand is address $HHLL *
-		//
-		// Absolute addressing modes provides the 16-bit address of a memory
-		// location, the contents of which used as the operand to the
-		// instruction. In machine language, the address is provided in two
-		// bytes immediately after the instruction (making these 3-byte
-		// instructions) in low-byte, high-byte order (LLHH) or little-endian.
-		// In assembler, conventional numbers (HHLL order or big-endian words)
-		// are used to provide the address.
-		//
-		// Absolute addresses are also used for the jump instructions JMP and
-		// JSR to provide the address for the next instruction to continue with
-		// in the control flow.
+    ([$code:ident] &LLHH) => {
+        // Absolute
+        //
+        // OPC $LLHH
+        //
+        // operand is address $HHLL *
+        //
+        // Absolute addressing modes provides the 16-bit address of a memory
+        // location, the contents of which used as the operand to the
+        // instruction. In machine language, the address is provided in two
+        // bytes immediately after the instruction (making these 3-byte
+        // instructions) in low-byte, high-byte order (LLHH) or little-endian.
+        // In assembler, conventional numbers (HHLL order or big-endian words)
+        // are used to provide the address.
+        //
+        // Absolute addresses are also used for the jump instructions JMP and
+        // JSR to provide the address for the next instruction to continue with
+        // in the control flow.
         const $code: AddrMode = AddrMode::ABS;
-	};
+    };
 
-	([$code:ident] &LLHH,X) => {
-		// Absolute, X-indexed
-		//
-		// OPC $LLHH,X
-		//
-		// operand is address; effective address is address incremented by X with carry **
-		//
-		// Indexed addressing adds the contents of either the X-register or the
-		// Y-register to the provided address to give the effective address,
-		// which provides the operand.
-		//
-		// These instructions are usefull to e.g., load values from tables or
-		// to write to a continuous segment of memory in a loop. The most basic
-		// forms are "absolute,X" and "absolute,X", where either the X- or the
-		// Y-register, respectively, is added to a given base address. As the
-		// base address is a 16-bit value, these are generally 3-byte
-		// instructions. Since there is an additional operation to perform to
-		// determine the effective address, these instructions are one cycle
-		// slower than those using absolute addressing mode.*
-		//
-		// *) If the addition of the contents of the index register effects in
-		// a change of the high-byte given by the base address so that the
-		// effective address is on the next memory page, the additional
-		// operation to increment the high-byte takes another CPU cycle. This
-		// is also known as a crossing of page boundaries.
+    ([$code:ident] &LLHH,X) => {
+        // Absolute, X-indexed
+        //
+        // OPC $LLHH,X
+        //
+        // operand is address; effective address is address incremented by X with carry **
+        //
+        // Indexed addressing adds the contents of either the X-register or the
+        // Y-register to the provided address to give the effective address,
+        // which provides the operand.
+        //
+        // These instructions are usefull to e.g., load values from tables or
+        // to write to a continuous segment of memory in a loop. The most basic
+        // forms are "absolute,X" and "absolute,X", where either the X- or the
+        // Y-register, respectively, is added to a given base address. As the
+        // base address is a 16-bit value, these are generally 3-byte
+        // instructions. Since there is an additional operation to perform to
+        // determine the effective address, these instructions are one cycle
+        // slower than those using absolute addressing mode.*
+        //
+        // *) If the addition of the contents of the index register effects in
+        // a change of the high-byte given by the base address so that the
+        // effective address is on the next memory page, the additional
+        // operation to increment the high-byte takes another CPU cycle. This
+        // is also known as a crossing of page boundaries.
         const $code: AddrMode = AddrMode::ABX;
-	};
+    };
 
-	([$code:ident] &LLHH,Y) => {
-		// Absolute, Y-indexed
-		//
-		// OPC $LLHH,Y
-		//
-		// operand is address; effective address is address incremented by Y with carry **
-		//
-		// Indexed addressing adds the contents of either the X-register or the
-		// Y-register to the provided address to give the effective address,
-		// which provides the operand.
-		//
-		// These instructions are usefull to e.g., load values from tables or
-		// to write to a continuous segment of memory in a loop. The most basic
-		// forms are "absolute,X" and "absolute,X", where either the X- or the
-		// Y-register, respectively, is added to a given base address. As the
-		// base address is a 16-bit value, these are generally 3-byte
-		// instructions. Since there is an additional operation to perform to
-		// determine the effective address, these instructions are one cycle
-		// slower than those using absolute addressing mode.*
-		//
-		// *) If the addition of the contents of the index register effects in
-		// a change of the high-byte given by the base address so that the
-		// effective address is on the next memory page, the additional
-		// operation to increment the high-byte takes another CPU cycle. This
-		// is also known as a crossing of page boundaries.
+    ([$code:ident] &LLHH,Y) => {
+        // Absolute, Y-indexed
+        //
+        // OPC $LLHH,Y
+        //
+        // operand is address; effective address is address incremented by Y with carry **
+        //
+        // Indexed addressing adds the contents of either the X-register or the
+        // Y-register to the provided address to give the effective address,
+        // which provides the operand.
+        //
+        // These instructions are usefull to e.g., load values from tables or
+        // to write to a continuous segment of memory in a loop. The most basic
+        // forms are "absolute,X" and "absolute,X", where either the X- or the
+        // Y-register, respectively, is added to a given base address. As the
+        // base address is a 16-bit value, these are generally 3-byte
+        // instructions. Since there is an additional operation to perform to
+        // determine the effective address, these instructions are one cycle
+        // slower than those using absolute addressing mode.*
+        //
+        // *) If the addition of the contents of the index register effects in
+        // a change of the high-byte given by the base address so that the
+        // effective address is on the next memory page, the additional
+        // operation to increment the high-byte takes another CPU cycle. This
+        // is also known as a crossing of page boundaries.
         const $code: AddrMode = AddrMode::ABY;
-	};
+    };
 
-	([$code:ident] #&BB) => {
-		// Immediate
-		//
-		// OPC #$BB
-		//
-		// operand is byte BB
-		//
-		// Here, a literal operand is given immediately after the instruction.
-		// The operand is always an 8-bit value and the total instruction
-		// length is always 2 bytes. In memory, the operand is a single byte
-		// following immediately after the instruction code. In assembler, the
-		// mode is usually indicated by a "#" prefix adjacent to the operand.
+    ([$code:ident] #&BB) => {
+        // Immediate
+        //
+        // OPC #$BB
+        //
+        // operand is byte BB
+        //
+        // Here, a literal operand is given immediately after the instruction.
+        // The operand is always an 8-bit value and the total instruction
+        // length is always 2 bytes. In memory, the operand is a single byte
+        // following immediately after the instruction code. In assembler, the
+        // mode is usually indicated by a "#" prefix adjacent to the operand.
         const $code: AddrMode = AddrMode::IMM;
-	};
+    };
 
-	([$code:ident]) => {
-		// Implied
-		//
-		// OPC
-		//
-		// operand implied
-		//
-		// These instructions act directly on one or more registers or flags
-		// internal to the CPU. Therefor, these instructions are principally
-		// single-byte instructions, lacking an explicit operand. The operand
-		// is implied, as it is already provided by the very instruction.
-		//
-		// Instructions targeting exclusively the contents of the accumulator
-		// may or may not be denoted by using an explicit "A" as the operand,
-		// depending on the flavor of syntax. (This may be regarded as a
-		// special address mode of its own, but it is really a special case of
-		// an implied instruction. It is still a single-byte instruction and no
-		// operand is provided in machine language.)
+    ([$code:ident]) => {
+        // Implied
+        //
+        // OPC
+        //
+        // operand implied
+        //
+        // These instructions act directly on one or more registers or flags
+        // internal to the CPU. Therefor, these instructions are principally
+        // single-byte instructions, lacking an explicit operand. The operand
+        // is implied, as it is already provided by the very instruction.
+        //
+        // Instructions targeting exclusively the contents of the accumulator
+        // may or may not be denoted by using an explicit "A" as the operand,
+        // depending on the flavor of syntax. (This may be regarded as a
+        // special address mode of its own, but it is really a special case of
+        // an implied instruction. It is still a single-byte instruction and no
+        // operand is provided in machine language.)
         const $code: AddrMode = AddrMode::IMP;
-	};
+    };
 
-	([$code:ident] (&LLHH)) => {
-		// Indirect
-		//
-		// OPC ($LLHH)
-		//
-		// operand is address; effective address is contents of word at address: C.w($HHLL)
-		//
-		// This mode looks up a given address and uses the contents of this
-		// address and the next one (in LLHH little-endian order) as the
-		// effective address. In its basic form, this mode is available for the
-		// JMP instruction only. (Its generally use is jump vectors and jump tables.)
-		//
-		// Like the absolute JMP instruction it uses a 16-bit address (3 bytes
-		// in total), but takes two additional CPU cycles to execute, since
-		// there are two additional bytes to fetch for the lookup of the
-		// effective jump target.
-		//
-		// Generally, indirect addressing is denoted by putting the lookup
-		// address in parenthesis.
+    ([$code:ident] (&LLHH)) => {
+        // Indirect
+        //
+        // OPC ($LLHH)
+        //
+        // operand is address; effective address is contents of word at address: C.w($HHLL)
+        //
+        // This mode looks up a given address and uses the contents of this
+        // address and the next one (in LLHH little-endian order) as the
+        // effective address. In its basic form, this mode is available for the
+        // JMP instruction only. (Its generally use is jump vectors and jump tables.)
+        //
+        // Like the absolute JMP instruction it uses a 16-bit address (3 bytes
+        // in total), but takes two additional CPU cycles to execute, since
+        // there are two additional bytes to fetch for the lookup of the
+        // effective jump target.
+        //
+        // Generally, indirect addressing is denoted by putting the lookup
+        // address in parenthesis.
         const $code: AddrMode = AddrMode::IND;
-	};
+    };
 
-	([$code:ident] (&LL,X)) => {
-		// Indirect, X-indexed
-		//
-		// OPC ($LL,X)
-		//
-		// operand is zeropage address; effective address is word in (LL + X, LL + X + 1), inc. without carry: C.w($00LL + X)
-		//
-		// Indexed indirect address modes are generally available only for
-		// instructions supplying an operand to the accumulator (LDA, STA, ADC,
-		// SBC, AND, ORA, EOR, etc). The placement of the index register inside
-		// or outside of the parenthesis indicating the address lookup will
-		// give you clue what these instructions are doing.
-		//
-		// Pre-indexed indirect address mode is only available in combination
-		// with the X-register. It works much like the "zero-page,X" mode, but,
-		// after the X-register has been added to the base address, instead of
-		// directly accessing this, an additional lookup is performed, reading
-		// the contents of resulting address and the next one (in LLHH little-
-		// endian order), in order to determine the effective address.
-		//
-		// Like with "zero-page,X" mode, the total instruction length is 2
-		// bytes, but there are two additional CPU cycles in order to fetch
-		// the effective 16-bit address. As "zero-page,X" mode, a lookup address
-		// will never overflow into the next page, but will simply wrap around
-		// in the zero-page.
-		//
-		// These instructions are useful, whenever we want to loop over a table
-		// of pointers to disperse addresses, or where we want to apply the
-		// same operation to various addresses, which we have stored as a table
-		// in the zero-page.
+    ([$code:ident] (&LL,X)) => {
+        // Indirect, X-indexed
+        //
+        // OPC ($LL,X)
+        //
+        // operand is zeropage address; effective address is word in (LL + X, LL + X + 1), inc. without carry: C.w($00LL + X)
+        //
+        // Indexed indirect address modes are generally available only for
+        // instructions supplying an operand to the accumulator (LDA, STA, ADC,
+        // SBC, AND, ORA, EOR, etc). The placement of the index register inside
+        // or outside of the parenthesis indicating the address lookup will
+        // give you clue what these instructions are doing.
+        //
+        // Pre-indexed indirect address mode is only available in combination
+        // with the X-register. It works much like the "zero-page,X" mode, but,
+        // after the X-register has been added to the base address, instead of
+        // directly accessing this, an additional lookup is performed, reading
+        // the contents of resulting address and the next one (in LLHH little-
+        // endian order), in order to determine the effective address.
+        //
+        // Like with "zero-page,X" mode, the total instruction length is 2
+        // bytes, but there are two additional CPU cycles in order to fetch
+        // the effective 16-bit address. As "zero-page,X" mode, a lookup address
+        // will never overflow into the next page, but will simply wrap around
+        // in the zero-page.
+        //
+        // These instructions are useful, whenever we want to loop over a table
+        // of pointers to disperse addresses, or where we want to apply the
+        // same operation to various addresses, which we have stored as a table
+        // in the zero-page.
         const $code: AddrMode = AddrMode::IZX;
-	};
+    };
 
-	([$code:ident] (&LL),Y) => {
-		// Indirect, Y-indexed
-		//
-		// OPC ($LL),Y
-		//
-		// operand is zeropage address; effective address is word in (LL, LL + 1) incremented by Y with carry: C.w($00LL) + Y
-		//
-		// Post-indexed indirect addressing is only available in combination
-		// with the Y-register. As indicated by the indexing term ",Y" being
-		// appended to the outside of the parenthesis indicating the indirect
-		// lookup, here, a pointer is first read (from the given zero-page
-		// address) and resolved and only then the contents of the Y-register
-		// is added to this to give the effective address.
-		//
-		// Like with "zero-page,Y" mode, the total instruction length is 2
-		// bytes, but there it takes an additional CPU cycles to resolve and
-		// index the 16-bit pointer. As with "absolute,X" mode, the effective
-		// address may overflow into the next page, in the case of which the
-		// execution uses an extra CPU cycle.
-		//
-		// These instructions are useful, wherever we want to perform lookups
-		// on varying bases addresses or whenever we want to loop over tables,
-		// the base address of which we have stored in the zero-page.
+    ([$code:ident] (&LL),Y) => {
+        // Indirect, Y-indexed
+        //
+        // OPC ($LL),Y
+        //
+        // operand is zeropage address; effective address is word in (LL, LL + 1) incremented by Y with carry: C.w($00LL) + Y
+        //
+        // Post-indexed indirect addressing is only available in combination
+        // with the Y-register. As indicated by the indexing term ",Y" being
+        // appended to the outside of the parenthesis indicating the indirect
+        // lookup, here, a pointer is first read (from the given zero-page
+        // address) and resolved and only then the contents of the Y-register
+        // is added to this to give the effective address.
+        //
+        // Like with "zero-page,Y" mode, the total instruction length is 2
+        // bytes, but there it takes an additional CPU cycles to resolve and
+        // index the 16-bit pointer. As with "absolute,X" mode, the effective
+        // address may overflow into the next page, in the case of which the
+        // execution uses an extra CPU cycle.
+        //
+        // These instructions are useful, wherever we want to perform lookups
+        // on varying bases addresses or whenever we want to loop over tables,
+        // the base address of which we have stored in the zero-page.
         const $code: AddrMode = AddrMode::IZY;
-	};
+    };
 
-	([$code:ident] &BB) => {
-		// Relative
-		//
-		// OPC $BB
-		//
-		// branch target is PC + signed offset BB ***
-		//
-		// This final address mode is exlusive to conditional branch
-		// instructions, which branch in the execution path depending on the
-		// state of a given CPU flag. Here, the instruction provides only a
-		// relative offset, which is added to the contents of the program
-		// counter (PC) as it points to the immediate next instruction. The
-		// relative offset is a signed single byte value in two's complement
-		// encoding (giving a range of −128…+127), which allows for branching
-		// up to half a page forwards and backwards.
-		//
-		// On the one hand, this makes these instructions compact, fast and
-		// relocatable at the same time. On the other hand, we have to mind
-		// that our branch target is no farther away than half a memory page.
-		//
-		// Generally, an assembler will take care of this and we only have to
-		// provide the target address, not having to worry about relative
-		// addressing.
-		//
-		// These instructions are always of 2 bytes length and perform in 2 CPU
-		// cycles, if the branch is not taken (the condition resolving to
-		// 'false'), and 3 cycles, if the branch is taken (when the condition
-		// is true). If a branch is taken and the target is on a different
-		// page, this adds another CPU cycle (4 in total).
-		const $code: AddrMode = AddrMode::REL;
-	};
+    ([$code:ident] &BB) => {
+        // Relative
+        //
+        // OPC $BB
+        //
+        // branch target is PC + signed offset BB ***
+        //
+        // This final address mode is exlusive to conditional branch
+        // instructions, which branch in the execution path depending on the
+        // state of a given CPU flag. Here, the instruction provides only a
+        // relative offset, which is added to the contents of the program
+        // counter (PC) as it points to the immediate next instruction. The
+        // relative offset is a signed single byte value in two's complement
+        // encoding (giving a range of −128…+127), which allows for branching
+        // up to half a page forwards and backwards.
+        //
+        // On the one hand, this makes these instructions compact, fast and
+        // relocatable at the same time. On the other hand, we have to mind
+        // that our branch target is no farther away than half a memory page.
+        //
+        // Generally, an assembler will take care of this and we only have to
+        // provide the target address, not having to worry about relative
+        // addressing.
+        //
+        // These instructions are always of 2 bytes length and perform in 2 CPU
+        // cycles, if the branch is not taken (the condition resolving to
+        // 'false'), and 3 cycles, if the branch is taken (when the condition
+        // is true). If a branch is taken and the target is on a different
+        // page, this adds another CPU cycle (4 in total).
+        const $code: AddrMode = AddrMode::REL;
+    };
 
-	([$code:ident] &LL) => {
-		// Zeropage
-		//
-		// OPC $LL
-		//
-		// operand is zeropage address (hi-byte is zero, address = $00LL)
-		//
-		// The 16-bit address space available to the 6502 is thought to consist
-		// of 256 "pages" of 256 memory locations each ($00…$FF). In this model
-		// the high-byte of an address gives the page number and the low-byte a
-		// location inside this page. The very first of these pages, where the
-		// high-byte is zero (addresses $0000…$00FF), is somewhat special.
-		//
-		// The zero-page address mode is similar to absolute address mode, but
-		// these instructions use only a single byte for the operand, the low-
-		// byte, while the high-byte is assumed to be zero by definition.
-		// Therefore, these instructions have a total length of just two bytes
-		// (one less than absolute mode) and take one CPU cycle less to
-		// execute, as there is one byte less to fetch.
+    ([$code:ident] &LL) => {
+        // Zeropage
+        //
+        // OPC $LL
+        //
+        // operand is zeropage address (hi-byte is zero, address = $00LL)
+        //
+        // The 16-bit address space available to the 6502 is thought to consist
+        // of 256 "pages" of 256 memory locations each ($00…$FF). In this model
+        // the high-byte of an address gives the page number and the low-byte a
+        // location inside this page. The very first of these pages, where the
+        // high-byte is zero (addresses $0000…$00FF), is somewhat special.
+        //
+        // The zero-page address mode is similar to absolute address mode, but
+        // these instructions use only a single byte for the operand, the low-
+        // byte, while the high-byte is assumed to be zero by definition.
+        // Therefore, these instructions have a total length of just two bytes
+        // (one less than absolute mode) and take one CPU cycle less to
+        // execute, as there is one byte less to fetch.
         const $code: AddrMode = AddrMode::ZPG;
-	};
+    };
 
-	([$code:ident] &LL,X) => {
-		// Zeropage, X-indexed
-		//
-		// OPC $LL,X
-		//
-		// operand is zeropage address; effective address is address incremented by X without carry **
-		//
-		// As with absolute addressing, there is also a zero-page mode for
-		// indexed addressing. However, this is generally only available with
-		// the X-register. (The only exception to this is LDX, which has an
-		// indexed zero-page mode utilizing the Y-register.)
-		//
-		// As we have already seen with normal zero-page mode, these
-		// instructions are one byte less in total length (two bytes) and take
-		// one CPU cycle less than instructions in absolute indexed mode.
-		//
-		// Unlike absolute indexed instructions with 16-bit base addresses,
-		// zero-page indexed instructions never affect the high-byte of the
-		// effective address, which will simply wrap around in the zero-page,
-		// and there is no penalty for crossing any page boundaries.
+    ([$code:ident] &LL,X) => {
+        // Zeropage, X-indexed
+        //
+        // OPC $LL,X
+        //
+        // operand is zeropage address; effective address is address incremented by X without carry **
+        //
+        // As with absolute addressing, there is also a zero-page mode for
+        // indexed addressing. However, this is generally only available with
+        // the X-register. (The only exception to this is LDX, which has an
+        // indexed zero-page mode utilizing the Y-register.)
+        //
+        // As we have already seen with normal zero-page mode, these
+        // instructions are one byte less in total length (two bytes) and take
+        // one CPU cycle less than instructions in absolute indexed mode.
+        //
+        // Unlike absolute indexed instructions with 16-bit base addresses,
+        // zero-page indexed instructions never affect the high-byte of the
+        // effective address, which will simply wrap around in the zero-page,
+        // and there is no penalty for crossing any page boundaries.
         const $code: AddrMode = AddrMode::ZPX;
-	};
+    };
 
-	([$code:ident] &LL,Y) => {
-		// Zeropage, Y-indexed
-		//
-		// OPC $LL,Y
-		//
-		// operand is zeropage address; effective address is address incremented by Y without carry **
-		//
-		// As with absolute addressing, there is also a zero-page mode for
-		// indexed addressing. However, this is generally only available with
-		// the X-register. (The only exception to this is LDX, which has an
-		// indexed zero-page mode utilizing the Y-register.)
-		//
-		// As we have already seen with normal zero-page mode, these
-		// instructions are one byte less in total length (two bytes) and take
-		// one CPU cycle less than instructions in absolute indexed mode.
-		//
-		// Unlike absolute indexed instructions with 16-bit base addresses,
-		// zero-page indexed instructions never affect the high-byte of the
-		// effective address, which will simply wrap around in the zero-page,
-		// and there is no penalty for crossing any page boundaries.
+    ([$code:ident] &LL,Y) => {
+        // Zeropage, Y-indexed
+        //
+        // OPC $LL,Y
+        //
+        // operand is zeropage address; effective address is address incremented by Y without carry **
+        //
+        // As with absolute addressing, there is also a zero-page mode for
+        // indexed addressing. However, this is generally only available with
+        // the X-register. (The only exception to this is LDX, which has an
+        // indexed zero-page mode utilizing the Y-register.)
+        //
+        // As we have already seen with normal zero-page mode, these
+        // instructions are one byte less in total length (two bytes) and take
+        // one CPU cycle less than instructions in absolute indexed mode.
+        //
+        // Unlike absolute indexed instructions with 16-bit base addresses,
+        // zero-page indexed instructions never affect the high-byte of the
+        // effective address, which will simply wrap around in the zero-page,
+        // and there is no penalty for crossing any page boundaries.
         const $code: AddrMode = AddrMode::ZPY;
-	};
+    };
 }
-
 
 const NEG_MASK: u16 = 0x0080;
 
@@ -886,7 +893,7 @@ macro_rules! op {
 	};
 
     ([$opc:ident] ADC $($rest:tt)*) => {
-		/// # ADC 
+		/// # ADC
 		/// Add Memory to Accumulator with Carry
 		///```
 		/// A + M + C -> A, C                 N  Z  C  I  D  V
@@ -2058,7 +2065,7 @@ macro_rules! op {
 	([$opc:ident] TAX $($rest:tt)*) => {
 		/// TAX
 		/// Transfer Accumulator to Index X
-		/// 
+		///
 		/// A -> X                            N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -2071,7 +2078,7 @@ macro_rules! op {
 			.set(StatusReg::N, is_neg(reg.x as u16));
 		}
 	};
-	
+
 	([$opc:ident] TXA $($rest:tt)*) => {
 		/// TXA
 		/// Transfer Index X to Accumulator
@@ -2348,7 +2355,7 @@ op![#[op_9a, AM_9A, IN_9A] TXS        ];
 
 op![#[op_98, AM_98, IN_98] TYA        ];
 
-// Illegal 
+// Illegal
 
 // JAMS 02, 12, 22, 32, 42, 52, 62, 72, 92, B2, D2, F2
 op![#[op_02, AM_02, IN_02] JAM        ];
@@ -2366,204 +2373,215 @@ op![#[op_f2, AM_F2, IN_F2] JAM        ];
 
 #[cfg(test)]
 mod test {
-    use std::{rc::Rc, cell::RefCell};
+    use std::{cell::RefCell, rc::Rc};
 
-    use crate::nes::{BoardBus, board::ClockBusContext, RAM};
+    use crate::nes::{
+        board::{ClockBusContext, RangedBoardBus},
+        BoardRam,
+    };
 
     use super::*;
 
     #[test]
     fn adc() {
-		env_logger::builder()
-        .filter_module("nes_ultra", log::LevelFilter::Debug)
-        .init();
-		
-		{
-			let mut reg = Registers::default();
-			let ram = Rc::new(RefCell::new([0; RAM]));
-			let mut bus = BoardBus::new_cpu(&ram);
-	
-			reg.p = StatusReg::U;
-			reg.ac = 0x05;
-			reg.pc = 0x00; // Where the next instruction will be loaded
-			bus.write(0x00, 0x05); // Immediate mode value
-			
-			let mut bus = ClockBusContext::new(&mut bus);
-			bus.read(0x0000); // Cycle to simulate the op code read.
-			op_69(&mut reg, &mut bus);
-			
-			assert_eq!(reg.ac, 0x0A);
-			assert_eq!(reg.p.get(StatusReg::N), 0);
-			assert_eq!(reg.p.get(StatusReg::C), 0);
-			assert_eq!(reg.p.get(StatusReg::Z), 0);
-			assert_eq!(*bus.rw_count.borrow(), 2, "rw_count");
-		}
+        env_logger::builder()
+            .filter_module("nes_ultra", log::LevelFilter::Debug)
+            .init();
 
-		{
-			let mut reg = Registers::default();
-			let ram = Rc::new(RefCell::new([0; RAM]));
-			let mut bus = BoardBus::new_cpu(&ram);
-	
-			reg.p = StatusReg::U;
-			reg.ac = 0xE8;
-			reg.pc = 0x00; // Where the next instruction will be loaded
-			bus.write(0x00, 0xFD); // Zeropage mode value
-			bus.write(0xFD, 0x08); // Pointed to value
-			
-			let mut bus = ClockBusContext::new(&mut bus);
-			bus.read(0x0000); // Cycle to simulate the op code read.
-			op_65(&mut reg, &mut bus);
-			
-			assert_eq!(reg.ac, 0xF0);
-			assert_eq!(reg.p.get(StatusReg::N), 1);
-			assert_eq!(reg.p.get(StatusReg::C), 0);
-			assert_eq!(reg.p.get(StatusReg::Z), 0);
-			assert_eq!(*bus.rw_count.borrow(), 3, "rw_count");
-		}
-		
-		{
-			let mut reg = Registers::default();
-			let ram = Rc::new(RefCell::new([0; RAM]));
-			let mut bus = BoardBus::new_cpu(&ram);
-	
-			reg.p = StatusReg::U;
-			reg.ac = 0xFF;
-			reg.x = 1;
-			reg.pc = 0x00; // Where the next instruction will be loaded
-			bus.write(0x00, 0xFD); // Zeropage,X mode value
-			bus.write(0xFE, 0x01); // Pointed to value
+        {
+            let mut reg = Registers::default();
+            let ram = Rc::new(RefCell::new(BoardRam::new()));
+            let mut bus = RangedBoardBus::new();
+            bus.push(&ram);
 
-			let mut bus = ClockBusContext::new(&mut bus);
-			bus.read(0x0000); // Cycle to simulate the op code read.
-			op_75(&mut reg, &mut bus);
-			
-			assert_eq!(reg.ac, 0x00);
-			assert_eq!(reg.p.get(StatusReg::N), 0, "N");
-			assert_eq!(reg.p.get(StatusReg::C), 1, "C");
-			assert_eq!(reg.p.get(StatusReg::Z), 1, "Z");
-			assert_eq!(*bus.rw_count.borrow(), 3, "rw_count");
-		}
-		
-		{
-			let mut reg = Registers::default();
-			let ram = Rc::new(RefCell::new([0; RAM]));
-			let mut bus = BoardBus::new_cpu(&ram);
-	
-			reg.p = StatusReg::U;
-			reg.ac = 0xEF;
-			reg.x = 1;
-			reg.pc = 0x00; // Where the next instruction will be loaded
-			bus.write(0x0000, 0xFE); // ABS LL mode value
-			bus.write(0x0001, 0x01); // ABS HH mode value
-			bus.write(0x01FE, 0x01); // Pointed to value (HHLL)
+            reg.p = StatusReg::U;
+            reg.ac = 0x05;
+            reg.pc = 0x00; // Where the next instruction will be loaded
+            bus.write(0x00, 0x05); // Immediate mode value
 
-			let mut bus = ClockBusContext::new(&mut bus);
-			bus.read(0x0000); // Cycle to simulate the op code read.
-			op_6d(&mut reg, &mut bus);
-			
-			assert_eq!(reg.ac, 0xF0);
-			assert_eq!(reg.p.get(StatusReg::N), 1, "N");
-			assert_eq!(reg.p.get(StatusReg::C), 0, "C");
-			assert_eq!(reg.p.get(StatusReg::Z), 0, "Z");
-			assert_eq!(*bus.rw_count.borrow(), 4, "rw_count");
-		}
-		
-		{
-			let mut reg = Registers::default();
-			let ram = Rc::new(RefCell::new([0; RAM]));
-			let mut bus = BoardBus::new_cpu(&ram);
-	
-			reg.p = StatusReg::U;
-			reg.ac = 0xEF;
-			reg.x = 1;
-			reg.pc = 0x00; // Where the next instruction will be loaded
-			bus.write(0x0000, 0xFE); // ABS,X LL mode value
-			bus.write(0x0001, 0x01); // ABS,X HH mode value
-			bus.write(0x01FF, 0x01); // Pointed to value (HHLL)
+            let mut bus = ClockBusContext::new(&mut bus);
+            bus.read(0x0000); // Cycle to simulate the op code read.
+            op_69(&mut reg, &mut bus);
 
-			let mut bus = ClockBusContext::new(&mut bus);
-			bus.read(0x0000); // Cycle to simulate the op code read.
-			op_7d(&mut reg, &mut bus);
-			
-			assert_eq!(reg.ac, 0xF0);
-			assert_eq!(reg.p.get(StatusReg::N), 1, "N");
-			assert_eq!(reg.p.get(StatusReg::C), 0, "C");
-			assert_eq!(reg.p.get(StatusReg::Z), 0, "Z");
-			assert_eq!(*bus.rw_count.borrow(), 4, "rw_count");
-		}
+            assert_eq!(reg.ac, 0x0A);
+            assert_eq!(reg.p.get(StatusReg::N), 0);
+            assert_eq!(reg.p.get(StatusReg::C), 0);
+            assert_eq!(reg.p.get(StatusReg::Z), 0);
+            assert_eq!(*bus.rw_count.borrow(), 2, "rw_count");
+        }
 
-		{
-			let mut reg = Registers::default();
-			let ram = Rc::new(RefCell::new([0; RAM]));
-			let mut bus = BoardBus::new_cpu(&ram);
-	
-			reg.p = StatusReg::U;
-			reg.ac = 0xEF;
-			reg.y = 2;
-			reg.pc = 0x00; // Where the next instruction will be loaded
-			bus.write(0x0000, 0xFE); // ABS,Y LL mode value
-			bus.write(0x0001, 0x01); // ABS,Y HH mode value
-			bus.write(0x0200, 0x01); // Pointed to value (HHLL)
+        {
+            let mut reg = Registers::default();
+            let ram = Rc::new(RefCell::new(BoardRam::new()));
+            let mut bus = RangedBoardBus::new();
+            bus.push(&ram);
 
-			let mut bus = ClockBusContext::new(&mut bus);
-			bus.read(0x0000); // Cycle to simulate the op code read.
-			op_79(&mut reg, &mut bus);
-			
-			assert_eq!(reg.ac, 0xF0);
-			assert_eq!(reg.p.get(StatusReg::N), 1, "N");
-			assert_eq!(reg.p.get(StatusReg::C), 0, "C");
-			assert_eq!(reg.p.get(StatusReg::Z), 0, "Z");
-			assert_eq!(*bus.rw_count.borrow(), 5, "rw_count");
-		}
+            reg.p = StatusReg::U;
+            reg.ac = 0xE8;
+            reg.pc = 0x00; // Where the next instruction will be loaded
+            bus.write(0x00, 0xFD); // Zeropage mode value
+            bus.write(0xFD, 0x08); // Pointed to value
 
-		{
-			let mut reg = Registers::default();
-			let ram = Rc::new(RefCell::new([0; RAM]));
-			let mut bus = BoardBus::new_cpu(&ram);
-	
-			reg.p = StatusReg::U;
-			reg.ac = 0xEF;
-			reg.x = 2;
-			reg.pc = 0x00; // Where the next instruction will be loaded
-			bus.write(0x0000, 0xFE); // (OPER,X) IND mode value
-			bus.write(0x0100, 0x01); // IND addr LL
-			bus.write(0x0101, 0x04); // IND addr HH
-			bus.write(0x0401, 0x01); // Pointed to value (HHLL)
+            let mut bus = ClockBusContext::new(&mut bus);
+            bus.read(0x0000); // Cycle to simulate the op code read.
+            op_65(&mut reg, &mut bus);
 
-			let mut bus = ClockBusContext::new(&mut bus);
-			bus.read(0x0000); // Cycle to simulate the op code read.
-			op_61(&mut reg, &mut bus);
-			
-			assert_eq!(reg.ac, 0xF0);
-			assert_eq!(reg.p.get(StatusReg::N), 1, "N");
-			assert_eq!(reg.p.get(StatusReg::C), 0, "C");
-			assert_eq!(reg.p.get(StatusReg::Z), 0, "Z");
-			assert_eq!(*bus.rw_count.borrow(), 6, "rw_count");
-		}
-		
-		{
-			let mut reg = Registers::default();
-			let ram = Rc::new(RefCell::new([0; RAM]));
-			let mut bus = BoardBus::new_cpu(&ram);
-	
-			reg.p = StatusReg::U;
-			reg.ac = 0x48;
-			reg.y = 1;
-			reg.pc = 0x00; // Where the next instruction will be loaded
-			bus.write(0x0000, 0xFD); // (OPER,X) IND mode value
-			bus.write(0x00FD, 0x01); // IND addr LL
-			bus.write(0x00FE, 0x04); // IND addr HH
-			bus.write(0x0402, 0x08); // Pointed to value (HHLL)
+            assert_eq!(reg.ac, 0xF0);
+            assert_eq!(reg.p.get(StatusReg::N), 1);
+            assert_eq!(reg.p.get(StatusReg::C), 0);
+            assert_eq!(reg.p.get(StatusReg::Z), 0);
+            assert_eq!(*bus.rw_count.borrow(), 3, "rw_count");
+        }
 
-			let mut bus = ClockBusContext::new(&mut bus);
-			bus.read(0x0000); // Cycle to simulate the op code read.
-			op_71(&mut reg, &mut bus);
+        {
+            let mut reg = Registers::default();
+            let ram = Rc::new(RefCell::new(BoardRam::new()));
+            let mut bus = RangedBoardBus::new();
+            bus.push(&ram);
 
-			assert_eq!(reg.ac, 0x50);
-			assert_eq!(reg.p.get(StatusReg::N), 0, "N");
-			assert_eq!(reg.p.get(StatusReg::C), 0, "C");
-			assert_eq!(reg.p.get(StatusReg::Z), 0, "Z");
-			assert_eq!(*bus.rw_count.borrow(), 5, "rw_count");
-		}
+            reg.p = StatusReg::U;
+            reg.ac = 0xFF;
+            reg.x = 1;
+            reg.pc = 0x00; // Where the next instruction will be loaded
+            bus.write(0x00, 0xFD); // Zeropage,X mode value
+            bus.write(0xFE, 0x01); // Pointed to value
+
+            let mut bus = ClockBusContext::new(&mut bus);
+            bus.read(0x0000); // Cycle to simulate the op code read.
+            op_75(&mut reg, &mut bus);
+
+            assert_eq!(reg.ac, 0x00);
+            assert_eq!(reg.p.get(StatusReg::N), 0, "N");
+            assert_eq!(reg.p.get(StatusReg::C), 1, "C");
+            assert_eq!(reg.p.get(StatusReg::Z), 1, "Z");
+            assert_eq!(*bus.rw_count.borrow(), 3, "rw_count");
+        }
+
+        {
+            let mut reg = Registers::default();
+            let ram = Rc::new(RefCell::new(BoardRam::new()));
+            let mut bus = RangedBoardBus::new();
+            bus.push(&ram);
+
+            reg.p = StatusReg::U;
+            reg.ac = 0xEF;
+            reg.x = 1;
+            reg.pc = 0x00; // Where the next instruction will be loaded
+            bus.write(0x0000, 0xFE); // ABS LL mode value
+            bus.write(0x0001, 0x01); // ABS HH mode value
+            bus.write(0x01FE, 0x01); // Pointed to value (HHLL)
+
+            let mut bus = ClockBusContext::new(&mut bus);
+            bus.read(0x0000); // Cycle to simulate the op code read.
+            op_6d(&mut reg, &mut bus);
+
+            assert_eq!(reg.ac, 0xF0);
+            assert_eq!(reg.p.get(StatusReg::N), 1, "N");
+            assert_eq!(reg.p.get(StatusReg::C), 0, "C");
+            assert_eq!(reg.p.get(StatusReg::Z), 0, "Z");
+            assert_eq!(*bus.rw_count.borrow(), 4, "rw_count");
+        }
+
+        {
+            let mut reg = Registers::default();
+            let ram = Rc::new(RefCell::new(BoardRam::new()));
+            let mut bus = RangedBoardBus::new();
+            bus.push(&ram);
+
+            reg.p = StatusReg::U;
+            reg.ac = 0xEF;
+            reg.x = 1;
+            reg.pc = 0x00; // Where the next instruction will be loaded
+            bus.write(0x0000, 0xFE); // ABS,X LL mode value
+            bus.write(0x0001, 0x01); // ABS,X HH mode value
+            bus.write(0x01FF, 0x01); // Pointed to value (HHLL)
+
+            let mut bus = ClockBusContext::new(&mut bus);
+            bus.read(0x0000); // Cycle to simulate the op code read.
+            op_7d(&mut reg, &mut bus);
+
+            assert_eq!(reg.ac, 0xF0);
+            assert_eq!(reg.p.get(StatusReg::N), 1, "N");
+            assert_eq!(reg.p.get(StatusReg::C), 0, "C");
+            assert_eq!(reg.p.get(StatusReg::Z), 0, "Z");
+            assert_eq!(*bus.rw_count.borrow(), 4, "rw_count");
+        }
+
+        {
+            let mut reg = Registers::default();
+            let ram = Rc::new(RefCell::new(BoardRam::new()));
+            let mut bus = RangedBoardBus::new();
+            bus.push(&ram);
+
+            reg.p = StatusReg::U;
+            reg.ac = 0xEF;
+            reg.y = 2;
+            reg.pc = 0x00; // Where the next instruction will be loaded
+            bus.write(0x0000, 0xFE); // ABS,Y LL mode value
+            bus.write(0x0001, 0x01); // ABS,Y HH mode value
+            bus.write(0x0200, 0x01); // Pointed to value (HHLL)
+
+            let mut bus = ClockBusContext::new(&mut bus);
+            bus.read(0x0000); // Cycle to simulate the op code read.
+            op_79(&mut reg, &mut bus);
+
+            assert_eq!(reg.ac, 0xF0);
+            assert_eq!(reg.p.get(StatusReg::N), 1, "N");
+            assert_eq!(reg.p.get(StatusReg::C), 0, "C");
+            assert_eq!(reg.p.get(StatusReg::Z), 0, "Z");
+            assert_eq!(*bus.rw_count.borrow(), 5, "rw_count");
+        }
+
+        {
+            let mut reg = Registers::default();
+            let ram = Rc::new(RefCell::new(BoardRam::new()));
+            let mut bus = RangedBoardBus::new();
+            bus.push(&ram);
+
+            reg.p = StatusReg::U;
+            reg.ac = 0xEF;
+            reg.x = 2;
+            reg.pc = 0x00; // Where the next instruction will be loaded
+            bus.write(0x0000, 0xFE); // (OPER,X) IND mode value
+            bus.write(0x0100, 0x01); // IND addr LL
+            bus.write(0x0101, 0x04); // IND addr HH
+            bus.write(0x0401, 0x01); // Pointed to value (HHLL)
+
+            let mut bus = ClockBusContext::new(&mut bus);
+            bus.read(0x0000); // Cycle to simulate the op code read.
+            op_61(&mut reg, &mut bus);
+
+            assert_eq!(reg.ac, 0xF0);
+            assert_eq!(reg.p.get(StatusReg::N), 1, "N");
+            assert_eq!(reg.p.get(StatusReg::C), 0, "C");
+            assert_eq!(reg.p.get(StatusReg::Z), 0, "Z");
+            assert_eq!(*bus.rw_count.borrow(), 6, "rw_count");
+        }
+
+        {
+            let mut reg = Registers::default();
+            let ram = Rc::new(RefCell::new(BoardRam::new()));
+            let mut bus = RangedBoardBus::new();
+            bus.push(&ram);
+
+            reg.p = StatusReg::U;
+            reg.ac = 0x48;
+            reg.y = 1;
+            reg.pc = 0x00; // Where the next instruction will be loaded
+            bus.write(0x0000, 0xFD); // (OPER,X) IND mode value
+            bus.write(0x00FD, 0x01); // IND addr LL
+            bus.write(0x00FE, 0x04); // IND addr HH
+            bus.write(0x0402, 0x08); // Pointed to value (HHLL)
+
+            let mut bus = ClockBusContext::new(&mut bus);
+            bus.read(0x0000); // Cycle to simulate the op code read.
+            op_71(&mut reg, &mut bus);
+
+            assert_eq!(reg.ac, 0x50);
+            assert_eq!(reg.p.get(StatusReg::N), 0, "N");
+            assert_eq!(reg.p.get(StatusReg::C), 0, "C");
+            assert_eq!(reg.p.get(StatusReg::Z), 0, "Z");
+            assert_eq!(*bus.rw_count.borrow(), 5, "rw_count");
+        }
     }
 }
