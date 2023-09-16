@@ -260,6 +260,12 @@ impl Board {
 
         self.cpu.borrow_mut().disssemble(&self.bus, 0x0000, 0xFFFF);
     }
+
+    pub fn load_cart(&mut self, cart: Cart) {
+        *self.cart.borrow_mut() = cart;
+        
+        self.cpu.borrow_mut().disssemble(&self.bus, 0x0000, 0xFFFF);
+    }
 }
 
 impl Bus for Board {
@@ -299,18 +305,14 @@ impl Motherboard for Board {
 impl MemoryDisplay for Board {
     fn draw_mem(&self, ui: &mut egui::Ui, addr: u16, rows: u8, cols: u8) {
         ui.vertical(|ui| {
-            let mem_block: Vec<u8> = self
-                .ram
-                .borrow()
-                .ram
-                .iter()
-                .skip(addr as usize)
-                .take(rows as usize * cols as usize)
-                .map(|x| *x)
-                .collect();
+            let addr = addr as usize;
+            let end_addr = addr + (rows as usize * cols as usize);
+            let range = addr..end_addr;
+            let mem_block: Vec<u8> = range.map(|x| self.bus.read_only(x as Addr)).collect();
+             
             for (i, chunk) in mem_block.chunks(cols as usize).enumerate() {
                 let mut str = String::with_capacity(cols as usize * 3 + 6);
-                str.push_str(format!("{:>04X} ", addr + (i as u16 * cols as u16)).as_str());
+                str.push_str(format!("{:>04X} ", addr as Addr + (i as u16 * cols as u16)).as_str());
                 for mem in chunk {
                     str.push_str(format!("{:>02X} ", mem).as_str());
                 }

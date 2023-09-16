@@ -36,6 +36,7 @@ impl Cartridge {
             file.read_to_end(&mut buffer)?;
         }
 
+        log::debug!("iNES file buffer size: {}", buffer.len());
         let slice = buffer.as_slice();
         let header = INesHeader::from(&slice[0..16]);
         let i = 16;
@@ -62,12 +63,14 @@ impl Cartridge {
                 const CHR_CHUNK_SIZE: usize = 8192;
                 let size = prg_chunks as usize * PRG_CHUNK_SIZE;
                 prg.resize(size, 0);
-                prg.copy_from_slice(&buffer[i..size]);
+                let prg_slice = &buffer[i..(i + size)];
+                prg.copy_from_slice(&prg_slice);
                 i = i + size;
 
                 let size = chr_chunks as usize * CHR_CHUNK_SIZE;
                 chr.resize(size, 0);
-                chr.copy_from_slice(&buffer[i..size]);
+                let chr_slice = &buffer[i..(i + size)];
+                chr.copy_from_slice(&chr_slice);
                 i = i + size;
             }
             2 => {

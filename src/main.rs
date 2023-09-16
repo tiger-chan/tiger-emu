@@ -6,13 +6,15 @@ mod motherboard;
 mod nes;
 mod ppu_bus;
 
+use std::path::Path;
+
 use crate::gui::Framework;
 //use crate::nes::{RAM, RES_HI, RES_LO};
 use error_iter::ErrorIter;
 use gui::CpuDisplay;
 use log::error;
 use motherboard::Motherboard;
-use nes::Board;
+use nes::{Board, Cartridge};
 use pixels::{Error, Pixels, SurfaceTexture};
 use winit::dpi::LogicalSize;
 use winit::event::{Event, ModifiersState, VirtualKeyCode, WindowEvent};
@@ -101,6 +103,18 @@ fn main() -> Result<(), Error> {
     //let ram = sample_program();
     //let ram = asm_fibonacci();
     let mut board = Board::new();
+
+    let rom = Cartridge::new_from_file(Path::new("roms/nestest.nes"));
+    match rom {
+        Ok(rom) => {
+            board.load_cart(rom);
+        },
+        Err(_) => {
+            panic!("Couldn't load rom file.");
+        }
+    }
+    //board.load_cart(rom);
+
     //board.set_prog(&ram);
 
     // Reset now that we've updated the ram

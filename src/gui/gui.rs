@@ -16,6 +16,7 @@ pub(crate) struct Gui {
     instructions: bool,
     cpu: bool,
     memory_inspect: u16,
+    picked_path: Option<String>,
 }
 
 impl Gui {
@@ -27,6 +28,7 @@ impl Gui {
             instructions: false,
             cpu: false,
             memory_inspect: 0x0000,
+            picked_path: None,
         }
     }
 
@@ -39,6 +41,9 @@ impl Gui {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
                     if ui.button("Open File...").clicked() {
+                        if let Some(path) = rfd::FileDialog::new().pick_file() {
+                            self.picked_path = Some(path.display().to_string());
+                        }
                         ui.close_menu();
                     }
                 });

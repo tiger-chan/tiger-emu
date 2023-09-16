@@ -7,6 +7,7 @@ use self::address_mode::AddrMode;
 
 use super::board::{PS, RES_LO, RES_HI, IRQ_LO, IRQ_HI, NMI_LO, NMI_HI};
 use crate::gui::{CpuDisplay, CURSOR, DIAGNOSTIC_FONT, DISABLED, ENABLED};
+use crate::nes::Addr;
 use crate::nes::board::ClockBusContext;
 use crate::nes::cpu6502::registers::StatusReg;
 use crate::{bus::Bus, cpu::CPU};
@@ -128,7 +129,7 @@ impl Cpu6502 {
                 AddrMode::ZPX => {
                     let lo = bus.read_only(addr as u16);
                     addr += 1;
-                    format!("${:>04X}: {:?} ${:>02X},X         {{{:?}}}", ln_addr, op, lo, am)
+                    format!("${:>04X}: {:?} ${:>02X},X        {{{:?}}}", ln_addr, op, lo, am)
                 }
                 AddrMode::ZPY => {
                     let lo = bus.read_only(addr as u16);
@@ -188,11 +189,12 @@ impl Cpu6502 {
                 }
                 AddrMode::REL => {
                     let lo = bus.read_only(addr as u16) as u16;
+                    let lo = if lo & 0x80 == 0x80 { lo | 0xFF00 } else { lo };
                     addr += 1;
-                    let rel = addr as u16 + lo;
+                    let rel = (addr as Addr).wrapping_add(lo);
                     format!(
-                        "${:>04X}: {:?} ${:>02X} [${:>04X}]  {{{:?}}}",
-                        ln_addr, op, lo, rel, am
+                        "${:>04X}: {:?} ${:>04X} [${:>02X}]  {{{:?}}}",
+                        ln_addr, op, rel, lo as i8, am
                     )
                 }
             };
