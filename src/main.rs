@@ -11,7 +11,7 @@ use std::path::Path;
 use crate::gui::Framework;
 //use crate::nes::{RAM, RES_HI, RES_LO};
 use error_iter::ErrorIter;
-use gui::CpuDisplay;
+use gui::BoardCommand;
 use log::error;
 use motherboard::Motherboard;
 use nes::{Board, Cartridge};
@@ -64,6 +64,7 @@ fn main() -> Result<(), Error> {
     match rom {
         Ok(rom) => {
             board.load_cart(rom);
+            board.reset();
         },
         Err(_) => {
             panic!("Couldn't load rom file.");
@@ -93,6 +94,10 @@ fn main() -> Result<(), Error> {
 
             if input.key_pressed(VirtualKeyCode::F10) {
                 board.step();
+            }
+
+            if input.key_pressed(VirtualKeyCode::F11) {
+                board.frame();
             }
 
             match modifiers {

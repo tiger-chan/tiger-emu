@@ -454,7 +454,4 @@ impl CpuDisplay for Cpu6502 {
             }
         });
     }
-
-	fn step(&mut self) {
-	}
 }

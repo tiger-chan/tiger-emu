@@ -1,6 +1,6 @@
 use crate::motherboard::Motherboard;
 
-use super::{CpuDisplay, MemoryDisplay, PpuDisplay};
+use super::{CpuDisplay, MemoryDisplay, PpuDisplay, BoardCommand};
 use egui::{Color32, Context, FontId, RichText};
 
 pub const ENABLED: Color32 = Color32::GREEN;
@@ -37,7 +37,7 @@ impl Gui {
     /// Create the UI using egui.
     pub(crate) fn ui<TMotherBoard>(&mut self, ctx: &Context, board: &mut TMotherBoard)
     where
-        TMotherBoard: Motherboard + MemoryDisplay + CpuDisplay + PpuDisplay,
+        TMotherBoard: Motherboard + BoardCommand + MemoryDisplay + CpuDisplay + PpuDisplay,
     {
         egui::TopBottomPanel::top("menubar_container").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
@@ -79,6 +79,11 @@ impl Gui {
 
                     if ui.button("Step (F10)").clicked() {
                         board.step();
+                        ui.close_menu();
+                    }
+
+                    if ui.button("Step Frame (F11)").clicked() {
+                        board.frame();
                         ui.close_menu();
                     }
 

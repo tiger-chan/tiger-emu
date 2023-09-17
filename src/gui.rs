@@ -12,9 +12,13 @@ pub(crate) trait MemoryDisplay {
 pub(crate) trait CpuDisplay {
     fn draw_cpu(&self, ui: &mut Ui);
     fn draw_code(&self, ui: &mut Ui, instruction_count: i8);
-    fn step(&mut self);
 }
 
 pub(crate) trait PpuDisplay {
     fn draw_palette(&self, ui: &mut Ui);
+}
+
+pub(crate) trait BoardCommand {
+    fn step(&mut self);
+    fn frame(&mut self);
 }

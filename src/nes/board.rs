@@ -9,7 +9,7 @@ use egui::RichText;
 use crate::{
     bus::Bus,
     cpu::CPU,
-    gui::{CpuDisplay, MemoryDisplay, DIAGNOSTIC_FONT, PpuDisplay},
+    gui::{CpuDisplay, MemoryDisplay, DIAGNOSTIC_FONT, PpuDisplay, BoardCommand},
     motherboard::Motherboard,
 };
 
@@ -232,7 +232,7 @@ pub struct Board {
 impl Board {
     pub fn new() -> Self {
         let ram = Rc::new(RefCell::new(BoardRam::new()));
-        let ppu = Rc::new(RefCell::new(Ppu2C02::new()));
+        let ppu = Rc::new(RefCell::new(Ppu2C02::new(true)));
         let cart = Rc::new(RefCell::new(Cart::new()));
 
         let mut bus = RangedBoardBus::new();
@@ -284,7 +284,13 @@ impl Bus for Board {
 
 impl Motherboard for Board {
     fn clock(&mut self) {
-        self.cpu.borrow_mut().clock(&mut self.bus);
+        self.ppu.borrow_mut().clock(&mut self.bus, &mut self.ppu_bus);
+        match self.tcc % 3 {
+            0 => {
+                self.cpu.borrow_mut().clock(&mut self.bus);
+            },
+            _ => {}
+        }
         self.tcc = self.tcc.wrapping_add(1);
     }
 
@@ -331,7 +337,9 @@ impl CpuDisplay for Board {
     fn draw_cpu(&self, ui: &mut egui::Ui) {
         self.cpu.borrow().draw_cpu(ui);
     }
+}
 
+impl BoardCommand for Board {
     fn step(&mut self) {
         while self.cpu.borrow().cc != 0 {
             self.clock();
@@ -340,6 +348,17 @@ impl CpuDisplay for Board {
         while self.cpu.borrow().cc != 0 {
             self.clock();
         }
+    }
+
+    fn frame(&mut self) {
+        while !self.ppu.borrow().frame_complete() {
+            self.clock();
+        }
+        while self.cpu.borrow().cc != 0 {
+            self.clock();
+        }
+
+        self.ppu.borrow_mut().debug_reset_complete();
     }
 }
 
