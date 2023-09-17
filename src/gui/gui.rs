@@ -1,7 +1,7 @@
 use crate::motherboard::Motherboard;
 
-use super::{CpuDisplay, MemoryDisplay, PpuDisplay, BoardCommand};
-use egui::{Color32, Context, FontId, RichText};
+use super::{BoardCommand, CpuDisplay, MemoryDisplay, PpuDisplay};
+use egui::{Color32, Context, FontId, Key, Modifiers, RichText};
 
 pub const ENABLED: Color32 = Color32::GREEN;
 pub const DISABLED: Color32 = Color32::RED;
@@ -39,6 +39,36 @@ impl Gui {
     where
         TMotherBoard: Motherboard + BoardCommand + MemoryDisplay + CpuDisplay + PpuDisplay,
     {
+        if ctx.input(|i| i.key_pressed(egui::Key::F5)) {
+            //board.play();
+        }
+
+        if ctx.input(|i| i.key_pressed(egui::Key::F10)) {
+            board.step();
+        }
+
+        if ctx.input(|i| i.key_pressed(Key::F10) && i.modifiers.matches(Modifiers::CTRL)) {
+            board.frame();
+        }
+
+        if ctx.input(|i| {
+            i.key_pressed(Key::F5) && i.modifiers.matches(Modifiers::CTRL | Modifiers::SHIFT)
+        }) {
+            board.reset();
+        }
+
+        if ctx.input(|i| {
+            i.key_pressed(Key::I) && i.modifiers.matches(Modifiers::CTRL | Modifiers::SHIFT)
+        }) {
+            board.irq();
+        }
+
+        if ctx.input(|i| {
+            i.key_pressed(Key::N) && i.modifiers.matches(Modifiers::CTRL | Modifiers::SHIFT)
+        }) {
+            board.nmi();
+        }
+
         egui::TopBottomPanel::top("menubar_container").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
@@ -77,12 +107,17 @@ impl Gui {
 
                     ui.separator();
 
+                    if ui.button("Play (F5)").clicked() {
+                        //board.step();
+                        ui.close_menu();
+                    }
+
                     if ui.button("Step (F10)").clicked() {
                         board.step();
                         ui.close_menu();
                     }
 
-                    if ui.button("Step Frame (F11)").clicked() {
+                    if ui.button("Step Frame (CTRL+F10)").clicked() {
                         board.frame();
                         ui.close_menu();
                     }

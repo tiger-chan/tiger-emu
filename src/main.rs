@@ -11,13 +11,12 @@ use std::path::Path;
 use crate::gui::Framework;
 //use crate::nes::{RAM, RES_HI, RES_LO};
 use error_iter::ErrorIter;
-use gui::BoardCommand;
 use log::error;
 use motherboard::Motherboard;
 use nes::{Board, Cartridge};
 use pixels::{Error, Pixels, SurfaceTexture};
 use winit::dpi::LogicalSize;
-use winit::event::{Event, ModifiersState, VirtualKeyCode, WindowEvent};
+use winit::event::{Event, VirtualKeyCode};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
@@ -78,43 +77,6 @@ fn main() -> Result<(), Error> {
             if input.key_pressed(VirtualKeyCode::Escape) || input.close_requested() {
                 *control_flow = ControlFlow::Exit;
                 return;
-            }
-
-            let mut modifiers: Option<ModifiersState> = None;
-
-            match &event {
-                Event::WindowEvent { event, .. } => match &event {
-                    WindowEvent::ModifiersChanged(new) => {
-                        modifiers = Some(*new);
-                    }
-                    _ => {}
-                },
-                _ => (),
-            }
-
-            if input.key_pressed(VirtualKeyCode::F10) {
-                board.step();
-            }
-
-            if input.key_pressed(VirtualKeyCode::F11) {
-                board.frame();
-            }
-
-            match modifiers {
-                Some(mods) => {
-                    if mods.ctrl() && mods.shift() && input.key_pressed(VirtualKeyCode::F5) {
-                        board.reset();
-                    }
-
-                    if mods.ctrl() && mods.shift() && input.key_pressed(VirtualKeyCode::I) {
-                        board.irq();
-                    }
-
-                    if mods.ctrl() && mods.shift() && input.key_pressed(VirtualKeyCode::N) {
-                        board.nmi();
-                    }
-                }
-                _ => {}
             }
 
             // Update the scale factor

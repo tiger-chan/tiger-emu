@@ -14,7 +14,6 @@ use crate::{bus::Bus, cpu::CPU};
 use std::ops::Range;
 
 use egui::RichText;
-use log::debug;
 use opcode::{ ADDER_MODE, INSTRUCTION_TYPE, OPER };
 use registers::Registers;
 
@@ -172,7 +171,7 @@ impl Cpu6502 {
                     addr += 1;
                     let val = hi | lo;
                     format!(
-                        "${:>04X}: {:?} ${:>04X},Y       {{{:?}}}",
+                        "${:>04X}: {:?} ${:>04X},Y      {{{:?}}}",
                         ln_addr, op, val, am
                     )
                 }
@@ -224,7 +223,7 @@ impl CPU for Cpu6502 {
 					}
 				};
 
-				debug!("{:>010}:{:>02X} {} ({}) PC:{:>04X} XXX AC:{:>02X} X:{:>02X} Y:{:>02X} {:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?} SP:{:>02X}",
+				log::trace!("{:>010}:{:>02X} {} ({}) PC:{:>04X} XXX AC:{:>02X} X:{:>02X} Y:{:>02X} {:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?} SP:{:>02X}",
 					self.tcc, opc, op, am, reg.pc, reg.ac, reg.x, reg.y,
 					f(StatusReg::N, 'N', '.'), f(StatusReg::V, 'V', '.'),	f(StatusReg::U, '-', '.'),	
 					f(StatusReg::B, 'B', '.'), f(StatusReg::D, 'D', '.'),	f(StatusReg::I, 'I', '.'),	

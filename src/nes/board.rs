@@ -9,7 +9,7 @@ use egui::RichText;
 use crate::{
     bus::Bus,
     cpu::CPU,
-    gui::{CpuDisplay, MemoryDisplay, DIAGNOSTIC_FONT, PpuDisplay, BoardCommand},
+    gui::{BoardCommand, CpuDisplay, MemoryDisplay, PpuDisplay, DIAGNOSTIC_FONT},
     motherboard::Motherboard,
 };
 
@@ -263,7 +263,7 @@ impl Board {
 
     pub fn load_cart(&mut self, cart: Cart) {
         *self.cart.borrow_mut() = cart;
-        
+
         self.cpu.borrow_mut().disssemble(&self.bus, 0x0000, 0xFFFF);
     }
 }
@@ -284,11 +284,13 @@ impl Bus for Board {
 
 impl Motherboard for Board {
     fn clock(&mut self) {
-        self.ppu.borrow_mut().clock(&mut self.bus, &mut self.ppu_bus);
+        self.ppu
+            .borrow_mut()
+            .clock(&mut self.bus, &mut self.ppu_bus);
         match self.tcc % 3 {
             0 => {
                 self.cpu.borrow_mut().clock(&mut self.bus);
-            },
+            }
             _ => {}
         }
         self.tcc = self.tcc.wrapping_add(1);
@@ -315,7 +317,7 @@ impl MemoryDisplay for Board {
             let end_addr = addr + (rows as usize * cols as usize);
             let range = addr..end_addr;
             let mem_block: Vec<u8> = range.map(|x| self.bus.read_only(x as Addr)).collect();
-             
+
             for (i, chunk) in mem_block.chunks(cols as usize).enumerate() {
                 let mut str = String::with_capacity(cols as usize * 3 + 6);
                 str.push_str(format!("{:>04X} ", addr as Addr + (i as u16 * cols as u16)).as_str());
@@ -341,19 +343,24 @@ impl CpuDisplay for Board {
 
 impl BoardCommand for Board {
     fn step(&mut self) {
+        self.clock();
         while self.cpu.borrow().cc != 0 {
             self.clock();
         }
+
         self.clock();
-        while self.cpu.borrow().cc != 0 {
+        while self.cpu.borrow().cc == 0 {
             self.clock();
         }
     }
 
     fn frame(&mut self) {
+        self.clock();
         while !self.ppu.borrow().frame_complete() {
             self.clock();
         }
+
+        self.clock();
         while self.cpu.borrow().cc != 0 {
             self.clock();
         }
