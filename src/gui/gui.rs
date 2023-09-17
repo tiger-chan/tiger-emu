@@ -35,12 +35,12 @@ impl Gui {
     }
 
     /// Create the UI using egui.
-    pub(crate) fn ui<TMotherBoard>(&mut self, ctx: &Context, board: &mut TMotherBoard)
+    pub(crate) fn ui<TMotherBoard>(&mut self, ctx: &Context, run_emu: &mut bool, board: &mut TMotherBoard)
     where
         TMotherBoard: Motherboard + BoardCommand + MemoryDisplay + CpuDisplay + PpuDisplay,
     {
         if ctx.input(|i| i.key_pressed(egui::Key::F5)) {
-            //board.play();
+            *run_emu = !*run_emu;
         }
 
         if ctx.input(|i| i.key_pressed(egui::Key::F10)) {

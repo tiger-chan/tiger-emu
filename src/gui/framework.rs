@@ -76,7 +76,7 @@ impl Framework {
     }
 
     /// Prepare egui.
-    pub(crate) fn prepare<TMotherBoard>(&mut self, window: &Window, board: &mut TMotherBoard)
+    pub(crate) fn prepare<TMotherBoard>(&mut self, window: &Window, run_emu: &mut bool, board: &mut TMotherBoard)
     where
         TMotherBoard: Motherboard + BoardCommand + MemoryDisplay + CpuDisplay + PpuDisplay,
     {
@@ -84,7 +84,7 @@ impl Framework {
         let raw_input = self.egui_state.take_egui_input(window);
         let output = self.egui_ctx.run(raw_input, |egui_ctx| {
             // Draw the application.
-            self.gui.ui(egui_ctx, board);
+            self.gui.ui(egui_ctx, run_emu, board);
         });
 
         self.textures.append(output.textures_delta);

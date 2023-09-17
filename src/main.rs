@@ -7,10 +7,12 @@ mod nes;
 mod ppu_bus;
 
 use std::path::Path;
+use std::time::Instant;
 
 use crate::gui::Framework;
 //use crate::nes::{RAM, RES_HI, RES_LO};
 use error_iter::ErrorIter;
+use gui::BoardCommand;
 use log::error;
 use motherboard::Motherboard;
 use nes::{Board, Cartridge};
@@ -25,6 +27,7 @@ const WIDTH: u32 = 1024;
 const HEIGHT: u32 = 768;
 
 fn main() -> Result<(), Error> {
+    const FRAME_TIME: f32 = 1.0 / 60.0;
     env_logger::builder()
         .filter_module("nes_ultra", log::LevelFilter::Debug)
         .init();
@@ -64,13 +67,19 @@ fn main() -> Result<(), Error> {
         Ok(rom) => {
             board.load_cart(rom);
             board.reset();
-        },
+        }
         Err(_) => {
             panic!("Couldn't load rom file.");
         }
     }
 
+    let mut run_emulation = false;
+    let mut residual_time = 0.0;
+    let mut prev_instant = Instant::now();
     event_loop.run(move |event, _, control_flow| {
+        let cur_instant = Instant::now();
+        let mut delta_time = cur_instant.duration_since(prev_instant).as_secs_f32();
+        prev_instant = cur_instant;
         // Handle input events
         if input.update(&event) {
             // Close events
@@ -110,7 +119,7 @@ fn main() -> Result<(), Error> {
                 //world.draw(pixels.frame_mut());
 
                 // Prepare egui
-                framework.prepare(&window, &mut board);
+                framework.prepare(&window, &mut run_emulation, &mut board);
 
                 // Render everything together
                 let render_result = pixels.render_with(|encoder, render_target, context| {
@@ -130,6 +139,33 @@ fn main() -> Result<(), Error> {
                 }
             }
             _ => (),
+        }
+
+        if run_emulation {
+            if residual_time > 0.0 {
+                residual_time -= delta_time;
+            } else {
+                if FRAME_TIME < delta_time {
+                    log::warn!("Delta time is too large {delta_time}");
+                    // Just ignore the time
+                    delta_time = FRAME_TIME;
+                }
+
+                residual_time += FRAME_TIME - delta_time;
+
+                let frame = Instant::now();
+                board.frame();
+                let end_frame = Instant::now();
+                let dur = end_frame.duration_since(frame).as_secs_f32();
+                log::trace!("Frame took {dur}");
+            }
+
+            if residual_time < -1.0 {
+                *control_flow = ControlFlow::Exit;
+                return;
+            }
+        } else {
+            residual_time = 0.0
         }
     });
 }

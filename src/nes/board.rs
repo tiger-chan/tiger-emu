@@ -287,6 +287,7 @@ impl Motherboard for Board {
         self.ppu
             .borrow_mut()
             .clock(&mut self.bus, &mut self.ppu_bus);
+
         match self.tcc % 3 {
             0 => {
                 self.cpu.borrow_mut().clock(&mut self.bus);
@@ -359,7 +360,6 @@ impl BoardCommand for Board {
         while !self.ppu.borrow().frame_complete() {
             self.clock();
         }
-
         self.clock();
         while self.cpu.borrow().cc != 0 {
             self.clock();
