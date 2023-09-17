@@ -25,48 +25,6 @@ use winit_input_helper::WinitInputHelper;
 const WIDTH: u32 = 1024;
 const HEIGHT: u32 = 768;
 
-// #[allow(dead_code)]
-// fn asm_fibonacci() -> [u8;RAM] {
-// 		// Convert hex string into bytes for RAM
-// 		let mut ram: [u8; RAM] = [0; RAM];
-// 		let rom: Vec<u8> =
-// 			"4C 10 80 65 FD B0 09 A6 FE 86 FD 85 FE 4C 03 80 18 A9 01 85 FD A9 00 85 FE 4C 03 80"
-// 				.split(" ")
-// 				.map(|x| u8::from_str_radix(x, 16).expect("Invalid value for hex"))
-// 				.collect();
-
-// 		for (i, v) in rom.iter().enumerate() {
-// 			ram[0x8000 + i] = *v;
-// 		}
-
-// 		// Set Reset Vector
-// 		ram[RES_LO as usize] = 0x00;
-// 		ram[RES_HI as usize] = 0x80;
-
-// 		ram
-// }
-
-// #[allow(dead_code)]
-// fn sample_program() -> [u8; RAM] {
-//     // Convert hex string into bytes for RAM
-//     let mut ram: [u8; RAM] = [0; RAM];
-//     let rom: Vec<u8> =
-//         "A2 0A 8E 00 00 A2 03 8E 01 00 AC 00 00 A9 00 18 6D 01 00 88 D0 FA 8D 02 00 EA EA EA"
-//             .split(" ")
-//             .map(|x| u8::from_str_radix(x, 16).expect("Invalid value for hex"))
-//             .collect();
-
-//     for (i, v) in rom.iter().enumerate() {
-//         ram[0x8000 + i] = *v;
-//     }
-
-//     // Set Reset Vector
-//     ram[RES_LO as usize] = 0x00;
-//     ram[RES_HI as usize] = 0x80;
-
-//     ram
-// }
-
 fn main() -> Result<(), Error> {
     env_logger::builder()
         .filter_module("nes_ultra", log::LevelFilter::Debug)
@@ -100,8 +58,6 @@ fn main() -> Result<(), Error> {
         (pixels, framework)
     };
 
-    //let ram = sample_program();
-    //let ram = asm_fibonacci();
     let mut board = Board::new();
 
     let rom = Cartridge::new_from_file(Path::new("roms/nestest.nes"));
@@ -113,12 +69,6 @@ fn main() -> Result<(), Error> {
             panic!("Couldn't load rom file.");
         }
     }
-    //board.load_cart(rom);
-
-    //board.set_prog(&ram);
-
-    // Reset now that we've updated the ram
-    board.reset();
 
     event_loop.run(move |event, _, control_flow| {
         // Handle input events

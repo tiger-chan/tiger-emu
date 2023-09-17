@@ -1,6 +1,6 @@
 use crate::motherboard::Motherboard;
 
-use super::{CpuDisplay, MemoryDisplay};
+use super::{CpuDisplay, MemoryDisplay, PpuDisplay};
 use egui::{Color32, Context, FontId, RichText};
 
 pub const ENABLED: Color32 = Color32::GREEN;
@@ -15,6 +15,7 @@ pub(crate) struct Gui {
     memory: bool,
     instructions: bool,
     cpu: bool,
+    ppu: bool,
     memory_inspect: u16,
     picked_path: Option<String>,
 }
@@ -27,6 +28,7 @@ impl Gui {
             memory: false,
             instructions: false,
             cpu: false,
+            ppu: false,
             memory_inspect: 0x0000,
             picked_path: None,
         }
@@ -35,7 +37,7 @@ impl Gui {
     /// Create the UI using egui.
     pub(crate) fn ui<TMotherBoard>(&mut self, ctx: &Context, board: &mut TMotherBoard)
     where
-        TMotherBoard: Motherboard + MemoryDisplay + CpuDisplay,
+        TMotherBoard: Motherboard + MemoryDisplay + CpuDisplay + PpuDisplay,
     {
         egui::TopBottomPanel::top("menubar_container").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
@@ -65,6 +67,11 @@ impl Gui {
 
                     if ui.button("CPU").clicked() {
                         self.cpu = true;
+                        ui.close_menu();
+                    }
+
+                    if ui.button("PPU").clicked() {
+                        self.ppu = true;
                         ui.close_menu();
                     }
 
@@ -118,6 +125,12 @@ impl Gui {
             .open(&mut self.cpu)
             .show(ctx, |ui| {
                 board.draw_cpu(ui);
+            });
+
+        egui::Window::new("PPU: Status")
+            .open(&mut self.ppu)
+            .show(ctx, |ui| {
+                board.draw_palette(ui);
             });
 
         egui::Window::new("Instructions")

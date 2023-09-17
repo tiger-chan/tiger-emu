@@ -9,7 +9,7 @@ use egui::RichText;
 use crate::{
     bus::Bus,
     cpu::CPU,
-    gui::{CpuDisplay, MemoryDisplay, DIAGNOSTIC_FONT},
+    gui::{CpuDisplay, MemoryDisplay, DIAGNOSTIC_FONT, PpuDisplay},
     motherboard::Motherboard,
 };
 
@@ -340,5 +340,11 @@ impl CpuDisplay for Board {
         while self.cpu.borrow().cc != 0 {
             self.clock();
         }
+    }
+}
+
+impl PpuDisplay for Board {
+    fn draw_palette(&self, ui: &mut egui::Ui) {
+        self.ppu.borrow().draw_palette(ui);
     }
 }

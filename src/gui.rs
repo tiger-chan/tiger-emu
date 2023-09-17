@@ -14,3 +14,7 @@ pub(crate) trait CpuDisplay {
     fn draw_code(&self, ui: &mut Ui, instruction_count: i8);
     fn step(&mut self);
 }
+
+pub(crate) trait PpuDisplay {
+    fn draw_palette(&self, ui: &mut Ui);
+}

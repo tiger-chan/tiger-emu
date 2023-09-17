@@ -1,7 +1,10 @@
 use std::rc::Rc;
 use std::{cell::RefCell, rc::Weak};
 
+use egui::TextureOptions;
+
 use crate::bus::Bus;
+use crate::gui::PpuDisplay;
 use crate::nes::board::PPU_RAM_MASK;
 
 use super::{Addr, RWPpuBus, RangeRWCpuBus};
@@ -96,10 +99,18 @@ impl crate::ppu_bus::PpuBus for PpuBus {
     }
 }
 
+
+pub struct DebugPpuData {
+    image: egui::ColorImage,
+    texture: RefCell<Option<egui::TextureHandle>>,
+}
+
 #[allow(unused)]
 pub struct Ppu2C02 {
     vram: Rc<RefCell<NameTable>>,
     palette: Rc<RefCell<PaletteTable>>,
+
+    debug_data: DebugPpuData,
 }
 
 impl Ppu2C02 {
@@ -109,11 +120,17 @@ impl Ppu2C02 {
         Self {
             vram: vram,
             palette: palette,
+
+            debug_data: DebugPpuData {
+                image: egui::ColorImage::new([256, 240], egui::Color32::GREEN),
+                texture: RefCell::new(None)
+            }
         }
     }
 
     #[allow(unused)]
-    fn clock(&mut self, _bus: &mut dyn Bus, _cart: &mut dyn crate::ppu_bus::PpuBus) {}
+    fn clock(&mut self, _bus: &mut dyn Bus, _cart: &mut dyn crate::ppu_bus::PpuBus) {
+    }
 }
 
 impl RangeRWCpuBus for Ppu2C02 {
@@ -151,5 +168,20 @@ impl RWPpuBus for Ppu2C02 {
     fn write(&mut self, addr: Addr, _data: u8) -> Option<()> {
         let _addr = addr & INTERN_PPU_MASK;
         None
+    }
+}
+
+impl PpuDisplay for Ppu2C02 {
+    fn draw_palette(&self, ui: &mut egui::Ui) {
+        let mut borrowed = self.debug_data.texture.borrow_mut();
+        let texture = borrowed.get_or_insert_with(|| {
+            ui.ctx().load_texture("ppu2c02", egui::ColorImage::new([256, 240], egui::Color32::GRAY), TextureOptions::LINEAR)
+        });
+
+        texture.set(egui::ImageData::Color(self.debug_data.image.clone()), TextureOptions::LINEAR);
+
+
+        let size = texture.size_vec2();
+        ui.image(texture, size);
     }
 }
