@@ -266,6 +266,10 @@ impl Board {
 
         self.cpu.borrow_mut().disssemble(&self.bus, 0x0000, 0xFFFF);
     }
+
+    pub fn draw(&self, pixels: &mut [u8]) {
+        self.ppu.borrow().draw(pixels);
+    }
 }
 
 impl Bus for Board {

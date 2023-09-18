@@ -28,6 +28,12 @@ impl From<&Color> for egui::Color32 {
     }
 }
 
+impl From<&Color> for [u8; 4] {
+    fn from(value: &Color) -> Self {
+        [value.r, value.g, value.b, 0xFF]
+    }
+}
+
 fn create_palette(bytes: &[u8; 64 * 3]) -> [Color; 64] {
     let mut colors = [Color::new(0, 0, 0); 64];
     for i in 0..64 {
@@ -213,6 +219,13 @@ impl Ppu2C02 {
 
     pub fn debug_reset_complete(&mut self) {
         self.scanline = 0;
+    }
+
+    pub fn draw(&self, pixels: &mut [u8]) {
+        for (i, pixel) in pixels.chunks_exact_mut(4).enumerate() {
+            let colors = self.debug_data.image.pixels[i];
+            pixel.copy_from_slice(&colors.to_array());
+        }
     }
 }
 

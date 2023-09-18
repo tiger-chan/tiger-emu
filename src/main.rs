@@ -25,6 +25,8 @@ use winit_input_helper::WinitInputHelper;
 
 const WIDTH: u32 = 1024;
 const HEIGHT: u32 = 768;
+const NES_WIDTH: u32 = 256;
+const NES_HEIGHT: u32 = 240;
 
 fn main() -> Result<(), Error> {
     const FRAME_TIME: f32 = 1.0 / 60.0;
@@ -48,7 +50,7 @@ fn main() -> Result<(), Error> {
         let window_size = window.inner_size();
         let scale_factor = window.scale_factor() as f32;
         let surface_texture = SurfaceTexture::new(window_size.width, window_size.height, &window);
-        let pixels = Pixels::new(WIDTH, HEIGHT, surface_texture)?;
+        let pixels = Pixels::new(NES_WIDTH, NES_HEIGHT, surface_texture)?;
         let framework = Framework::new(
             &event_loop,
             window_size.width,
@@ -116,7 +118,7 @@ fn main() -> Result<(), Error> {
             // Draw the current frame
             Event::RedrawRequested(_) => {
                 // Draw the world
-                //world.draw(pixels.frame_mut());
+                board.draw(pixels.frame_mut());
 
                 // Prepare egui
                 framework.prepare(&window, &mut run_emulation, &mut board);
