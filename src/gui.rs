@@ -15,7 +15,7 @@ pub(crate) trait CpuDisplay {
 }
 
 pub(crate) trait PpuDisplay {
-    fn draw_palette(&self, ui: &mut Ui);
+    fn draw_pattern_tbl(&self, ui: &mut Ui, tbl: u8, palette: u8);
 }
 
 pub(crate) trait BoardCommand {

@@ -240,7 +240,7 @@ impl Board {
         bus.push(&ram);
         bus.push(&ppu);
 
-        let mut ppu_bus = PpuBus::new(&ppu);
+        let mut ppu_bus = PpuBus::new(&ppu.borrow());
         ppu_bus.cartridge(&cart);
 
         Self {
@@ -374,7 +374,9 @@ impl BoardCommand for Board {
 }
 
 impl PpuDisplay for Board {
-    fn draw_palette(&self, ui: &mut egui::Ui) {
-        self.ppu.borrow().draw_palette(ui);
+    fn draw_pattern_tbl(&self, ui: &mut egui::Ui, tbl: u8, palette: u8) {
+        self.ppu
+            .borrow_mut()
+            .draw_pattern_tbl(&self.ppu_bus, ui, tbl as Addr, palette as Addr);
     }
 }

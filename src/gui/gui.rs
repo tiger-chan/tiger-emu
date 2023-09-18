@@ -18,6 +18,7 @@ pub(crate) struct Gui {
     ppu: bool,
     memory_inspect: u16,
     picked_path: Option<String>,
+    palette: u8,
 }
 
 impl Gui {
@@ -31,12 +32,17 @@ impl Gui {
             ppu: false,
             memory_inspect: 0x0000,
             picked_path: None,
+            palette: 0,
         }
     }
 
     /// Create the UI using egui.
-    pub(crate) fn ui<TMotherBoard>(&mut self, ctx: &Context, run_emu: &mut bool, board: &mut TMotherBoard)
-    where
+    pub(crate) fn ui<TMotherBoard>(
+        &mut self,
+        ctx: &Context,
+        run_emu: &mut bool,
+        board: &mut TMotherBoard,
+    ) where
         TMotherBoard: Motherboard + BoardCommand + MemoryDisplay + CpuDisplay + PpuDisplay,
     {
         if ctx.input(|i| i.key_pressed(egui::Key::F5)) {
@@ -167,10 +173,21 @@ impl Gui {
                 board.draw_cpu(ui);
             });
 
-        egui::Window::new("PPU: Status")
+        egui::Window::new("PPU: Patern Tables")
             .open(&mut self.ppu)
             .show(ctx, |ui| {
-                board.draw_palette(ui);
+                ui.vertical(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.label((self.palette + 1).to_string());
+                        if ui.button("Switch").clicked() {
+                            self.palette = (self.palette + 1) & 0x07;
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        board.draw_pattern_tbl(ui, 0, self.palette);
+                        board.draw_pattern_tbl(ui, 1, self.palette);
+                    });
+                })
             });
 
         egui::Window::new("Instructions")

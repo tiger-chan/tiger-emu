@@ -4,13 +4,12 @@ use std::{cell::RefCell, rc::Weak};
 use egui::TextureOptions;
 
 use crate::bus::Bus;
-use crate::gui::PpuDisplay;
 use crate::nes::board::PPU_RAM_MASK;
 
 use super::{Addr, RWPpuBus, RangeRWCpuBus};
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct Color {
+pub struct Color {
     pub r: u8,
     pub g: u8,
     pub b: u8,
@@ -20,17 +19,15 @@ impl Color {
     pub const fn new(r: u8, g: u8, b: u8) -> Self {
         Self { b, g, r }
     }
+
+    pub fn to_array(&self) -> [u8; 4] {
+        [self.r, self.g, self.b, 0xFF]
+    }
 }
 
 impl From<&Color> for egui::Color32 {
     fn from(value: &Color) -> Self {
         Self::from_rgb(value.r, value.g, value.b)
-    }
-}
-
-impl From<&Color> for [u8; 4] {
-    fn from(value: &Color) -> Self {
-        [value.r, value.g, value.b, 0xFF]
     }
 }
 
@@ -53,9 +50,12 @@ const INTERN_PPU_MASK: Addr = 0x3FFF;
 
 const TBL_NAME: usize = 0x0400;
 const TBL_NAME_COUNT: usize = 2;
+const TBL_PATTERN: usize = 0x1000;
+const TBL_PATTERN_COUNT: usize = 2;
 const TBL_PALETTE: usize = 0x0020;
 
 type NameTable = [[u8; TBL_NAME]; TBL_NAME_COUNT];
+type PatternTable = [[u8; TBL_PATTERN]; TBL_PATTERN_COUNT];
 type PaletteTable = [u8; TBL_PALETTE];
 
 macro_rules! name_arr {
@@ -64,13 +64,19 @@ macro_rules! name_arr {
     };
 }
 
+macro_rules! pattern_arr {
+    ($value:literal) => {
+        [[$value; TBL_PATTERN]; TBL_PATTERN_COUNT]
+    };
+}
+
 pub struct PpuBus {
     devices: [Weak<RefCell<dyn RWPpuBus>>; 2],
 }
 
 impl PpuBus {
-    pub fn new(ppu: &Rc<RefCell<Ppu2C02>>) -> Self {
-        let tmp = Rc::downgrade(&ppu);
+    pub fn new(ppu: &Ppu2C02) -> Self {
+        let tmp = Rc::downgrade(&ppu.memory);
         Self {
             devices: [tmp.clone(), tmp],
         }
@@ -140,16 +146,37 @@ impl crate::ppu_bus::PpuBus for PpuBus {
 }
 
 pub struct DebugPpuData {
-    image: egui::ColorImage,
-    texture: RefCell<Option<egui::TextureHandle>>,
+    pattern: [egui::ColorImage; 2],
+    pattern_texture: [RefCell<Option<egui::TextureHandle>>; 2],
+}
+
+pub struct PpuMemory {
+    pub vram: RefCell<NameTable>,
+    pub pattern: RefCell<PatternTable>,
+    pub palette: RefCell<PaletteTable>,
+    pub col_palette: [Color; 64],
+}
+
+impl PpuMemory {
+    pub fn new(ntsc: bool) -> Self {
+        Self {
+            vram: RefCell::new(name_arr![0]),
+            pattern: RefCell::new(pattern_arr![0]),
+            palette: RefCell::new([0; TBL_PALETTE]),
+            // I would prefer there a better way to do this
+            col_palette: if ntsc {
+                create_palette(X2C02)
+            } else {
+                create_palette(X2C07)
+            },
+        }
+    }
 }
 
 #[allow(unused)]
 pub struct Ppu2C02 {
-    vram: Rc<RefCell<NameTable>>,
-    palette: Rc<RefCell<PaletteTable>>,
-    col_palette: [Color; 64],
-
+    memory: Rc<RefCell<PpuMemory>>,
+    screen: [Color; 256 * 240],
     cycle: u16,
     scanline: u16,
 
@@ -158,35 +185,31 @@ pub struct Ppu2C02 {
 
 impl Ppu2C02 {
     pub fn new(ntsc: bool) -> Self {
-        let vram = Rc::new(RefCell::new(name_arr![0]));
-        let palette = Rc::new(RefCell::new([0; TBL_PALETTE]));
         Self {
-            vram: vram,
-            palette: palette,
-            // I would prefer there a better way to do this
-            col_palette: if ntsc { create_palette(X2C02) } else { create_palette(X2C07) },
+            memory: Rc::new(RefCell::new(PpuMemory::new(ntsc))),
+            screen: [Color::new(50, 50, 50); 256 * 240],
             cycle: 0,
             scanline: 0,
 
             debug_data: DebugPpuData {
-                image: egui::ColorImage::new([256, 240], egui::Color32::GREEN),
-                texture: RefCell::new(None),
+                pattern: [
+                    egui::ColorImage::new([128, 128], egui::Color32::GREEN),
+                    egui::ColorImage::new([128, 128], egui::Color32::GREEN),
+                ],
+                pattern_texture: [RefCell::new(None), RefCell::new(None)],
             },
         }
     }
 
-    pub fn clock(&mut self, _bus: &mut dyn Bus, _cart: &mut dyn crate::ppu_bus::PpuBus) {
+    pub fn clock(&mut self, _bus: &mut dyn Bus, _ppu_bus: &mut dyn crate::ppu_bus::PpuBus) {
         self.cycle = self.cycle.wrapping_add(1);
 
         let mut set_pixel = |x, y, v| {
             let x = x as usize;
             let y = y as usize;
-            let (w, h) = (
-                self.debug_data.image.width(),
-                self.debug_data.image.height(),
-            );
+            let (w, h) = (256, 240);
             if x < w && y < h {
-                self.debug_data.image.pixels[(y * w) + x] = egui::Color32::from(v);
+                self.screen[(y * w) + x] = v;
             }
         };
 
@@ -194,7 +217,7 @@ impl Ppu2C02 {
         set_pixel(
             self.cycle.wrapping_sub(1),
             self.scanline,
-            &self.col_palette[if rand::random() { 0x3F } else { 0x30 } ],
+            self.memory.borrow().col_palette[if rand::random() { 0x3F } else { 0x30 }],
         );
 
         match self.cycle {
@@ -223,9 +246,81 @@ impl Ppu2C02 {
 
     pub fn draw(&self, pixels: &mut [u8]) {
         for (i, pixel) in pixels.chunks_exact_mut(4).enumerate() {
-            let colors = self.debug_data.image.pixels[i];
+            let colors = self.screen[i];
             pixel.copy_from_slice(&colors.to_array());
         }
+    }
+
+    fn debug_color_from_palette(
+        &self,
+        ppu_bus: &dyn crate::ppu_bus::PpuBus,
+        palette: Addr,
+        pixel: Addr,
+    ) -> Color {
+        let addr = 0x3F00 + palette.overflowing_shl(2).0 + pixel;
+        let addr = ppu_bus.read_only(addr);
+        self.memory.borrow().col_palette[addr as usize]
+    }
+
+    pub fn draw_pattern_tbl(
+        &mut self,
+        ppu_bus: &dyn crate::ppu_bus::PpuBus,
+        ui: &mut egui::Ui,
+        tbl: Addr,
+        palette: Addr,
+    ) {
+        let mut borrowed = self.debug_data.pattern_texture[tbl as usize].borrow_mut();
+        let texture = borrowed.get_or_insert_with(|| {
+            let name = format!("ppu2c02_{tbl}");
+            ui.ctx().load_texture(
+                name,
+                egui::ColorImage::new([256, 240], egui::Color32::GRAY),
+                TextureOptions::LINEAR,
+            )
+        });
+
+        for y in 0..16 as Addr {
+            for x in 0..16 as Addr {
+                let offset = y * 256 + x * 16;
+
+                for r in 0..8 {
+                    let mut lsb = ppu_bus.read_only(tbl * 0x1000 + offset + r + 0);
+                    let mut msb = ppu_bus.read_only(tbl * 0x1000 + offset + r + 8);
+                    for c in 0..8 {
+                        let pixel = (lsb & 0x01 + msb & 0x01) as Addr;
+                        lsb = lsb >> 1;
+                        msb = msb >> 1;
+
+                        let x = x * 8 + (7 - c);
+                        let y = y * 8 + r;
+
+                        let color = self.debug_color_from_palette(ppu_bus, palette, pixel);
+
+                        let mut set_pixel = |x, y, v| {
+                            let x = x as usize;
+                            let y = y as usize;
+                            let (w, h) = (
+                                self.debug_data.pattern[tbl as usize].width(),
+                                self.debug_data.pattern[tbl as usize].height(),
+                            );
+                            if x < w && y < h {
+                                self.debug_data.pattern[tbl as usize].pixels[(y * w) + x] =
+                                    egui::Color32::from(v);
+                            }
+                        };
+                        set_pixel(x, y, &color);
+                    }
+                }
+            }
+        }
+
+        texture.set(
+            egui::ImageData::Color(self.debug_data.pattern[tbl as usize].clone()),
+            TextureOptions::LINEAR,
+        );
+
+        let size = texture.size_vec2();
+        ui.image(texture, size);
     }
 }
 
@@ -250,40 +345,86 @@ impl RangeRWCpuBus for Ppu2C02 {
     }
 }
 
-impl RWPpuBus for Ppu2C02 {
+impl RWPpuBus for PpuMemory {
     fn read(&self, addr: Addr) -> Option<u8> {
-        let _addr = addr & INTERN_PPU_MASK;
-        None
+        let addr = addr & INTERN_PPU_MASK;
+        match &addr {
+            0x0000..=0x1FFF => {
+                let tbl = ((addr & 0x1000) >> 12) as usize;
+                let addr = (addr & 0x0FFF) as usize;
+                let tbl = &self.pattern.borrow()[tbl];
+                Some(tbl[addr])
+            }
+            0x2000..=0x3EFF => None,
+            0x3F00..=0x3FFF => {
+                let addr = addr & 0x001F;
+                let addr = match addr {
+                    0x0010 => 0x0000,
+                    0x0014 => 0x0004,
+                    0x0018 => 0x0008,
+                    0x001C => 0x000C,
+                    x => x,
+                };
+
+                let data = self.palette.borrow()[addr as usize]; //& (mask.grayscale ? 0x30 : 0x3F);
+                Some(data)
+            }
+            _ => None,
+        }
     }
 
     fn read_only(&self, addr: Addr) -> Option<u8> {
-        let _addr = addr & INTERN_PPU_MASK;
-        None
+        let addr = addr & INTERN_PPU_MASK;
+        match &addr {
+            0x0000..=0x1FFF => {
+                let tbl = ((addr & 0x1000) >> 12) as usize;
+                let addr = (addr & 0x0FFF) as usize;
+                let tbl = &self.pattern.borrow()[tbl];
+                Some(tbl[addr])
+            }
+            0x2000..=0x3EFF => None,
+            0x3F00..=0x3FFF => {
+                let addr = addr & 0x001F;
+                let addr = match addr {
+                    0x0010 => 0x0000,
+                    0x0014 => 0x0004,
+                    0x0018 => 0x0008,
+                    0x001C => 0x000C,
+                    x => x,
+                };
+
+                let data = self.palette.borrow()[addr as usize]; //& (mask.grayscale ? 0x30 : 0x3F);
+                Some(data)
+            }
+            _ => None,
+        }
     }
 
-    fn write(&mut self, addr: Addr, _data: u8) -> Option<()> {
-        let _addr = addr & INTERN_PPU_MASK;
-        None
-    }
-}
+    fn write(&mut self, addr: Addr, data: u8) -> Option<()> {
+        let addr = addr & INTERN_PPU_MASK;
+        match &addr {
+            0x0000..=0x1FFF => {
+                let tbl = ((addr & 0x1000) >> 12) as usize;
+                let addr = (addr & 0x0FFF) as usize;
+                let tbl = &mut self.pattern.borrow_mut()[tbl];
+                tbl[addr] = data;
+                Some(())
+            }
+            0x2000..=0x3EFF => None,
+            0x3F00..=0x3FFF => {
+                let addr = addr & 0x001F;
+                let addr = match addr {
+                    0x0010 => 0x0000,
+                    0x0014 => 0x0004,
+                    0x0018 => 0x0008,
+                    0x001C => 0x000C,
+                    x => x,
+                };
 
-impl PpuDisplay for Ppu2C02 {
-    fn draw_palette(&self, ui: &mut egui::Ui) {
-        let mut borrowed = self.debug_data.texture.borrow_mut();
-        let texture = borrowed.get_or_insert_with(|| {
-            ui.ctx().load_texture(
-                "ppu2c02",
-                egui::ColorImage::new([256, 240], egui::Color32::GRAY),
-                TextureOptions::LINEAR,
-            )
-        });
-
-        texture.set(
-            egui::ImageData::Color(self.debug_data.image.clone()),
-            TextureOptions::LINEAR,
-        );
-
-        let size = texture.size_vec2();
-        ui.image(texture, size);
+                self.palette.borrow_mut()[addr as usize] = data;
+                Some(())
+            }
+            _ => None,
+        }
     }
 }
