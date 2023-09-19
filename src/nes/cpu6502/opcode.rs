@@ -915,10 +915,10 @@ macro_rules! op {
     ([$opc:ident] AND $($rest:tt)*) => {
 		/// AND
 		/// AND Memory with Accumulator
-		///
+		///```
 		/// A AND M -> A                      N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
-		/// addressing	assembler   	opc 	bytes	cycles
+		/// addressing   assembler       opc     bytes   cycles
 		/// immediate    AND #oper       29      2       2
 		/// zeropage     AND oper        25      2       3
 		/// zeropage,X   AND oper,X      35      2       4
@@ -927,6 +927,7 @@ macro_rules! op {
 		/// absolute,Y   AND oper,Y      39      3       4*
 		/// (indirect,X) AND (oper,X)    21      2       6
 		/// (indirect),Y AND (oper),Y    31      2       5*
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
 
@@ -944,15 +945,16 @@ macro_rules! op {
     ([$opc:ident] ASL $($rest:tt)*) => {
 		/// ASL
 		/// Shift Left One Bit (Memory or Accumulator)
-		///
+		///```
 		/// C <- [76543210] <- 0              N  Z  C  I  D  V
 		///                                   +  +  +  -  -  -
-		/// addressing	assembler   	opc 	bytes	cycles
+		/// addressing   assembler       opc     bytes   cycles
 		/// accumulator  ASL A           0A      1       2
 		/// zeropage     ASL oper        06      2       5
 		/// zeropage,X   ASL oper,X      16      2       6
 		/// absolute     ASL oper        0E      3       6
 		/// absolute,X   ASL oper,X      1E      3       7
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
 
@@ -977,11 +979,12 @@ macro_rules! op {
     ([$opc:ident] BCC $($rest:tt)*) => {
 		/// BCC
 		/// Branch on Carry Clear
-		///
+		///```
 		/// branch on C = 0                   N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
-		/// addressing	assembler   	opc 	bytes	cycles
+		/// addressing   assembler       opc     bytes   cycles
 		/// relative     BCC oper        90      2       2**
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let addr = am!(reg, bus, $($rest)*);
             if reg.p.get(StatusReg::C) == 0 {
@@ -1002,11 +1005,12 @@ macro_rules! op {
     ([$opc:ident] BCS $($rest:tt)*) => {
 		/// BCS
 		/// Branch on Carry Set
-		///
+		///```
 		/// branch on C = 1                         N Z C I D V
 		///                                         - - - - - -
-		/// addressing	assembler   	opc 	bytes	cycles
+		/// addressing   assembler       opc     bytes   cycles
 		/// relative     BCS oper        B0      2       2**
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let addr = am!(reg, bus, $($rest)*);
             if reg.p.get(StatusReg::C) == 1 {
@@ -1027,11 +1031,12 @@ macro_rules! op {
     ([$opc:ident] BEQ $($rest:tt)*) => {
 		/// BEQ
 		/// Branch on Result Zero
-		///
+		///```
 		/// branch on Z = 1                   N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
-		/// addressing	assembler   	opc 	bytes	cycles
+		/// addressing   assembler       opc     bytes   cycles
 		/// relative     BEQ oper        F0      2       2**
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let addr = am!(reg, bus, $($rest)*);
             if reg.p.get(StatusReg::Z) == 1 {
@@ -1058,12 +1063,13 @@ macro_rules! op {
 		/// the accumulator (set, if the result is zero, unset otherwise).
 		/// This allows a quick check of a few bits at once without affecting
 		/// any of the registers, other than the status register (SR).
-		///
+		///```
 		/// A AND M, M7 -> N, M6 -> V         N  Z  C  I  D  V
 		///                                   M7 +  -  -  -  M6
-		/// addressing	assembler   	opc 	bytes	cycles
+		/// addressing   assembler       opc     bytes   cycles
 		/// zeropage     BIT oper        24      2       3
 		/// absolute     BIT oper        2C      3       4
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
             let data = bus.read(addr);
@@ -1080,11 +1086,12 @@ macro_rules! op {
     ([$opc:ident] BMI $($rest:tt)*) => {
 		/// BMI
 		/// Branch on Result Minus
-		///
+		///```
 		/// branch on N = 1                   N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
-		/// addressing	assembler   	opc 	bytes	cycles
+		/// addressing   assembler       opc     bytes   cycles
 		/// relative     BMI oper        30      2       2**
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let addr = am!(reg, bus, $($rest)*);
             if reg.p.get(StatusReg::N) == 1 {
@@ -1105,11 +1112,12 @@ macro_rules! op {
     ([$opc:ident] BNE $($rest:tt)*) => {
 		/// BNE
 		/// Branch on Result not Zero
-		///
+		///```
 		/// branch on Z = 0                   N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
-		/// addressing	assembler   	opc 	bytes	cycles
-		/// relative    BNE oper        D0      2       2**
+		/// addressing   assembler       opc     bytes   cycles
+		/// relative     BNE oper        D0      2       2**
+		///```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let addr = am!(reg, bus, $($rest)*);
             if reg.p.get(StatusReg::Z) == 0 {
@@ -1165,11 +1173,12 @@ macro_rules! op {
 		/// flag set to 1. However, when retrieved during RTI or by a PLP
 		/// instruction, the break flag will be ignored.
 		/// The interrupt disable flag is not set automatically.
-		///
+		///```
 		/// interrupt,                        N  Z  C  I  D  V
 		/// push PC+2, push SR                -  -  -  1  -  -
-		/// addressing	assembler   	opc 	bytes	cycles
+		/// addressing   assembler       opc     bytes   cycles
 		/// implied      BRK             00      1       7
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			reg.pc += 1;
             let mut p = reg.p;
@@ -1198,11 +1207,12 @@ macro_rules! op {
     ([$opc:ident] BVC $($rest:tt)*) => {
 		/// BVC
 		/// Branch on Overflow Clear
-		///
+		///```
 		/// branch on V = 0                   N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
-		/// addressing	assembler   	opc 	bytes	cycles
+		/// addressing   assembler       opc     bytes   cycles
 		/// relative     BVC oper        50      2       2**
+		///```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let addr = am!(reg, bus, $($rest)*);
             if reg.p.get(StatusReg::V) == 0 {
@@ -1223,11 +1233,12 @@ macro_rules! op {
     ([$opc:ident] BVS $($rest:tt)*) => {
 		/// BVS
 		/// Branch on Overflow Set
-		///
+		///```
 		/// branch on V = 1                   N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
-		/// addressing	assembler   	opc 	bytes	cycles
+		/// addressing   assembler       opc     bytes   cycles
 		/// relative     BVS oper        70      2       2**
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let addr = am!(reg, bus, $($rest)*);
             if reg.p.get(StatusReg::V) == 1 {
@@ -1246,13 +1257,14 @@ macro_rules! op {
 	};
 
     ([$opc:ident] CLC $($rest:tt)*) => {
-		// CLC
-		// Clear Carry Flag
-		//
-		// 0 -> C                            N  Z  C  I  D  V
-		//                                   -  -  0  -  -  -
-		// addressing	assembler   	opc 	bytes	cycles
-		// implied      CLC             18      1       2
+		/// CLC
+		/// Clear Carry Flag
+		///```
+		/// 0 -> C                            N  Z  C  I  D  V
+		///                                   -  -  0  -  -  -
+		/// addressing   assembler       opc     bytes   cycles
+		/// implied      CLC             18      1       2
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let _ = am!(reg, bus, $($rest)*);
             reg.p.set(StatusReg::C, false);
@@ -1262,11 +1274,12 @@ macro_rules! op {
     ([$opc:ident] CLD $($rest:tt)*) => {
 		/// CLD
 		/// Clear Decimal Mode
-		///
+		///```
 		/// 0 -> D                            N  Z  C  I  D  V
 		///                                   -  -  -  -  0  -
-		/// addressing	assembler   	opc 	bytes	cycles
+		/// addressing   assembler       opc     bytes   cycles
 		/// implied      CLD             D8      1       2
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let _ = am!(reg, bus, $($rest)*);
             reg.p.set(StatusReg::D, false);
@@ -1276,11 +1289,12 @@ macro_rules! op {
     ([$opc:ident] CLI $($rest:tt)*) => {
 		/// CLI
 		/// Clear Interrupt Disable Bit
-		///
+		///```
 		/// 0 -> I                            N  Z  C  I  D  V
 		///                                   -  -  -  0  -  -
-		/// addressing	assembler   	opc 	bytes	cycles
+		/// addressing   assembler       opc     bytes   cycles
 		/// implied      CLI             58      1       2
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let _ = am!(reg, bus, $($rest)*);
             reg.p.set(StatusReg::I, false);
@@ -1290,11 +1304,12 @@ macro_rules! op {
     ([$opc:ident] CLV $($rest:tt)*) => {
 		/// CLV
 		/// Clear Interrupt Disable Bit
-		///
+		///```
 		/// 0 -> I                            N  Z  C  I  D  V
 		///                                   -  -  -  -  -  0
-		/// addressing	assembler   	opc 	bytes	cycles
+		/// addressing   assembler       opc     bytes   cycles
 		/// implied      CLV             B8      1       2
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let _ = am!(reg, bus, $($rest)*);
             reg.p.set(StatusReg::V, false);
@@ -1304,10 +1319,10 @@ macro_rules! op {
     ([$opc:ident] CMP $($rest:tt)*) => {
 		/// CMP
 		/// Compare Memory with Accumulator
-		///
+		///```
 		/// A - M                             N  Z  C  I  D  V
 		///                                   +  +  +  -  -  -
-		/// addressing	assembler   	opc 	bytes	cycles
+		/// addressing   assembler       opc     bytes   cycles
 		/// immediate    CMP #oper       C9      2       2
 		/// zeropage     CMP oper        C5      2       3
 		/// zeropage,X   CMP oper,X      D5      2       4
@@ -1316,6 +1331,7 @@ macro_rules! op {
 		/// absolute,Y   CMP oper,Y      D9      3       4*
 		/// (indirect,X) CMP (oper,X)    C1      2       6
 		/// (indirect),Y CMP (oper),Y    D1      2       5*
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
             let data = bus.read(addr);
@@ -1331,13 +1347,14 @@ macro_rules! op {
     ([$opc:ident] CPX $($rest:tt)*) => {
 		/// CPX
 		/// Compare Memory and Index X
-		///
+		///```
 		/// X - M                             N  Z  C  I  D  V
 		///                                   +  +  +  -  -  -
-		/// addressing	assembler   	opc 	bytes	cycles
+		/// addressing   assembler       opc     bytes   cycles
 		/// immediate    CPX #oper       E0      2       2
 		/// zeropage     CPX oper        E4      2       3
 		/// absolute     CPX oper        EC      3       4
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
             let data = bus.read(addr);
@@ -1353,13 +1370,14 @@ macro_rules! op {
     ([$opc:ident] CPY $($rest:tt)*) => {
 		/// CPY
 		/// Compare Memory and Index Y
-		///
+		///```
 		/// Y - M                             N  Z  C  I  D  V
 		///                                   +  +  +  -  -  -
-		/// addressing	assembler   	opc 	bytes	cycles
+		/// addressing   assembler       opc     bytes   cycles
 		/// immediate    CPY #oper       C0      2       2
 		/// zeropage     CPY oper        C4      2       3
 		/// absolute     CPY oper        CC      3       4
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
             let data = bus.read(addr);
@@ -1375,14 +1393,15 @@ macro_rules! op {
     ([$opc:ident] DEC $($rest:tt)*) => {
 		/// DEC
 		/// Decrement Memory by One
-		///
+		///```
 		/// M - 1 -> M                        N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
-		/// addressing	assembler   	opc 	bytes	cycles
+		/// addressing   assembler       opc     bytes   cycles
 		/// zeropage     DEC oper        C6      2       5
 		/// zeropage,X   DEC oper,X      D6      2       6
 		/// absolute     DEC oper        CE      3       6
 		/// absolute,X   DEC oper,X      DE      3       7
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
             let data = bus.read(addr) as u16;
@@ -1395,13 +1414,14 @@ macro_rules! op {
 	};
 
     ([$opc:ident] DEX $($rest:tt)*) => {
-		// DEX
-		// Decrement Index X by One
-		//
-		// X - 1 -> X                        N  Z  C  I  D  V
-		//                                   +  +  -  -  -  -
-		// addressing	assembler   	opc 	bytes	cycles
-		// implied      DEX             CA      1       2
+		/// DEX
+		/// Decrement Index X by One
+		///```
+		/// X - 1 -> X                        N  Z  C  I  D  V
+		///                                   +  +  -  -  -  -
+		/// addressing   assembler       opc     bytes   cycles
+		/// implied      DEX             CA      1       2
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let _ = am!(reg, bus, $($rest)*);
             let tmp = reg.x.wrapping_sub(1);
@@ -1415,11 +1435,12 @@ macro_rules! op {
     ([$opc:ident] DEY $($rest:tt)*) => {
 		/// DEY
 		/// Decrement Index Y by One
-		///
+		///```
 		/// Y - 1 -> Y                        N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
-		/// addressing	assembler   	opc 	bytes	cycles
+		/// addressing   assembler       opc     bytes   cycles
 		/// implied      DEY             88      1       2
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let _ = am!(reg, bus, $($rest)*);
             let tmp = reg.y.wrapping_sub(1);
@@ -1433,19 +1454,19 @@ macro_rules! op {
 	([$opc:ident] EOR $($rest:tt)*) => {
 		/// EOR
 		/// Exclusive-OR Memory with Accumulator
-		///
-		/// addressing	assembler	opc	bytes	cycles
+		///```
 		/// A EOR M -> A                      N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// immediate    EOR #oper       49     2        2
 		/// zeropage     EOR oper        45     2        3
-		/// zeropage,X   EOR oper,X	     55     2        4
+		/// zeropage,X   EOR oper,X      55     2        4
 		/// absolute     EOR oper        4D     3        4
 		/// absolute,X   EOR oper,X      5D     3        4*
 		/// absolute,Y   EOR oper,Y      59     3        4*
 		/// (indirect,X) EOR (oper,X)    41     2        6
 		/// (indirect),Y EOR (oper),Y    51     2        5*
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
 			let data = bus.read(addr) as u16;
@@ -1460,7 +1481,7 @@ macro_rules! op {
 	([$opc:ident] INC $($rest:tt)*) => {
 		/// INC
 		/// Increment Memory by One
-		///
+		///```
 		/// M + 1 -> M                        N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1468,6 +1489,7 @@ macro_rules! op {
 		/// zeropage,X   INC oper,X      F6     2        6
 		/// absolute     INC oper        EE     3        6
 		/// absolute,X   INC oper,X      FE     3        7
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
             let data = bus.read(addr) as u16;
@@ -1482,11 +1504,12 @@ macro_rules! op {
     ([$opc:ident] INX $($rest:tt)*) => {
 		/// INX
 		/// Increment Index X by One
-		///
+		///```
 		/// X + 1 -> X                        N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      INX             E8     1        2
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let _ = am!(reg, bus, $($rest)*);
             let tmp = reg.x.wrapping_add(1);
@@ -1500,11 +1523,12 @@ macro_rules! op {
     ([$opc:ident] INY $($rest:tt)*) => {
 		/// INY
 		/// Increment Index Y by One
-		///
+		///```
 		/// Y + 1 -> Y                        N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      INY             C8     1        2
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let _ = am!(reg, bus, $($rest)*);
             let tmp = reg.y.wrapping_add(1);
@@ -1524,13 +1548,14 @@ macro_rules! op {
 	([$opc:ident] JMP $($rest:tt)*) => {
 		/// JMP
 		/// Jump to New Location
-		///
+		///```
 		/// push (PC+2),                      N  Z  C  I  D  V
 		/// (PC+1) -> PCL                     -  -  -  -  -  -
 		/// (PC+2) -> PCH
 		/// addressing   assembler       opc    bytes    cycles
 		/// absolute     JMP oper        4C     3        3
 		/// indirect     JMP (oper)      6C     3        5
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             reg.pc = am!(reg, bus, $($rest)*);
 		}
@@ -1539,12 +1564,13 @@ macro_rules! op {
 	([$opc:ident] JSR $($rest:tt)*) => {
 		/// JSR
 		/// Jump to New Location Saving Return Address
-		///
+		///```
 		/// push (PC+2),                      N  Z  C  I  D  V
 		/// (PC+1) -> PCL                     -  -  -  -  -  -
 		/// (PC+2) -> PCH
 		/// addressing   assembler       opc    bytes    cycles
 		/// absolute     JSR oper        20     3        6
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
 			let pc = reg.pc;
@@ -1563,7 +1589,7 @@ macro_rules! op {
 	([$opc:ident] LDA $($rest:tt)*) => {
 		/// LDA
 		/// Load Accumulator with Memory
-		///
+		///```
 		/// M -> A                            N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1575,6 +1601,7 @@ macro_rules! op {
 		/// absolute,Y   LDA oper,Y      B9     3        4*
 		/// (indirect,X) LDA (oper,X)    A1     2        6
 		/// (indirect),Y LDA (oper),Y    B1     2        5*
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
 			let data = bus.read(addr);
@@ -1587,7 +1614,7 @@ macro_rules! op {
 	([$opc:ident] LDX $($rest:tt)*) => {
 		/// LDX
 		/// Load Index X with Memory
-		///
+		///```
 		/// M -> X                            N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1596,6 +1623,7 @@ macro_rules! op {
 		/// zeropage,Y   LDX oper,Y      B6     2        4
 		/// absolute     LDX oper        AE     3        4
 		/// absolute,Y   LDX oper,Y      BE     3        4*
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
 			let data = bus.read(addr);
@@ -1608,7 +1636,7 @@ macro_rules! op {
 	([$opc:ident] LDY $($rest:tt)*) => {
 		/// LDY
 		/// Load Index Y with Memory
-		///
+		///```
 		/// M -> Y                            N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1617,6 +1645,7 @@ macro_rules! op {
 		/// zeropage,X   LDY oper,X      B4     2        4
 		/// absolute     LDY oper        AC     3        4
 		/// absolute,X   LDY oper,X      BC     3        4*
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
 			let data = bus.read(addr);
@@ -1629,7 +1658,7 @@ macro_rules! op {
 	([$opc:ident] LSR $($rest:tt)*) => {
 		/// LSR
 		/// Shift One Bit Right (Memory or Accumulator)
-		///
+		///```
 		/// 0 -> [76543210] -> C              N  Z  C  I  D  V
 		///                                   0  +  +  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1638,6 +1667,7 @@ macro_rules! op {
 		/// zeropage,X   LSR oper,X      56     2        6
 		/// absolute     LSR oper        4E     3        6
 		/// absolute,X   LSR oper,X      5E     3        7
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let addr = am!(reg, bus, $($rest)*);
 			let data = bus.read(addr);
@@ -1658,11 +1688,12 @@ macro_rules! op {
 	([$opc:ident] NOP $($rest:tt)*) => {
 		/// NOP
 		/// No Operation
-		///
+		///```
 		/// ---                               N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      NOP             EA     1        2
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
             let _ = am!(reg, bus, $($rest)*);
 		}
@@ -1671,7 +1702,7 @@ macro_rules! op {
 	([$opc:ident] ORA $($rest:tt)*) => {
 		/// ORA
 		/// OR Memory with Accumulator
-		///
+		///```
 		/// A OR M -> A                       N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1683,6 +1714,7 @@ macro_rules! op {
 		/// absolute,Y   ORA oper,Y      19     3        4*
 		/// (indirect,X) ORA (oper,X)    01     2        6
 		/// (indirect),Y ORA (oper),Y    11     2        5*
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let addr = am!(reg, bus, $($rest)*);
 			let data = bus.read(addr);
@@ -1697,11 +1729,12 @@ macro_rules! op {
 	([$opc:ident] PHA $($rest:tt)*) => {
 		/// PHA
 		/// Push Accumulator on Stack
-		///
+		///```
 		/// push A                            N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      PHA             48     1        3
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			bus.write(PS + reg.sp as Addr, reg.ac);
@@ -1715,11 +1748,12 @@ macro_rules! op {
 		///
 		/// The status register will be pushed with the break
 		/// flag and bit 5 set to 1.
-		///
+		///```
 		/// push SR                           N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      PHP             08     1        3
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 
@@ -1733,11 +1767,12 @@ macro_rules! op {
 	([$opc:ident] PLA $($rest:tt)*) => {
 		/// PLA
 		/// Pull Accumulator from Stack
-		///
+		///```
 		/// pull A                            N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      PLA             68     1        4
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			let sp = (reg.sp + 1) as Addr;
@@ -1755,11 +1790,12 @@ macro_rules! op {
 		///
 		/// The status register will be pulled with the break
 		/// flag and bit 5 ignored.
-		///
+		///```
 		/// pull SR                           N  Z  C  I  D  V
 		///                                      from stack
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      PLP             28     1        4
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			let sp = (reg.sp + 1) as Addr;
@@ -1773,7 +1809,7 @@ macro_rules! op {
 	([$opc:ident] ROL $($rest:tt)*) => {
 		/// ROL
 		/// Rotate One Bit Left (Memory or Accumulator)
-		///
+		///```
 		/// C <- [76543210] <- C              N  Z  C  I  D  V
 		///                                   +  +  +  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1782,6 +1818,7 @@ macro_rules! op {
 		/// zeropage,X   ROL oper,X      36     2        6
 		/// absolute     ROL oper        2E     3        6
 		/// absolute,X   ROL oper,X      3E     3        7
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let addr = am!(reg, bus, $($rest)*);
 			let data = bus.read(addr) as u16;
@@ -1800,7 +1837,7 @@ macro_rules! op {
 	([$opc:ident] ROR $($rest:tt)*) => {
 		/// ROR
 		/// Rotate One Bit Right (Memory or Accumulator)
-		///
+		///```
 		/// C -> [76543210] -> C              N  Z  C  I  D  V
 		///                                   +  +  +  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1809,6 +1846,7 @@ macro_rules! op {
 		/// zeropage,X   ROR oper,X      76     2        6
 		/// absolute     ROR oper        6E     3        6
 		/// absolute,X   ROR oper,X      7E     3        7
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let addr = am!(reg, bus, $($rest)*);
 			let data = bus.read(addr) as u16;
@@ -1831,11 +1869,12 @@ macro_rules! op {
 		///
 		/// The status register is pulled with the break flag
 		/// and bit 5 ignored. Then PC is pulled from the stack.
-		///
+		///```
 		/// pull SR, pull PC                  N  Z  C  I  D  V
 		///                                      from stack
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      RTI             40     1        6
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest:tt)*);
 			let mut sp = reg.sp as Addr + 1;
@@ -1856,11 +1895,12 @@ macro_rules! op {
 	([$opc:ident] RTS $($rest:tt)*) => {
 		/// RTS
 		/// Return from Subroutine
-		///
+		///```
 		/// pull PC, PC+1 -> PC               N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      RTS             60     1        6
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest:tt)*);
 
@@ -1876,7 +1916,7 @@ macro_rules! op {
 	([$opc:ident] SBC $($rest:tt)*) => {
 		/// SBC
 		/// Subtract Memory from Accumulator with Borrow
-		///
+		///```
 		/// A - M - C̅ -> A                   N  Z  C  I  D  V
 		///                                   +  +  +  -  -  +
 		/// addressing   assembler       opc    bytes    cycles
@@ -1888,6 +1928,7 @@ macro_rules! op {
 		/// absolute,Y   SBC oper,Y      F9     3        4*
 		/// (indirect,X) SBC (oper,X)    E1     2        6
 		/// (indirect),Y SBC (oper),Y    F1     2        5*
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let addr = am!(reg, bus, $($rest)*);
 			// Operating in 16-bit domain to capture carry out
@@ -1909,11 +1950,12 @@ macro_rules! op {
 	([$opc:ident] SEC $($rest:tt)*) => {
 		/// SEC
 		/// Set Carry Flag
-		///
+		///```
 		/// 1 -> C                            N  Z  C  I  D  V
 		///                                   -  -  1  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      SEC             38     1        2
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			reg.p.set(StatusReg::C, true);
@@ -1923,11 +1965,12 @@ macro_rules! op {
 	([$opc:ident] SED $($rest:tt)*) => {
 		/// SED
 		/// Set Decimal Flag
-		///
+		///```
 		/// 1 -> D                            N  Z  C  I  D  V
 		///                                   -  -  -  -  1  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      SED             F8     1        2
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			reg.p.set(StatusReg::D, true);
@@ -1937,11 +1980,12 @@ macro_rules! op {
 	([$opc:ident] SEI $($rest:tt)*) => {
 		/// SEI
 		/// Set Interrupt Disable Status
-		///
+		///```
 		/// 1 -> I                            N  Z  C  I  D  V
 		///                                   -  -  -  1  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      SEI             78     1        2
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			reg.p.set(StatusReg::I, true);
@@ -1951,7 +1995,7 @@ macro_rules! op {
 	([$opc:ident] STA $($rest:tt)*) => {
 		/// STA
 		/// Store Accumulator in Memory
-		///
+		///```
 		/// A -> M                            N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1962,6 +2006,7 @@ macro_rules! op {
 		/// absolute,Y   STA oper,Y      99     3        5
 		/// (indirect,X) STA (oper,X)    81     2        6
 		/// (indirect),Y STA (oper),Y    91     2        6
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let addr = am!(reg, bus, $($rest)*);
 			bus.write(addr, reg.ac);
@@ -1971,13 +2016,14 @@ macro_rules! op {
 	([$opc:ident] STX $($rest:tt)*) => {
 		/// STX
 		/// Store Index X in Memory
-		///
+		///```
 		/// X -> M                            N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// zeropage     STX oper        86     2        3
 		/// zeropage,Y   STX oper,Y      96     2        4
 		/// absolute     STX oper        8E     3        4
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let addr = am!(reg, bus, $($rest)*);
 			bus.write(addr, reg.x);
@@ -1987,13 +2033,14 @@ macro_rules! op {
 	([$opc:ident] STY $($rest:tt)*) => {
 		/// STY
 		/// Sore Index Y in Memory
-		///
+		///```
 		/// Y -> M                            N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// zeropage     STY oper        84     2        3
 		/// zeropage,X   STY oper,X      94     2        4
 		/// absolute     STY oper        8C     3        4
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let addr = am!(reg, bus, $($rest)*);
 			bus.write(addr, reg.y);
@@ -2003,11 +2050,12 @@ macro_rules! op {
 	([$opc:ident] TAX $($rest:tt)*) => {
 		/// TAX
 		/// Transfer Accumulator to Index X
-		///
+		///```
 		/// A -> X                            N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      TAX             AA     1        2
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			reg.x = reg.ac;
@@ -2020,11 +2068,12 @@ macro_rules! op {
 	([$opc:ident] TAY $($rest:tt)*) => {
 		/// TAY
 		/// Transfer Accumulator to Index Y
-		///
+		///```
 		/// A -> Y                            N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      TAY             A8     1        2
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			reg.y = reg.ac;
@@ -2037,11 +2086,12 @@ macro_rules! op {
 	([$opc:ident] TSX $($rest:tt)*) => {
 		/// TSX
 		/// Transfer Stack Pointer to Index X
-		///
+		///```
 		/// SP -> X                           N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      TSX             BA     1        2
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			reg.x = reg.sp;
@@ -2054,11 +2104,12 @@ macro_rules! op {
 	([$opc:ident] TAX $($rest:tt)*) => {
 		/// TAX
 		/// Transfer Accumulator to Index X
-		///
+		///```
 		/// A -> X                            N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      TAX             AA     1        2
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			reg.x = reg.ac;
@@ -2071,14 +2122,12 @@ macro_rules! op {
 	([$opc:ident] TXA $($rest:tt)*) => {
 		/// TXA
 		/// Transfer Index X to Accumulator
-		///
-		/// X -> A
-		/// N	Z	C	I	D	V
-		/// +	+	-	-	-	-
+		///```
 		/// X -> A                            N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      TXA             8A     1        2
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			reg.ac = reg.x;
@@ -2091,11 +2140,12 @@ macro_rules! op {
 	([$opc:ident] TXS $($rest:tt)*) => {
 		/// TXS
 		/// Transfer Index X to Stack Register
-		///
+		///```
 		/// X -> SP                           N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      TXS             9A     1        2
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			reg.sp = reg.x;
@@ -2105,11 +2155,12 @@ macro_rules! op {
 	([$opc:ident] TAX $($rest:tt)*) => {
 		/// TYA
 		/// Transfer Index Y to Accumulator
-		///
+		///```
 		/// Y -> A                            N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      TYA             98     1        2
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			reg.ac = reg.x;
@@ -2122,11 +2173,12 @@ macro_rules! op {
 	([$opc:ident] TYA $($rest:tt)*) => {
 		/// TYA
 		/// Transfer Index Y to Accumulator
-		///
+		///```
 		/// Y -> A                            N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
 		/// implied      TYA             98     1        2
+		/// ```
 		fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			reg.ac = reg.x;

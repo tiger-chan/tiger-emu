@@ -14,6 +14,7 @@ use core::fmt;
 /// *** Branch offsets are signed 8-bit values, -128 ... +127, negative offsets in two's complement.
 ///     Page transitions may occur and add an extra cycle to the exucution.
 ///
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum AddrMode {
     /// Accumulator

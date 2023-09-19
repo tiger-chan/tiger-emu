@@ -440,11 +440,8 @@ impl CpuDisplay for Cpu6502 {
                 ui.label(RichText::new(*str).font(DIAGNOSTIC_FONT));
             }
 
-            match self.asm.get(self.reg.pc) {
-                Some(str) => {
-                    ui.label(RichText::new(str).font(DIAGNOSTIC_FONT).color(CURSOR));
-                }
-                None => {}
+            if let Some(str) = self.asm.get(self.reg.pc) {
+                ui.label(RichText::new(str).font(DIAGNOSTIC_FONT).color(CURSOR));
             }
 
             let range = self.asm.get_range(self.reg.pc, half + 1);

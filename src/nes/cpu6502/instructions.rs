@@ -2,6 +2,7 @@
 
 use core::fmt;
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Instruction {
     /// add with carry

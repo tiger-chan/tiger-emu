@@ -31,14 +31,14 @@ pub struct Registers {
 ///
 /// SR Flags (bit 7 to bit 0)
 ///
-/// N	Negative
-/// V	Overflow
-/// -	ignored
-/// B	Break
-/// D	Decimal (use BCD for arithmetics)
-/// I	Interrupt (IRQ disable)
-/// Z	Zero
-/// C	Carry
+/// N   Negative
+/// V   Overflow
+/// -   ignored
+/// B   Break
+/// D   Decimal (use BCD for arithmetics)
+/// I   Interrupt (IRQ disable)
+/// Z   Zero
+/// C   Carry
 
 #[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct StatusReg(u8);
@@ -254,10 +254,6 @@ impl BitXorAssign<u8> for StatusReg {
 impl PartialEq<u8> for StatusReg {
     fn eq(&self, other: &u8) -> bool {
         &self.0 == other
-    }
-
-    fn ne(&self, other: &u8) -> bool {
-        !(self == other)
     }
 }
 
