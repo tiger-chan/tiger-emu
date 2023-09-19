@@ -1,19 +1,14 @@
 use std::ops::{Add, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not};
 use core::fmt;
 
-///
+///```
 /// PC   program counter              (16 bit)
-///
 /// AC   accumulator                  ( 8 bit)
-///
 /// X    X register                   ( 8 bit)
-///
 /// Y    Y register                   ( 8 bit)
-///
 /// SR   status register  [NV-BDIZC]  ( 8 bit)
-///
 /// SP   stack pointer                ( 8 bit)
-///
+///```
 /// Note: The status register (SR) is also known as the P register.
 ///
 

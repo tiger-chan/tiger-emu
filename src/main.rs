@@ -164,7 +164,6 @@ fn main() -> Result<(), Error> {
 
             if residual_time < -1.0 {
                 *control_flow = ControlFlow::Exit;
-                return;
             }
         } else {
             residual_time = 0.0

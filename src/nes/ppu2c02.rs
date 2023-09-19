@@ -1,12 +1,14 @@
 mod color;
 mod palette;
-mod ppu_bus;
-mod ppu_memory;
+mod bus;
+mod memory;
+mod registers;
 
 pub use color::*;
 pub use palette::*;
-pub use ppu_bus::*;
-pub use ppu_memory::*;
+pub use bus::*;
+pub use memory::*;
+pub use registers::*;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -70,19 +72,13 @@ impl Ppu2C02 {
             self.memory.borrow().col_palette[if rand::random() { 0x3F } else { 0x30 }],
         );
 
-        match self.cycle {
-            341 => {
-                self.cycle = 0;
-                self.scanline = self.scanline.wrapping_add(1);
-            }
-            _ => {}
+        if self.cycle == 341 {
+            self.cycle = 0;
+            self.scanline = self.scanline.wrapping_add(1);
         }
 
-        match self.scanline {
-            261 => {
-                self.scanline = u16::MAX;
-            }
-            _ => {}
+        if self.scanline == 261 {
+            self.scanline = u16::MAX;
         }
     }
 
@@ -134,12 +130,12 @@ impl Ppu2C02 {
                 let offset = y * 256 + x * 16;
 
                 for r in 0..8 {
-                    let mut lsb = ppu_bus.read_only(tbl * 0x1000 + offset + r + 0);
+                    let mut lsb = ppu_bus.read_only(tbl * 0x1000 + offset + r);
                     let mut msb = ppu_bus.read_only(tbl * 0x1000 + offset + r + 8);
                     for c in 0..8 {
-                        let pixel = (lsb & 0x01 + msb & 0x01) as Addr;
-                        lsb = lsb >> 1;
-                        msb = msb >> 1;
+                        let pixel = ((lsb & 0x01) + (msb & 0x01)) as Addr;
+                        lsb >>= 1;
+                        msb >>= 1;
 
                         let x = x * 8 + (7 - c);
                         let y = y * 8 + r;

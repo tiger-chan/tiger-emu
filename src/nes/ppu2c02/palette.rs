@@ -3,6 +3,7 @@ use super::Color;
 pub fn create_palette(bytes: &[u8; 64 * 3]) -> [Color; 64] {
     let mut colors = [Color::new(0, 0, 0); 64];
     for i in 0..64 {
+        #[allow(clippy::identity_op)]
         let r = bytes[i + 0];
         let g = bytes[i + 1];
         let b = bytes[i + 2];

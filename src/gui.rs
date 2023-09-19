@@ -1,9 +1,9 @@
 mod framework;
-mod gui;
+mod main_gui;
 
 use egui::Ui;
 pub(crate) use framework::Framework;
-pub(crate) use gui::{Gui, CURSOR, DIAGNOSTIC_FONT, DISABLED, ENABLED};
+pub(crate) use main_gui::{Gui, CURSOR, DIAGNOSTIC_FONT, DISABLED, ENABLED};
 
 pub(crate) trait MemoryDisplay {
     fn draw_mem(&self, ui: &mut Ui, addr: u16, rows: u8, cols: u8);

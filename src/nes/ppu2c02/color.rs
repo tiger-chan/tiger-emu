@@ -10,7 +10,7 @@ impl Color {
         Self { b, g, r }
     }
 
-    pub fn to_array(&self) -> [u8; 4] {
+    pub fn to_array(self) -> [u8; 4] {
         [self.r, self.g, self.b, 0xFF]
     }
 }
