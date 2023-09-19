@@ -1336,7 +1336,7 @@ macro_rules! op {
             let addr = am!(reg, bus, $($rest)*);
             let data = bus.read(addr);
             let ac = reg.ac;
-            let tmp = ac as u16 - data as u16;
+            let tmp = (ac as u16).wrapping_sub(data as u16);
 
             reg.p.set(StatusReg::C, ac >= data)
              .set(StatusReg::Z, is_lo_zero(tmp))
@@ -1359,7 +1359,7 @@ macro_rules! op {
             let addr = am!(reg, bus, $($rest)*);
             let data = bus.read(addr);
             let x = reg.x;
-            let tmp = x as u16 - data as u16;
+            let tmp = (x as u16).wrapping_sub(data as u16);
 
             reg.p.set(StatusReg::C, x >= data)
              .set(StatusReg::Z, is_lo_zero(tmp))
@@ -1382,7 +1382,7 @@ macro_rules! op {
             let addr = am!(reg, bus, $($rest)*);
             let data = bus.read(addr);
             let y = reg.y;
-            let tmp = y as u16 - data as u16;
+            let tmp = (y as u16).wrapping_sub(data as u16);
 
             reg.p.set(StatusReg::C, y >= data)
              .set(StatusReg::Z, is_lo_zero(tmp))
