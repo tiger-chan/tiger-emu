@@ -13,7 +13,7 @@ use crate::{
     motherboard::Motherboard,
 };
 
-use super::{ppu2c02::PpuBus, Cartridge as Cart, Cpu6502, Ppu2C02, RangeRWCpuBus};
+use super::{Cartridge as Cart, Cpu6502, Ppu2C02, RangeRWCpuBus};
 
 /// Bytes, Words, Addressing
 /// 8 bit bytes, 16 bit words in lobyte-hibyte representation (Little-Endian).
@@ -218,14 +218,10 @@ impl Bus for ClockBusContext<'_> {
 
 pub struct Board {
     cpu: Rc<RefCell<Cpu6502>>,
-    #[allow(unused)]
     ppu: Rc<RefCell<Ppu2C02>>,
     ram: Rc<RefCell<BoardRam>>,
-    #[allow(unused)]
     cart: Rc<RefCell<Cart>>,
     bus: RangedBoardBus,
-    #[allow(unused)]
-    ppu_bus: PpuBus,
     tcc: u64,
 }
 
@@ -240,13 +236,11 @@ impl Board {
         bus.push(&ram);
         bus.push(&ppu);
 
-        let mut ppu_bus = PpuBus::new(&ppu.borrow());
-        ppu_bus.cartridge(&cart);
+        ppu.borrow_mut().bus.cartridge(&cart);
 
         Self {
             cpu: Rc::new(RefCell::new(Cpu6502::new())),
             bus,
-            ppu_bus,
             ppu,
             cart,
             ram,
@@ -290,7 +284,7 @@ impl Motherboard for Board {
     fn clock(&mut self) {
         self.ppu
             .borrow_mut()
-            .clock(&mut self.bus, &mut self.ppu_bus);
+            .clock(&mut self.bus);
 
         if self.tcc % 3 == 0 {
             self.cpu.borrow_mut().clock(&mut self.bus);
@@ -374,6 +368,6 @@ impl PpuDisplay for Board {
     fn draw_pattern_tbl(&self, ui: &mut egui::Ui, tbl: u8, palette: u8) {
         self.ppu
             .borrow_mut()
-            .draw_pattern_tbl(&self.ppu_bus, ui, tbl as Addr, palette as Addr);
+            .draw_pattern_tbl(ui, tbl as Addr, palette as Addr);
     }
 }

@@ -5,15 +5,15 @@ use std::{
 
 use crate::nes::RWPpuBus;
 
-use super::Ppu2C02;
+use super::PpuMemory;
 
 pub struct PpuBus {
     devices: [Weak<RefCell<dyn RWPpuBus>>; 2],
 }
 
 impl PpuBus {
-    pub fn new(ppu: &Ppu2C02) -> Self {
-        let tmp = Rc::downgrade(&ppu.memory);
+    pub fn new(bus: &Rc<RefCell<PpuMemory>>) -> Self {
+        let tmp = Rc::downgrade(bus);
         Self {
             devices: [tmp.clone(), tmp],
         }

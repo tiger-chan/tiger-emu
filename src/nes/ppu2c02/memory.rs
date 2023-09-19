@@ -2,7 +2,7 @@ use std::cell::RefCell;
 
 use crate::nes::{Addr, RWPpuBus};
 
-use super::{create_palette, Color, X2C02, X2C07, Registers};
+use super::{create_palette, Color, X2C02, X2C07};
 
 const INTERN_PPU_MASK: Addr = 0x3FFF;
 const TBL_NAME: usize = 0x0400;
@@ -28,7 +28,6 @@ macro_rules! pattern_arr {
 }
 
 pub struct PpuMemory {
-    pub reg: RefCell<Registers>,
     pub vram: RefCell<NameTable>,
     pub pattern: RefCell<PatternTable>,
     pub palette: RefCell<PaletteTable>,
@@ -38,7 +37,6 @@ pub struct PpuMemory {
 impl PpuMemory {
     pub fn new(ntsc: bool) -> Self {
         Self {
-            reg: RefCell::new(Registers::default()),
             vram: RefCell::new(name_arr![0]),
             pattern: RefCell::new(pattern_arr![0]),
             palette: RefCell::new([0; TBL_PALETTE]),

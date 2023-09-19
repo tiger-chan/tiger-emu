@@ -15,45 +15,57 @@ use std::rc::Rc;
 
 use egui::TextureOptions;
 
-use crate::bus::Bus;
+use crate::{bus::Bus, ppu_bus::PpuBus};
 use crate::nes::board::PPU_RAM_MASK;
 
-use super::{Addr, RangeRWCpuBus};
+use super::{Addr, RangeRWCpuBus, HI_MASK, LO_MASK};
 
 pub struct DebugPpuData {
     pattern: [egui::ColorImage; 2],
     pattern_texture: [RefCell<Option<egui::TextureHandle>>; 2],
 }
 
+impl DebugPpuData {
+    fn new() -> Self {
+        Self {
+            pattern: [
+                egui::ColorImage::new([128, 128], egui::Color32::GREEN),
+                egui::ColorImage::new([128, 128], egui::Color32::GREEN),
+            ],
+            pattern_texture: [RefCell::new(None), RefCell::new(None)],
+        }
+    }
+}
+
 #[allow(unused)]
 pub struct Ppu2C02 {
     memory: Rc<RefCell<PpuMemory>>,
+    reg: RefCell<Registers>,
     screen: [Color; 256 * 240],
     cycle: u16,
     scanline: u16,
+    pub bus: bus::PpuBus,
 
     debug_data: DebugPpuData,
 }
 
 impl Ppu2C02 {
     pub fn new(ntsc: bool) -> Self {
+        let mem = Rc::new(RefCell::new(PpuMemory::new(ntsc)));
+        let bus = bus::PpuBus::new(&mem);
         Self {
-            memory: Rc::new(RefCell::new(PpuMemory::new(ntsc))),
+            reg: RefCell::new(Registers::default()),
+            bus,
+            memory: mem,
             screen: [Color::new(50, 50, 50); 256 * 240],
             cycle: 0,
             scanline: 0,
 
-            debug_data: DebugPpuData {
-                pattern: [
-                    egui::ColorImage::new([128, 128], egui::Color32::GREEN),
-                    egui::ColorImage::new([128, 128], egui::Color32::GREEN),
-                ],
-                pattern_texture: [RefCell::new(None), RefCell::new(None)],
-            },
+            debug_data: DebugPpuData::new(),
         }
     }
 
-    pub fn clock(&mut self, _bus: &mut dyn Bus, _ppu_bus: &mut dyn crate::ppu_bus::PpuBus) {
+    pub fn clock(&mut self, _bus: &mut dyn Bus) {
         self.cycle = self.cycle.wrapping_add(1);
 
         let mut set_pixel = |x, y, v| {
@@ -99,18 +111,17 @@ impl Ppu2C02 {
 
     fn debug_color_from_palette(
         &self,
-        ppu_bus: &dyn crate::ppu_bus::PpuBus,
+        ppu_bus: &dyn PpuBus,
         palette: Addr,
         pixel: Addr,
     ) -> Color {
         let addr = 0x3F00 + palette.overflowing_shl(2).0 + pixel;
-        let addr = ppu_bus.read_only(addr);
+        let addr = ppu_bus.read_only(addr) & 0x3F;
         self.memory.borrow().col_palette[addr as usize]
     }
 
     pub fn draw_pattern_tbl(
         &mut self,
-        ppu_bus: &dyn crate::ppu_bus::PpuBus,
         ui: &mut egui::Ui,
         tbl: Addr,
         palette: Addr,
@@ -130,8 +141,8 @@ impl Ppu2C02 {
                 let offset = y * 256 + x * 16;
 
                 for r in 0..8 {
-                    let mut lsb = ppu_bus.read_only(tbl * 0x1000 + offset + r);
-                    let mut msb = ppu_bus.read_only(tbl * 0x1000 + offset + r + 8);
+                    let mut lsb = self.bus.read_only(tbl * 0x1000 + offset + r);
+                    let mut msb = self.bus.read_only(tbl * 0x1000 + offset + r + 8);
                     for c in 0..8 {
                         let pixel = ((lsb & 0x01) + (msb & 0x01)) as Addr;
                         lsb >>= 1;
@@ -140,7 +151,7 @@ impl Ppu2C02 {
                         let x = x * 8 + (7 - c);
                         let y = y * 8 + r;
 
-                        let color = self.debug_color_from_palette(ppu_bus, palette, pixel);
+                        let color = self.debug_color_from_palette(&self.bus, palette, pixel);
 
                         let mut set_pixel = |x, y, v| {
                             let x = x as usize;
@@ -176,17 +187,77 @@ impl RangeRWCpuBus for Ppu2C02 {
     }
 
     fn read(&self, addr: Addr) -> Option<u8> {
-        let _addr = addr & PPU_RAM_MASK;
-        None
+        let addr = addr & PPU_RAM_MASK;
+        match addr {
+            0x0002 => {
+                // TODO Remove this, this is just for testing
+                self.reg.borrow_mut().status.set(Status::V, true);
+                // End TODO
+
+                let tmp = u8::from(self.reg.borrow().status.get(Status::V | Status::S | Status::O));
+                let tmp = tmp | self.reg.borrow().data_buffer & 0x1f;
+                self.reg.borrow_mut().status.set(Status::V, false);
+                self.reg.borrow_mut().addr_latch = 0;
+
+                Some(tmp)
+            }
+            0x0007 => { 
+                let mut tmp = self.reg.borrow().data_buffer;
+                let addr = self.reg.borrow().addr;
+                self.reg.borrow_mut().data_buffer = self.bus.read(addr);
+
+                if addr > 0x3F00 {
+                    tmp = self.reg.borrow().data_buffer;
+                }
+                self.reg.borrow_mut().addr = addr.wrapping_add(1);
+                Some(tmp)
+            },
+            _ => None
+        }
     }
 
     fn read_only(&self, addr: Addr) -> Option<u8> {
-        let _addr = addr & PPU_RAM_MASK;
-        None
+        let addr = addr & PPU_RAM_MASK;
+        match addr {
+            0x0000 => Some(self.reg.borrow().ctrl.into()),
+            0x0001 => Some(self.reg.borrow().mask.into()),
+            0x0002 => Some(self.reg.borrow().status.into()),
+            _ => None
+        }
     }
 
-    fn write(&mut self, addr: Addr, _data: u8) -> Option<()> {
-        let _addr = addr & PPU_RAM_MASK;
-        None
+    fn write(&mut self, addr: Addr, data: u8) -> Option<()> {
+        let addr = addr & PPU_RAM_MASK;
+        match addr {
+            0x0000 => {
+                self.reg.borrow_mut().ctrl = Ctrl::new(data);
+                Some(())
+            },
+            0x0001 => {
+                self.reg.borrow_mut().mask = Mask::new(data);
+                Some(())
+            },
+            0x0006 => {
+                if self.reg.borrow().addr_latch == 0 {
+                    let addr = self.reg.borrow().addr;
+                    self.reg.borrow_mut().addr = (addr & LO_MASK) | (data as Addr) << 8;
+                    self.reg.borrow_mut().addr_latch = 1;
+                } else {
+                    let addr = self.reg.borrow().addr;
+                    self.reg.borrow_mut().addr = (addr & HI_MASK) | data as Addr;
+                    self.reg.borrow_mut().addr_latch = 0;
+                }
+                Some(())
+            }
+            0x0007 => {
+                let addr = self.reg.borrow().addr;
+                self.bus.write(addr, data);
+                self.reg.borrow_mut().addr = addr.wrapping_add(1);
+                Some(())
+            }
+            _ => {
+                None
+            }
+        }
     }
 }

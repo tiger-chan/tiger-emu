@@ -1,6 +1,8 @@
 use core::fmt;
 use std::ops::{Add, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not};
 
+use crate::nes::Addr;
+
 macro_rules! reg_from_impl {
     ($to:ty, $from:ty) => {
         reg_from_impl!($to, $from, u8);
@@ -263,6 +265,10 @@ pub struct Registers {
     /// > vblank (V), sprite 0 hit (S), sprite overflow (O); read resets write
     /// pair for $2005/$2006
     pub status: Status,
+
+    pub addr_latch: u8,
+    pub data_buffer: u8,
+    pub addr: Addr,
 }
 
 /// # Controller ($2000) > write
@@ -306,7 +312,7 @@ impl Ctrl {
     }
 
     pub fn get(&self, f: Self) -> Self {
-        Self((*self & f == f) as u8)
+        Self(self.0 & f.0)
     }
 
     /// Add 256 to the X scroll position
@@ -380,7 +386,7 @@ impl Mask {
     }
 
     pub fn get(&self, f: Self) -> Self {
-        Self((*self & f == f) as u8)
+        Self(self.0 & f.0)
     }
 
     /// Greyscale (0: normal color, 1: produce a greyscale display)
@@ -480,7 +486,7 @@ impl Status {
     }
 
     pub fn get(&self, f: Self) -> Self {
-        Self((*self & f != 0) as u8)
+        Self(self.0 & f.0)
     }
 
     /// PPU open bus. Returns stale PPU bus contents.
