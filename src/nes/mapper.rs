@@ -18,19 +18,19 @@ pub trait NesPpuMapper {
 }
 
 pub enum Mapper {
-    NROM(Nrom),
+    Nrom(Nrom),
 }
 
 impl Mapper {
     fn cpu(&self) -> &dyn NesCpuMapper {
         match &self {
-            Self::NROM(x) => x,
+            Self::Nrom(x) => x,
         }
     }
 
     fn ppu(&self) -> &dyn NesPpuMapper {
         match &self {
-            Self::NROM(x) => x,
+            Self::Nrom(x) => x,
         }
     }
 }
@@ -39,7 +39,7 @@ impl From<&INesHeader> for Mapper {
     fn from(value: &INesHeader) -> Self {
         let mpr_id = (value.mpr2 & 0xF0) | value.mpr1 >> 4;
         match mpr_id {
-            0 => Self::NROM(Nrom::new(value.prg_chunks)),
+            0 => Self::Nrom(Nrom::new(value.prg_chunks)),
             1 => {
                 unimplemented!("Mapper {} not implemented", mpr_id)
             }

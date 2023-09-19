@@ -1,6 +1,6 @@
 use crate::bus::Bus;
 
-pub trait CPU {
+pub trait Cpu {
     // External event functions. In hardware these represent pins that are asserted
     // to produce a change in state.
     // Reset Interrupt - Forces CPU into known state

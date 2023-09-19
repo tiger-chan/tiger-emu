@@ -10,7 +10,7 @@ use crate::gui::{CpuDisplay, CURSOR, DIAGNOSTIC_FONT, DISABLED, ENABLED};
 use crate::nes::Addr;
 use crate::nes::board::ClockBusContext;
 use crate::nes::cpu6502::registers::StatusReg;
-use crate::{bus::Bus, cpu::CPU};
+use crate::{bus::Bus, cpu::Cpu};
 use std::ops::Range;
 
 use egui::RichText;
@@ -203,7 +203,7 @@ impl Cpu6502 {
     }
 }
 
-impl CPU for Cpu6502 {
+impl Cpu for Cpu6502 {
     fn clock(&mut self, bus: &mut dyn Bus) {
 		let mut bus = ClockBusContext::new(bus);
 		log::trace!("clock");

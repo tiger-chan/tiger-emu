@@ -8,7 +8,7 @@ use egui::RichText;
 
 use crate::{
     bus::Bus,
-    cpu::CPU,
+    cpu::Cpu,
     gui::{BoardCommand, CpuDisplay, MemoryDisplay, PpuDisplay, DIAGNOSTIC_FONT},
     motherboard::Motherboard,
 };
@@ -292,11 +292,8 @@ impl Motherboard for Board {
             .borrow_mut()
             .clock(&mut self.bus, &mut self.ppu_bus);
 
-        match self.tcc % 3 {
-            0 => {
-                self.cpu.borrow_mut().clock(&mut self.bus);
-            }
-            _ => {}
+        if self.tcc % 3 == 0 {
+            self.cpu.borrow_mut().clock(&mut self.bus);
         }
         self.tcc = self.tcc.wrapping_add(1);
     }

@@ -64,14 +64,14 @@ impl Cartridge {
                 let size = prg_chunks as usize * PRG_CHUNK_SIZE;
                 prg.resize(size, 0);
                 let prg_slice = &buffer[i..(i + size)];
-                prg.copy_from_slice(&prg_slice);
-                i = i + size;
+                prg.copy_from_slice(prg_slice);
+                i += size;
 
                 let size = chr_chunks as usize * CHR_CHUNK_SIZE;
                 chr.resize(size, 0);
                 let chr_slice = &buffer[i..(i + size)];
-                chr.copy_from_slice(&chr_slice);
-                i = i + size;
+                chr.copy_from_slice(chr_slice);
+                i += size;
             }
             2 => {
                 unimplemented!();
@@ -82,8 +82,8 @@ impl Cartridge {
         }
 
         let result = Self {
-            prg: prg,
-            chr: chr,
+            prg,
+            chr,
             mpr: Mapper::from(&header),
             chr_bnk: chr_chunks,
             prg_bnk: prg_chunks,
@@ -99,17 +99,11 @@ impl RangeRWCpuBus for Cartridge {
     }
 
     fn read(&self, addr: super::Addr) -> Option<u8> {
-        match <Mapper as NesCpuMapper>::read(&self.mpr, addr) {
-            Some(addr) => Some(self.prg[addr as usize]),
-            None => None,
-        }
+        <Mapper as NesCpuMapper>::read(&self.mpr, addr).map(|addr| self.prg[addr as usize])
     }
 
     fn read_only(&self, addr: super::Addr) -> Option<u8> {
-        match <Mapper as NesCpuMapper>::read(&self.mpr, addr) {
-            Some(addr) => Some(self.prg[addr as usize]),
-            None => None,
-        }
+        <Mapper as NesCpuMapper>::read(&self.mpr, addr).map(|addr| self.prg[addr as usize])
     }
 
     fn write(&mut self, addr: super::Addr, data: u8) -> Option<()> {
@@ -125,17 +119,11 @@ impl RangeRWCpuBus for Cartridge {
 
 impl RWPpuBus for Cartridge {
     fn read(&self, addr: super::Addr) -> Option<u8> {
-        match <Mapper as NesPpuMapper>::read(&self.mpr, addr) {
-            Some(addr) => Some(self.chr[addr as usize]),
-            None => None,
-        }
+        <Mapper as NesPpuMapper>::read(&self.mpr, addr).map(|addr| self.chr[addr as usize])
     }
 
     fn read_only(&self, addr: super::Addr) -> Option<u8> {
-        match <Mapper as NesPpuMapper>::read(&self.mpr, addr) {
-            Some(addr) => Some(self.chr[addr as usize]),
-            None => None,
-        }
+        <Mapper as NesPpuMapper>::read(&self.mpr, addr).map(|addr| self.chr[addr as usize])
     }
 
     fn write(&mut self, addr: super::Addr, data: u8) -> Option<()> {
