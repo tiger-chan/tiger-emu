@@ -1,4 +1,4 @@
-#[allow(unused)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct INesHeader {
     pub name: [u8; 4],
     pub prg_chunks: u8,
@@ -53,26 +53,10 @@ pub struct INesHeader {
     pub padding: [u8; 5],
 }
 
-impl Default for INesHeader {
-    fn default() -> Self {
-        Self {
-            name: [0; 4],
-            prg_chunks: 0,
-            chr_chunks: 0,
-            mpr1: 0,
-            mpr2: 0,
-            prg_ram_size: 0,
-            tv_sys1: 0,
-            tv_sys2: 0,
-            padding: [0; 5],
-        }
-    }
-}
-
 impl From<&[u8]> for INesHeader {
     fn from(value: &[u8]) -> Self {
         let mut i = 0;
-        let name = [value[i + 0], value[i + 1], value[i + 2], value[i + 3]];
+        let name = [value[i], value[i + 1], value[i + 2], value[i + 3]];
         i += 4;
         let prg_chunks = value[i];
         i += 1;

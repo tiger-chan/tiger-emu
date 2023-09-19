@@ -1,5 +1,6 @@
 use super::{NesCpuMapper, NesPpuMapper};
 
+#[derive(Default, Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Nrom {
     prg_bnks: u8,
 }
@@ -7,12 +8,6 @@ pub struct Nrom {
 impl Nrom {
     pub fn new(prg_bnks: u8) -> Self {
         Self { prg_bnks }
-    }
-}
-
-impl Default for Nrom {
-    fn default() -> Self {
-        Self { prg_bnks: 0 }
     }
 }
 
