@@ -138,12 +138,12 @@ impl Cpu6502 {
                 AddrMode::IZX => {
                     let lo = bus.read_only(addr as u16);
                     addr += 1;
-                    format!("${:>04X}: {:?} (${:>02X},X) {{{:?}}}", ln_addr, op, lo, am)
+                    format!("${:>04X}: {:?} (${:>02X},X)     {{{:?}}}", ln_addr, op, lo, am)
                 }
                 AddrMode::IZY => {
                     let lo = bus.read_only(addr as u16);
                     addr += 1;
-					format!("${:>04X}: {:?} (${:>02X}),Y {{{:?}}}", ln_addr, op, lo, am)
+					format!("${:>04X}: {:?} (${:>02X}),Y      {{{:?}}}", ln_addr, op, lo, am)
                 }
                 AddrMode::ABS => {
                     let lo = bus.read_only(addr as u16) as u16;
@@ -160,7 +160,7 @@ impl Cpu6502 {
                     addr += 1;
                     let val = hi | lo;
                     format!(
-                        "${:>04X}: {:?} ${:>04X},X       {{{:?}}}",
+                        "${:>04X}: {:?} ${:>04X},X      {{{:?}}}",
                         ln_addr, op, val, am
                     )
                 }
