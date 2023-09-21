@@ -53,7 +53,7 @@ impl PpuMemory {
 impl RWPpuBus for PpuMemory {
     ///
     /// ## Pattern Table Addressing
-    /// ```
+    /// ```text
     /// DCBA98 76543210
     /// ---------------
     /// 0HRRRR CCCCPTTT

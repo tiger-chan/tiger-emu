@@ -277,7 +277,7 @@ pub struct Registers {
 /// - Access: write
 ///
 /// Various flags controlling PPU operation
-/// ```
+/// ```text
 /// 7  bit  0
 /// ---- ----
 /// VPHB SINN

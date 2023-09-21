@@ -813,7 +813,7 @@ macro_rules! op {
     ([$opc:ident] ADC $($rest:tt)*) => {
 		/// # ADC
 		/// Add Memory to Accumulator with Carry
-		///```
+		///```text
 		/// A + M + C -> A, C                 N  Z  C  I  D  V
 		///                                   +  +  +  -  -  +
 		/// addressing   assembler       opc    bytes    cycles
@@ -845,7 +845,7 @@ macro_rules! op {
     ([$opc:ident] AND $($rest:tt)*) => {
 		/// AND
 		/// AND Memory with Accumulator
-		///```
+		///```text
 		/// A AND M -> A                      N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc     bytes   cycles
@@ -875,7 +875,7 @@ macro_rules! op {
     ([$opc:ident] ASL $($rest:tt)*) => {
 		/// ASL
 		/// Shift Left One Bit (Memory or Accumulator)
-		///```
+		///```text
 		/// C <- [76543210] <- 0              N  Z  C  I  D  V
 		///                                   +  +  +  -  -  -
 		/// addressing   assembler       opc     bytes   cycles
@@ -909,7 +909,7 @@ macro_rules! op {
     ([$opc:ident] BCC $($rest:tt)*) => {
 		/// BCC
 		/// Branch on Carry Clear
-		///```
+		///```text
 		/// branch on C = 0                   N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc     bytes   cycles
@@ -935,7 +935,7 @@ macro_rules! op {
     ([$opc:ident] BCS $($rest:tt)*) => {
 		/// BCS
 		/// Branch on Carry Set
-		///```
+		///```text
 		/// branch on C = 1                         N Z C I D V
 		///                                         - - - - - -
 		/// addressing   assembler       opc     bytes   cycles
@@ -961,7 +961,7 @@ macro_rules! op {
     ([$opc:ident] BEQ $($rest:tt)*) => {
 		/// BEQ
 		/// Branch on Result Zero
-		///```
+		///```text
 		/// branch on Z = 1                   N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc     bytes   cycles
@@ -993,7 +993,7 @@ macro_rules! op {
 		/// the accumulator (set, if the result is zero, unset otherwise).
 		/// This allows a quick check of a few bits at once without affecting
 		/// any of the registers, other than the status register (SR).
-		///```
+		///```text
 		/// A AND M, M7 -> N, M6 -> V         N  Z  C  I  D  V
 		///                                   M7 +  -  -  -  M6
 		/// addressing   assembler       opc     bytes   cycles
@@ -1016,7 +1016,7 @@ macro_rules! op {
     ([$opc:ident] BMI $($rest:tt)*) => {
 		/// BMI
 		/// Branch on Result Minus
-		///```
+		///```text
 		/// branch on N = 1                   N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc     bytes   cycles
@@ -1042,12 +1042,12 @@ macro_rules! op {
     ([$opc:ident] BNE $($rest:tt)*) => {
 		/// BNE
 		/// Branch on Result not Zero
-		///```
+		///```text
 		/// branch on Z = 0                   N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc     bytes   cycles
 		/// relative     BNE oper        D0      2       2**
-		///```
+		/// ```
 		pub fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let addr = am!(reg, bus, $($rest)*);
             if reg.p.get(StatusReg::Z) == 0 {
@@ -1068,7 +1068,7 @@ macro_rules! op {
     ([$opc:ident] BPL $($rest:tt)*) => {
 		/// BPL
 		/// Branch on Result Plus
-		///```
+		///```text
 		/// branch on N = 0                   N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1103,7 +1103,7 @@ macro_rules! op {
 		/// flag set to 1. However, when retrieved during RTI or by a PLP
 		/// instruction, the break flag will be ignored.
 		/// The interrupt disable flag is not set automatically.
-		///```
+		///```text
 		/// interrupt,                        N  Z  C  I  D  V
 		/// push PC+2, push SR                -  -  -  1  -  -
 		/// addressing   assembler       opc     bytes   cycles
@@ -1137,12 +1137,12 @@ macro_rules! op {
     ([$opc:ident] BVC $($rest:tt)*) => {
 		/// BVC
 		/// Branch on Overflow Clear
-		///```
+		///```text
 		/// branch on V = 0                   N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc     bytes   cycles
 		/// relative     BVC oper        50      2       2**
-		///```
+		/// ```
 		pub fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let addr = am!(reg, bus, $($rest)*);
             if reg.p.get(StatusReg::V) == 0 {
@@ -1163,7 +1163,7 @@ macro_rules! op {
     ([$opc:ident] BVS $($rest:tt)*) => {
 		/// BVS
 		/// Branch on Overflow Set
-		///```
+		///```text
 		/// branch on V = 1                   N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc     bytes   cycles
@@ -1189,7 +1189,7 @@ macro_rules! op {
     ([$opc:ident] CLC $($rest:tt)*) => {
 		/// CLC
 		/// Clear Carry Flag
-		///```
+		///```text
 		/// 0 -> C                            N  Z  C  I  D  V
 		///                                   -  -  0  -  -  -
 		/// addressing   assembler       opc     bytes   cycles
@@ -1204,7 +1204,7 @@ macro_rules! op {
     ([$opc:ident] CLD $($rest:tt)*) => {
 		/// CLD
 		/// Clear Decimal Mode
-		///```
+		///```text
 		/// 0 -> D                            N  Z  C  I  D  V
 		///                                   -  -  -  -  0  -
 		/// addressing   assembler       opc     bytes   cycles
@@ -1219,7 +1219,7 @@ macro_rules! op {
     ([$opc:ident] CLI $($rest:tt)*) => {
 		/// CLI
 		/// Clear Interrupt Disable Bit
-		///```
+		///```text
 		/// 0 -> I                            N  Z  C  I  D  V
 		///                                   -  -  -  0  -  -
 		/// addressing   assembler       opc     bytes   cycles
@@ -1234,7 +1234,7 @@ macro_rules! op {
     ([$opc:ident] CLV $($rest:tt)*) => {
 		/// CLV
 		/// Clear Interrupt Disable Bit
-		///```
+		///```text
 		/// 0 -> I                            N  Z  C  I  D  V
 		///                                   -  -  -  -  -  0
 		/// addressing   assembler       opc     bytes   cycles
@@ -1249,7 +1249,7 @@ macro_rules! op {
     ([$opc:ident] CMP $($rest:tt)*) => {
 		/// CMP
 		/// Compare Memory with Accumulator
-		///```
+		///```text
 		/// A - M                             N  Z  C  I  D  V
 		///                                   +  +  +  -  -  -
 		/// addressing   assembler       opc     bytes   cycles
@@ -1277,7 +1277,7 @@ macro_rules! op {
     ([$opc:ident] CPX $($rest:tt)*) => {
 		/// CPX
 		/// Compare Memory and Index X
-		///```
+		///```text
 		/// X - M                             N  Z  C  I  D  V
 		///                                   +  +  +  -  -  -
 		/// addressing   assembler       opc     bytes   cycles
@@ -1300,7 +1300,7 @@ macro_rules! op {
     ([$opc:ident] CPY $($rest:tt)*) => {
 		/// CPY
 		/// Compare Memory and Index Y
-		///```
+		///```text
 		/// Y - M                             N  Z  C  I  D  V
 		///                                   +  +  +  -  -  -
 		/// addressing   assembler       opc     bytes   cycles
@@ -1323,7 +1323,7 @@ macro_rules! op {
     ([$opc:ident] DEC $($rest:tt)*) => {
 		/// DEC
 		/// Decrement Memory by One
-		///```
+		///```text
 		/// M - 1 -> M                        N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc     bytes   cycles
@@ -1346,7 +1346,7 @@ macro_rules! op {
     ([$opc:ident] DEX $($rest:tt)*) => {
 		/// DEX
 		/// Decrement Index X by One
-		///```
+		///```text
 		/// X - 1 -> X                        N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc     bytes   cycles
@@ -1365,7 +1365,7 @@ macro_rules! op {
     ([$opc:ident] DEY $($rest:tt)*) => {
 		/// DEY
 		/// Decrement Index Y by One
-		///```
+		///```text
 		/// Y - 1 -> Y                        N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc     bytes   cycles
@@ -1384,7 +1384,7 @@ macro_rules! op {
 	([$opc:ident] EOR $($rest:tt)*) => {
 		/// EOR
 		/// Exclusive-OR Memory with Accumulator
-		///```
+		///```text
 		/// A EOR M -> A                      N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1411,7 +1411,7 @@ macro_rules! op {
 	([$opc:ident] INC $($rest:tt)*) => {
 		/// INC
 		/// Increment Memory by One
-		///```
+		///```text
 		/// M + 1 -> M                        N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1434,7 +1434,7 @@ macro_rules! op {
     ([$opc:ident] INX $($rest:tt)*) => {
 		/// INX
 		/// Increment Index X by One
-		///```
+		///```text
 		/// X + 1 -> X                        N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1453,7 +1453,7 @@ macro_rules! op {
     ([$opc:ident] INY $($rest:tt)*) => {
 		/// INY
 		/// Increment Index Y by One
-		///```
+		///```text
 		/// Y + 1 -> Y                        N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1478,7 +1478,7 @@ macro_rules! op {
 	([$opc:ident] JMP $($rest:tt)*) => {
 		/// JMP
 		/// Jump to New Location
-		///```
+		///```text
 		/// push (PC+2),                      N  Z  C  I  D  V
 		/// (PC+1) -> PCL                     -  -  -  -  -  -
 		/// (PC+2) -> PCH
@@ -1494,7 +1494,7 @@ macro_rules! op {
 	([$opc:ident] JSR $($rest:tt)*) => {
 		/// JSR
 		/// Jump to New Location Saving Return Address
-		///```
+		///```text
 		/// push (PC+2),                      N  Z  C  I  D  V
 		/// (PC+1) -> PCL                     -  -  -  -  -  -
 		/// (PC+2) -> PCH
@@ -1519,7 +1519,7 @@ macro_rules! op {
 	([$opc:ident] LDA $($rest:tt)*) => {
 		/// LDA
 		/// Load Accumulator with Memory
-		///```
+		///```text
 		/// M -> A                            N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1544,7 +1544,7 @@ macro_rules! op {
 	([$opc:ident] LDX $($rest:tt)*) => {
 		/// LDX
 		/// Load Index X with Memory
-		///```
+		///```text
 		/// M -> X                            N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1566,7 +1566,7 @@ macro_rules! op {
 	([$opc:ident] LDY $($rest:tt)*) => {
 		/// LDY
 		/// Load Index Y with Memory
-		///```
+		///```text
 		/// M -> Y                            N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1588,7 +1588,7 @@ macro_rules! op {
 	([$opc:ident] LSR $($rest:tt)*) => {
 		/// LSR
 		/// Shift One Bit Right (Memory or Accumulator)
-		///```
+		///```text
 		/// 0 -> [76543210] -> C              N  Z  C  I  D  V
 		///                                   0  +  +  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1618,7 +1618,7 @@ macro_rules! op {
 	([$opc:ident] NOP $($rest:tt)*) => {
 		/// NOP
 		/// No Operation
-		///```
+		///```text
 		/// ---                               N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1632,7 +1632,7 @@ macro_rules! op {
 	([$opc:ident] ORA $($rest:tt)*) => {
 		/// ORA
 		/// OR Memory with Accumulator
-		///```
+		///```text
 		/// A OR M -> A                       N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1659,7 +1659,7 @@ macro_rules! op {
 	([$opc:ident] PHA $($rest:tt)*) => {
 		/// PHA
 		/// Push Accumulator on Stack
-		///```
+		///```text
 		/// push A                            N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1678,7 +1678,7 @@ macro_rules! op {
 		///
 		/// The status register will be pushed with the break
 		/// flag and bit 5 set to 1.
-		///```
+		///```text
 		/// push SR                           N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1697,7 +1697,7 @@ macro_rules! op {
 	([$opc:ident] PLA $($rest:tt)*) => {
 		/// PLA
 		/// Pull Accumulator from Stack
-		///```
+		///```text
 		/// pull A                            N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1720,7 +1720,7 @@ macro_rules! op {
 		///
 		/// The status register will be pulled with the break
 		/// flag and bit 5 ignored.
-		///```
+		///```text
 		/// pull SR                           N  Z  C  I  D  V
 		///                                      from stack
 		/// addressing   assembler       opc    bytes    cycles
@@ -1739,7 +1739,7 @@ macro_rules! op {
 	([$opc:ident] ROL $($rest:tt)*) => {
 		/// ROL
 		/// Rotate One Bit Left (Memory or Accumulator)
-		///```
+		///```text
 		/// C <- [76543210] <- C              N  Z  C  I  D  V
 		///                                   +  +  +  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1767,7 +1767,7 @@ macro_rules! op {
 	([$opc:ident] ROR $($rest:tt)*) => {
 		/// ROR
 		/// Rotate One Bit Right (Memory or Accumulator)
-		///```
+		///```text
 		/// C -> [76543210] -> C              N  Z  C  I  D  V
 		///                                   +  +  +  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1799,7 +1799,7 @@ macro_rules! op {
 		///
 		/// The status register is pulled with the break flag
 		/// and bit 5 ignored. Then PC is pulled from the stack.
-		///```
+		///```text
 		/// pull SR, pull PC                  N  Z  C  I  D  V
 		///                                      from stack
 		/// addressing   assembler       opc    bytes    cycles
@@ -1825,7 +1825,7 @@ macro_rules! op {
 	([$opc:ident] RTS $($rest:tt)*) => {
 		/// RTS
 		/// Return from Subroutine
-		///```
+		///```text
 		/// pull PC, PC+1 -> PC               N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1846,7 +1846,7 @@ macro_rules! op {
 	([$opc:ident] SBC $($rest:tt)*) => {
 		/// SBC
 		/// Subtract Memory from Accumulator with Borrow
-		///```
+		///```text
 		/// A - M - C̅ -> A                   N  Z  C  I  D  V
 		///                                   +  +  +  -  -  +
 		/// addressing   assembler       opc    bytes    cycles
@@ -1880,7 +1880,7 @@ macro_rules! op {
 	([$opc:ident] SEC $($rest:tt)*) => {
 		/// SEC
 		/// Set Carry Flag
-		///```
+		///```text
 		/// 1 -> C                            N  Z  C  I  D  V
 		///                                   -  -  1  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1895,7 +1895,7 @@ macro_rules! op {
 	([$opc:ident] SED $($rest:tt)*) => {
 		/// SED
 		/// Set Decimal Flag
-		///```
+		///```text
 		/// 1 -> D                            N  Z  C  I  D  V
 		///                                   -  -  -  -  1  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1910,7 +1910,7 @@ macro_rules! op {
 	([$opc:ident] SEI $($rest:tt)*) => {
 		/// SEI
 		/// Set Interrupt Disable Status
-		///```
+		///```text
 		/// 1 -> I                            N  Z  C  I  D  V
 		///                                   -  -  -  1  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1925,7 +1925,7 @@ macro_rules! op {
 	([$opc:ident] STA $($rest:tt)*) => {
 		/// STA
 		/// Store Accumulator in Memory
-		///```
+		///```text
 		/// A -> M                            N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1946,7 +1946,7 @@ macro_rules! op {
 	([$opc:ident] STX $($rest:tt)*) => {
 		/// STX
 		/// Store Index X in Memory
-		///```
+		///```text
 		/// X -> M                            N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1963,7 +1963,7 @@ macro_rules! op {
 	([$opc:ident] STY $($rest:tt)*) => {
 		/// STY
 		/// Sore Index Y in Memory
-		///```
+		///```text
 		/// Y -> M                            N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1980,7 +1980,7 @@ macro_rules! op {
 	([$opc:ident] TAX $($rest:tt)*) => {
 		/// TAX
 		/// Transfer Accumulator to Index X
-		///```
+		///```text
 		/// A -> X                            N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -1998,7 +1998,7 @@ macro_rules! op {
 	([$opc:ident] TAY $($rest:tt)*) => {
 		/// TAY
 		/// Transfer Accumulator to Index Y
-		///```
+		///```text
 		/// A -> Y                            N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -2016,7 +2016,7 @@ macro_rules! op {
 	([$opc:ident] TSX $($rest:tt)*) => {
 		/// TSX
 		/// Transfer Stack Pointer to Index X
-		///```
+		///```text
 		/// SP -> X                           N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -2034,7 +2034,7 @@ macro_rules! op {
 	([$opc:ident] TAX $($rest:tt)*) => {
 		/// TAX
 		/// Transfer Accumulator to Index X
-		///```
+		///```text
 		/// A -> X                            N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -2052,7 +2052,7 @@ macro_rules! op {
 	([$opc:ident] TXA $($rest:tt)*) => {
 		/// TXA
 		/// Transfer Index X to Accumulator
-		///```
+		///```text
 		/// X -> A                            N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -2070,7 +2070,7 @@ macro_rules! op {
 	([$opc:ident] TXS $($rest:tt)*) => {
 		/// TXS
 		/// Transfer Index X to Stack Register
-		///```
+		///```text
 		/// X -> SP                           N  Z  C  I  D  V
 		///                                   -  -  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -2085,7 +2085,7 @@ macro_rules! op {
 	([$opc:ident] TAX $($rest:tt)*) => {
 		/// TYA
 		/// Transfer Index Y to Accumulator
-		///```
+		///```text
 		/// Y -> A                            N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
@@ -2103,7 +2103,7 @@ macro_rules! op {
 	([$opc:ident] TYA $($rest:tt)*) => {
 		/// TYA
 		/// Transfer Index Y to Accumulator
-		///```
+		///```text
 		/// Y -> A                            N  Z  C  I  D  V
 		///                                   +  +  -  -  -  -
 		/// addressing   assembler       opc    bytes    cycles
