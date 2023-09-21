@@ -2,12 +2,13 @@ use super::Color;
 
 pub fn create_palette(bytes: &[u8; 64 * 3]) -> [Color; 64] {
     let mut colors = [Color::new(0, 0, 0); 64];
-    for i in 0..64 {
+    for (i, col) in colors.iter_mut().enumerate() {
+        let offset = i * 3;
         #[allow(clippy::identity_op)]
-        let r = bytes[i + 0];
-        let g = bytes[i + 1];
-        let b = bytes[i + 2];
-        colors[i] = Color::new(r, g, b);
+        let r = bytes[offset + 0];
+        let g = bytes[offset + 1];
+        let b = bytes[offset + 2];
+        *col = Color::new(r, g, b);
     }
 
     colors

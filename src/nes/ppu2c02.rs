@@ -94,6 +94,17 @@ impl Ppu2C02 {
         }
     }
 
+    pub fn reset(&mut self) {
+        self.cycle = 0;
+        self.scanline = 0;
+        self.reg.borrow_mut().addr = 0x00;
+        self.reg.borrow_mut().addr_latch = 0x00;
+        self.reg.borrow_mut().data_buffer = 0x00;
+        self.reg.borrow_mut().ctrl = Ctrl::new(0x00);
+        self.reg.borrow_mut().mask = Mask::new(0x00);
+        self.reg.borrow_mut().status = Status::new(0x00);
+    }
+
     pub fn frame_complete(&self) -> bool {
         self.scanline == u16::MAX
     }
@@ -227,8 +238,7 @@ impl RangeRWCpuBus for Ppu2C02 {
     }
 
     fn write(&mut self, addr: Addr, data: u8) -> Option<()> {
-        let addr = addr & PPU_RAM_MASK;
-        match addr {
+        match addr & PPU_RAM_MASK {
             0x0000 => {
                 self.reg.borrow_mut().ctrl = Ctrl::new(data);
                 Some(())
@@ -250,9 +260,9 @@ impl RangeRWCpuBus for Ppu2C02 {
                 Some(())
             }
             0x0007 => {
-                let addr = self.reg.borrow().addr;
-                self.bus.write(addr, data);
-                self.reg.borrow_mut().addr = addr.wrapping_add(1);
+                let ppu_addr = self.reg.borrow().addr;
+                self.bus.write(ppu_addr, data);
+                self.reg.borrow_mut().addr = ppu_addr.wrapping_add(1);
                 Some(())
             }
             _ => {

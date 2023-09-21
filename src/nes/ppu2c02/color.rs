@@ -7,7 +7,7 @@ pub struct Color {
 
 impl Color {
     pub const fn new(r: u8, g: u8, b: u8) -> Self {
-        Self { b, g, r }
+        Self { r, g, b }
     }
 
     pub fn to_array(self) -> [u8; 4] {

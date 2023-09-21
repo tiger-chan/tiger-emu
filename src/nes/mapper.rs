@@ -39,7 +39,7 @@ impl From<&INesHeader> for Mapper {
     fn from(value: &INesHeader) -> Self {
         let mpr_id = (value.mpr2 & 0xF0) | value.mpr1 >> 4;
         match mpr_id {
-            0 => Self::Nrom(Nrom::new(value.prg_chunks)),
+            0 => Self::Nrom(Nrom::new(value.prg_chunks, value.chr_chunks)),
             1 => {
                 unimplemented!("Mapper {} not implemented", mpr_id)
             }

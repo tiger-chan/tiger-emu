@@ -24,7 +24,7 @@ impl PpuBus {
         T: RWPpuBus + 'static,
     {
         let tmp = Rc::downgrade(device);
-        self.devices[1] = tmp;
+        self.devices[0] = tmp;
     }
 }
 

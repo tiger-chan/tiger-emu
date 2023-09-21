@@ -294,6 +294,7 @@ impl Motherboard for Board {
 
     fn reset(&mut self) {
         self.tcc = 0;
+        self.ppu.borrow_mut().reset();
         self.cpu.borrow_mut().reset(&mut self.bus);
     }
 

@@ -67,7 +67,11 @@ impl Cartridge {
                 prg.copy_from_slice(prg_slice);
                 i += size;
 
-                let size = chr_chunks as usize * CHR_CHUNK_SIZE;
+                let size = if chr_chunks == 0 {
+                    1
+                } else {
+                    chr_chunks as usize
+                } * CHR_CHUNK_SIZE;
                 chr.resize(size, 0);
                 let chr_slice = &buffer[i..(i + size)];
                 chr.copy_from_slice(chr_slice);

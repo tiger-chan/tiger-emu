@@ -12,7 +12,7 @@ const TBL_PATTERN_COUNT: usize = 2;
 const TBL_PALETTE: usize = 0x0020;
 
 type NameTable = [[u8; TBL_NAME]; TBL_NAME_COUNT];
-type PatternTable = [[u8; TBL_PATTERN]; TBL_PATTERN_COUNT];
+type PatternTable = [u8; TBL_PATTERN * TBL_PATTERN_COUNT];
 type PaletteTable = [u8; TBL_PALETTE];
 
 macro_rules! name_arr {
@@ -23,7 +23,7 @@ macro_rules! name_arr {
 
 macro_rules! pattern_arr {
     ($value:literal) => {
-        [[$value; TBL_PATTERN]; TBL_PATTERN_COUNT]
+        [$value; TBL_PATTERN * TBL_PATTERN_COUNT]
     };
 }
 
@@ -51,16 +51,48 @@ impl PpuMemory {
 }
 
 impl RWPpuBus for PpuMemory {
+    ///
+    /// ## Pattern Table Addressing
+    /// ```
+    /// DCBA98 76543210
+    /// ---------------
+    /// 0HRRRR CCCCPTTT
+    /// |||||| |||||+++- T: Fine Y offset, the row number within a tile
+    /// |||||| ||||+---- P: Bit plane (0: "lower"; 1: "upper")
+    /// |||||| ++++----- C: Tile column
+    /// ||++++---------- R: Tile row
+    /// |+-------------- H: Half of pattern table (0: "left"; 1: "right")
+    /// +--------------- 0: Pattern table is at $0000-$1FFF
+    /// ```
     fn read(&self, addr: Addr) -> Option<u8> {
         let addr = addr & INTERN_PPU_MASK;
         match &addr {
             0x0000..=0x1FFF => {
-                let tbl = ((addr & 0x1000) >> 12) as usize;
-                let addr = (addr & 0x0FFF) as usize;
-                let tbl = &self.pattern.borrow()[tbl];
-                Some(tbl[addr])
+                Some(self.pattern.borrow()[addr as usize])
             }
-            0x2000..=0x3EFF => None,
+            0x2000..=0x3EFF => {
+                // TODO: Implement mirroring properly
+                let addr = addr & 0x0FFF;
+                let sub_addr = (addr & 0x03FF) as usize;
+                match addr {
+                    // Horizontal
+                    0x0000..=0x03FF => {
+                        Some(self.vram.borrow()[0][sub_addr])
+                    },
+                    0x0400..=0x07FF => {
+                        Some(self.vram.borrow()[0][sub_addr])
+                    },
+                    0x0800..=0x0BFF => {
+                        Some(self.vram.borrow()[1][sub_addr])
+                    },
+                    0x0C00..=0x0FFF => {
+                        Some(self.vram.borrow()[1][sub_addr])
+                    }
+                    _ => {
+                        None
+                    }
+                }
+            },
             0x3F00..=0x3FFF => {
                 let addr = addr & 0x001F;
                 let addr = match addr {
@@ -82,12 +114,31 @@ impl RWPpuBus for PpuMemory {
         let addr = addr & INTERN_PPU_MASK;
         match &addr {
             0x0000..=0x1FFF => {
-                let tbl = ((addr & 0x1000) >> 12) as usize;
-                let addr = (addr & 0x0FFF) as usize;
-                let tbl = &self.pattern.borrow()[tbl];
-                Some(tbl[addr])
+                Some(self.pattern.borrow()[addr as usize])
             }
-            0x2000..=0x3EFF => None,
+            0x2000..=0x3EFF => {
+                // TODO: Implement mirroring properly
+                let addr = addr & 0x0FFF;
+                let sub_addr = (addr & 0x03FF) as usize;
+                match addr {
+                    // Horizontal
+                    0x0000..=0x03FF => {
+                        Some(self.vram.borrow()[0][sub_addr])
+                    },
+                    0x0400..=0x07FF => {
+                        Some(self.vram.borrow()[0][sub_addr])
+                    },
+                    0x0800..=0x0BFF => {
+                        Some(self.vram.borrow()[1][sub_addr])
+                    },
+                    0x0C00..=0x0FFF => {
+                        Some(self.vram.borrow()[1][sub_addr])
+                    }
+                    _ => {
+                        None
+                    }
+                }
+            },
             0x3F00..=0x3FFF => {
                 let addr = addr & 0x001F;
                 let addr = match addr {
@@ -107,15 +158,33 @@ impl RWPpuBus for PpuMemory {
 
     fn write(&mut self, addr: Addr, data: u8) -> Option<()> {
         let addr = addr & INTERN_PPU_MASK;
-        match &addr {
+        match addr {
             0x0000..=0x1FFF => {
-                let tbl = ((addr & 0x1000) >> 12) as usize;
-                let addr = (addr & 0x0FFF) as usize;
-                let tbl = &mut self.pattern.borrow_mut()[tbl];
-                tbl[addr] = data;
+                self.pattern.borrow_mut()[addr as usize] = data;
                 Some(())
             }
-            0x2000..=0x3EFF => None,
+            0x2000..=0x3EFF => {
+                // TODO: Implement mirroring properly
+                let addr = addr & 0x0FFF;
+                let sub_addr = (addr & 0x03FF) as usize;
+                match addr {
+                    // Horizontal
+                    0x0000..=0x03FF => {
+                        self.vram.borrow_mut()[0][sub_addr] = data;
+                    },
+                    0x0400..=0x07FF => {
+                        self.vram.borrow_mut()[0][sub_addr] = data;
+                    },
+                    0x0800..=0x0BFF => {
+                        self.vram.borrow_mut()[1][sub_addr] = data;
+                    },
+                    0x0C00..=0x0FFF => {
+                        self.vram.borrow_mut()[1][sub_addr] = data;
+                    }
+                    _ => {}
+                }
+                Some(())
+            },
             0x3F00..=0x3FFF => {
                 let addr = addr & 0x001F;
                 let addr = match addr {
