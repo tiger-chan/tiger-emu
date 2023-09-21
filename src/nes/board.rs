@@ -289,6 +289,11 @@ impl Motherboard for Board {
         if self.tcc % 3 == 0 {
             self.cpu.borrow_mut().clock(&mut self.bus);
         }
+
+        if self.ppu.borrow().nmi() {
+            self.cpu.borrow_mut().nmi(&mut self.bus);
+        }
+
         self.tcc = self.tcc.wrapping_add(1);
     }
 

@@ -65,8 +65,21 @@ impl Ppu2C02 {
         }
     }
 
+    pub fn nmi(&self) -> bool {
+        self.reg.borrow().ctrl & Ctrl::V == Ctrl::V && self.reg.borrow().status & Status::V == Status::V
+    }
+
     pub fn clock(&mut self, _bus: &mut dyn Bus) {
-        self.cycle = self.cycle.wrapping_add(1);
+        if self.scanline == Addr::MAX && self.cycle == 1 {
+            self.reg.borrow_mut().status.set(Status::V, false);
+        }
+
+        if self.scanline == 241 && self.cycle == 1 {
+            self.reg.borrow_mut().status.set(Status::V, true);
+            if self.reg.borrow().ctrl & Ctrl::V == Ctrl::V {
+
+            }
+        }
 
         let mut set_pixel = |x, y, v| {
             let x = x as usize;
@@ -83,6 +96,8 @@ impl Ppu2C02 {
             self.scanline,
             self.memory.borrow().col_palette[if rand::random() { 0x3F } else { 0x30 }],
         );
+
+        self.cycle = self.cycle.wrapping_add(1);
 
         if self.cycle == 341 {
             self.cycle = 0;
@@ -201,10 +216,6 @@ impl RangeRWCpuBus for Ppu2C02 {
         let addr = addr & PPU_RAM_MASK;
         match addr {
             0x0002 => {
-                // TODO Remove this, this is just for testing
-                self.reg.borrow_mut().status.set(Status::V, true);
-                // End TODO
-
                 let tmp = u8::from(self.reg.borrow().status.get(Status::V | Status::S | Status::O));
                 let tmp = tmp | self.reg.borrow().data_buffer & 0x1f;
                 self.reg.borrow_mut().status.set(Status::V, false);
