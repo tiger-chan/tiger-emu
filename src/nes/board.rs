@@ -1,5 +1,5 @@
 use std::{
-    cell::RefCell,
+    cell::{RefCell, Ref},
     ops::{AddAssign, RangeInclusive},
     rc::{Rc, Weak},
 };
@@ -249,6 +249,35 @@ impl Board {
     }
 
     #[allow(unused)]
+    pub fn cpu(&self) -> Ref<Cpu6502> {
+        self.cpu.borrow()
+    }
+
+    #[allow(unused)]
+    pub fn ppu(&self) -> Ref<Ppu2C02> {
+        self.ppu.borrow()
+    }
+
+    #[allow(unused)]
+    pub fn pc(&mut self, addr: Addr)  {
+        self.cpu.borrow_mut().reg.pc = addr;
+    }
+
+    #[allow(unused)]
+    pub fn tcc(&self) -> u64 {
+        self.tcc
+    }
+
+    #[allow(unused)]
+    pub fn run_until(&mut self, addr: Addr) {
+        let mut pc = self.cpu.borrow().reg.pc;
+        while pc != addr {
+            self.clock();
+            pc = self.cpu.borrow().reg.pc
+        }
+    }
+
+    #[allow(unused)]
     pub fn set_prog(&mut self, program: &[u8; RAM]) {
         self.ram.borrow_mut().ram = *program;
 
@@ -282,10 +311,12 @@ impl Bus for Board {
 
 impl Motherboard for Board {
     fn clock(&mut self) {
+        // PPU runs once every 4 master clock cycles
         self.ppu
             .borrow_mut()
             .clock(&mut self.bus);
 
+        // CPU runs once every 12 master clock cycles
         if self.tcc % 3 == 0 {
             self.cpu.borrow_mut().clock(&mut self.bus);
         }

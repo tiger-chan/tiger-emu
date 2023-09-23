@@ -36,9 +36,12 @@ impl Cartridge {
             file.read_to_end(&mut buffer)?;
         }
 
+        Cartridge::new_from_bytes(&buffer)
+    }
+
+    pub fn new_from_bytes(buffer: &[u8]) -> Result<Self, io::Error> {
         log::debug!("iNES file buffer size: {}", buffer.len());
-        let slice = buffer.as_slice();
-        let header = INesHeader::from(&slice[0..16]);
+        let header = INesHeader::from(&buffer[0..16]);
         let i = 16;
 
         let mut i = if header.mpr1 & 0x04 == 0x04 {
@@ -75,7 +78,7 @@ impl Cartridge {
                 chr.resize(size, 0);
                 let chr_slice = &buffer[i..(i + size)];
                 chr.copy_from_slice(chr_slice);
-                i += size;
+                // i += size; // Uncomment if more data is neaded
             }
             2 => {
                 unimplemented!();

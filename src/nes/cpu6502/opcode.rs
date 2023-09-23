@@ -299,11 +299,18 @@ op![#[op_f2, AM_F2, IN_F2] JAM        ];
 
 #[cfg(test)]
 mod test {
+    fn init() {
+        let _ = env_logger::builder()
+            .filter_module("nes_ultra", log::LevelFilter::Debug)
+            .target(env_logger::Target::Stdout)
+            .is_test(true).try_init();
+    }
+
     use std::{cell::RefCell, rc::Rc};
 
     use crate::nes::{
         board::{ClockBusContext, RangedBoardBus},
-        BoardRam,
+        BoardRam, Board, Cartridge,
     };
 
     use super::*;
@@ -865,4 +872,36 @@ mod test {
             assert_eq!(*bus.rw_count.borrow(),  4, "rw_count");
         }
 	}
+
+    const NES_TEST: &[u8; 24592] = include_bytes!("nestest.nes");
+    //const NES_TEST_LOGS: &str = include_str!("nestest.log");
+
+    #[test]
+    fn nes_test() -> Result<(), std::io::Error> {
+        init();
+        
+        let mut board = Board::new();
+        let cart = Cartridge::new_from_bytes(NES_TEST)?;
+        board.load_cart(cart);
+
+        board.pc(0x0C000);
+
+        // let logs: Vec<&str> = NES_TEST_LOGS.split('\n').map(|s| s.trim_end()).collect();
+        // for _instruction in logs {
+        //     board.step();
+        // }
+
+        // According to nestest logs the test ends at $C66E
+        board.run_until(0xC66E);
+
+        let official = board.read_only(0x02);
+        let unofficial = board.read_only(0x03);
+
+        assert_eq!(board.tcc(), 26554);
+        assert_eq!(official, 0x00);
+        assert_eq!(unofficial, 0x00);
+
+
+        Ok(())
+    }
 }

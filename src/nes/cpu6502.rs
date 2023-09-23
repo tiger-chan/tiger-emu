@@ -230,7 +230,7 @@ impl Cpu for Cpu6502 {
 					f(StatusReg::Z, 'Z', '.'),	f(StatusReg::C, 'C', '.'), reg.sp);
 			}
 
-			reg.pc += 1;
+			reg.pc = reg.pc.wrapping_add(1);
 			
 
 			reg.p.set(StatusReg::U, true);
@@ -308,9 +308,9 @@ impl Cpu for Cpu6502 {
             let mut sp = self.reg.sp as u16;
             let mut pc = self.reg.pc;
             bus.write(PS + sp, (pc >> 8) as u8);
-            sp -= 1;
+            sp = sp.wrapping_sub(1);
             bus.write(PS + sp, pc as u8);
-            sp -= 1;
+            sp = sp.wrapping_sub(1);
 
             // Push flags indicating that there was an interupt
             let mut p = self.reg.p;
@@ -319,7 +319,7 @@ impl Cpu for Cpu6502 {
             .set(StatusReg::I, true);
             self.reg.p = p;
             bus.write(PS + sp, p.into());
-            sp -= 1;
+            sp = sp.wrapping_sub(1);
 
             // Load fixed program counter
             let lo = bus.read(IRQ_LO) as u16;
@@ -362,9 +362,9 @@ impl Cpu for Cpu6502 {
         let mut sp = self.reg.sp as u16;
         let mut pc = self.reg.pc;
         bus.write(PS + sp, (pc >> 8) as u8);
-        sp -= 1;
+        sp = sp.wrapping_sub(1);
         bus.write(PS + sp, pc as u8);
-        sp -= 1;
+        sp = sp.wrapping_sub(1);
 
         // Push flags indicating that there was an interupt
         let mut p = self.reg.p;
@@ -373,7 +373,7 @@ impl Cpu for Cpu6502 {
         .set(StatusReg::I, true);
         self.reg.p = p;
         bus.write(PS + sp, p.into());
-        sp -= 1;
+        sp = sp.wrapping_sub(1);
 
         // Load fixed program counter
         let lo = bus.read(NMI_LO) as u16;

@@ -1116,14 +1116,14 @@ macro_rules! op {
 
             let mut sp = reg.sp as Addr;
             let pc = reg.pc;
-            bus.write(PS + sp, (pc >> 8) as u8);
-            sp -= 1;
+            bus.write(PS.wrapping_add(sp), (pc >> 8) as u8);
+            sp = sp.wrapping_sub(1);
 
-            bus.write(PS + sp, pc as u8);
-            sp -= 1;
+            bus.write(PS.wrapping_add(sp), pc as u8);
+            sp = sp.wrapping_sub(1);
 
             p.set(StatusReg::B, true);
-            bus.write(PS + sp, p.into());
+            bus.write(PS.wrapping_add(sp), p.into());
             p.set(StatusReg::B, false);
 
             reg.p = p;
@@ -1506,10 +1506,10 @@ macro_rules! op {
 			let pc = reg.pc;
 			let mut sp = reg.sp as u16;
 
-			bus.write(PS + sp, (pc >> 8) as u8);
-			sp -= 1;
-			bus.write(PS + sp, pc as u8);
-			sp -= 1;
+			bus.write(PS.wrapping_add(sp), (pc >> 8) as u8);
+			sp = sp.wrapping_sub(1);
+			bus.write(PS.wrapping_add(sp), pc as u8);
+			sp = sp.wrapping_sub(1);
 
 			reg.sp = sp as u8;
 			reg.pc = addr;
@@ -1668,7 +1668,7 @@ macro_rules! op {
 		pub fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			bus.write(PS + reg.sp as Addr, reg.ac);
-			reg.sp -= 1;
+			reg.sp = reg.sp.wrapping_sub(1);
 		}
 	};
 
@@ -1690,7 +1690,7 @@ macro_rules! op {
 			let p = reg.p;
 			bus.write(PS + reg.sp as Addr, (p | StatusReg::B | StatusReg::U).into());
 			reg.p.set(StatusReg::B, false).set(StatusReg::U, false);
-			reg.sp -= 1;
+			reg.sp = reg.sp.wrapping_sub(1);
 		}
 	};
 
@@ -1706,7 +1706,7 @@ macro_rules! op {
 		pub fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			let sp = (reg.sp + 1) as Addr;
-			let ac = bus.read(PS + sp);
+			let ac = bus.read(PS.wrapping_add(sp));
 			reg.p.set(StatusReg::Z, is_zero(ac))
 			.set(StatusReg::N, is_neg(ac as u16));
 			reg.sp = sp as u8;
@@ -1729,7 +1729,7 @@ macro_rules! op {
 		pub fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest)*);
 			let sp = (reg.sp + 1) as Addr;
-			let mut p = StatusReg::from(bus.read(PS + sp));
+			let mut p = StatusReg::from(bus.read(PS.wrapping_add(sp)));
 			p.set(StatusReg::U, true);
 			reg.sp = sp as u8;
 			reg.p = p;
@@ -1808,15 +1808,15 @@ macro_rules! op {
 		pub fn $opc(reg: &mut Registers, bus: &mut dyn Bus) {
 			let _ = am!(reg, bus, $($rest:tt)*);
 			let mut sp = reg.sp as Addr + 1;
-			let status = bus.read(PS + sp);
+			let status = bus.read(PS.wrapping_add(sp));
 			reg.p = StatusReg::from(status);
 			reg.p &= !StatusReg::B;
 			reg.p &= !StatusReg::U;
 
 			sp += 1;
-			let lo_pc = bus.read(PS + sp) as Addr;
+			let lo_pc = bus.read(PS.wrapping_add(sp)) as Addr;
 			sp += 1;
-			let hi_pc = (bus.read(PS + sp) as Addr) << 8;
+			let hi_pc = (bus.read(PS.wrapping_add(sp)) as Addr) << 8;
 			reg.pc = lo_pc | hi_pc;
 			reg.sp = sp as u8;
 		}
@@ -1835,9 +1835,9 @@ macro_rules! op {
 			let _ = am!(reg, bus, $($rest:tt)*);
 
 			let mut sp = reg.sp as Addr + 1;
-			let lo_pc = bus.read(PS + sp) as Addr;
+			let lo_pc = bus.read(PS.wrapping_add(sp)) as Addr;
 			sp += 1;
-			let hi_pc = (bus.read(PS + sp) as Addr) << 8;
+			let hi_pc = (bus.read(PS.wrapping_add(sp)) as Addr) << 8;
 			reg.pc = lo_pc | hi_pc;
 			reg.sp = sp as u8;
 		}
