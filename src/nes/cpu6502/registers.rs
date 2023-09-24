@@ -1,5 +1,5 @@
-use std::ops::{Add, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not};
 use core::fmt;
+use std::ops::{Add, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not};
 
 ///```
 /// PC   program counter              (16 bit)
@@ -12,7 +12,7 @@ use core::fmt;
 /// Note: The status register (SR) is also known as the P register.
 ///
 
-#[derive(Default)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Registers {
     /// Program Counter
     pub pc: u16,
@@ -29,17 +29,20 @@ pub struct Registers {
 }
 
 ///
-/// SR Flags (bit 7 to bit 0)
-///
-/// N   Negative
-/// V   Overflow
-/// -   ignored
-/// B   Break
-/// D   Decimal (use BCD for arithmetics)
-/// I   Interrupt (IRQ disable)
-/// Z   Zero
-/// C   Carry
-
+/// ```text
+/// 7  bit  0
+/// ---- ----
+/// NV1B DIZC
+/// |||| ||||
+/// |||| |||+- Carry
+/// |||| ||+-- Zero
+/// |||| |+--- Interrupt Disable
+/// |||| +---- Decimal
+/// |||+------ (No CPU effect; see: the B flag)
+/// ||+------- (No CPU effect; always pushed as 1)
+/// |+-------- Overflow
+/// +--------- Negative
+/// ```
 #[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct StatusReg(u8);
 
@@ -265,23 +268,25 @@ impl Not for StatusReg {
 }
 
 impl fmt::Display for StatusReg {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		let func = |f, i, e| {
-			match self.get(f) == 1 {
-				true => i,
-				false => e
-			}
-		};
-		
-		let n = func(StatusReg::N, 'N', '.');
-		let v = func(StatusReg::V, 'V', '.');
-		let u = func(StatusReg::U, '-', '.');
-		let b = func(StatusReg::B, 'B', '.');
-		let d = func(StatusReg::D, 'D', '.');
-		let i = func(StatusReg::I, 'I', '.');
-		let z = func(StatusReg::Z, 'Z', '.');
-		let c = func(StatusReg::C, 'C', '.');
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let func = |f, i, e| match self.get(f) == 1 {
+            true => i,
+            false => e,
+        };
 
-		write!(f, "{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}", n, v, u, b, d, i, z, c)
-	}
+        let n = func(StatusReg::N, 'N', '.');
+        let v = func(StatusReg::V, 'V', '.');
+        let u = func(StatusReg::U, '-', '.');
+        let b = func(StatusReg::B, 'B', '.');
+        let d = func(StatusReg::D, 'D', '.');
+        let i = func(StatusReg::I, 'I', '.');
+        let z = func(StatusReg::Z, 'Z', '.');
+        let c = func(StatusReg::C, 'C', '.');
+
+        write!(
+            f,
+            "{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}",
+            n, v, u, b, d, i, z, c
+        )
+    }
 }

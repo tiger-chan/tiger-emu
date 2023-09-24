@@ -67,32 +67,20 @@ impl RWPpuBus for PpuMemory {
     fn read(&self, addr: Addr) -> Option<u8> {
         let addr = addr & INTERN_PPU_MASK;
         match &addr {
-            0x0000..=0x1FFF => {
-                Some(self.pattern.borrow()[addr as usize])
-            }
+            0x0000..=0x1FFF => Some(self.pattern.borrow()[addr as usize]),
             0x2000..=0x3EFF => {
                 // TODO: Implement mirroring properly
                 let addr = addr & 0x0FFF;
                 let sub_addr = (addr & 0x03FF) as usize;
                 match addr {
                     // Horizontal
-                    0x0000..=0x03FF => {
-                        Some(self.vram.borrow()[0][sub_addr])
-                    },
-                    0x0400..=0x07FF => {
-                        Some(self.vram.borrow()[0][sub_addr])
-                    },
-                    0x0800..=0x0BFF => {
-                        Some(self.vram.borrow()[1][sub_addr])
-                    },
-                    0x0C00..=0x0FFF => {
-                        Some(self.vram.borrow()[1][sub_addr])
-                    }
-                    _ => {
-                        None
-                    }
+                    0x0000..=0x03FF => Some(self.vram.borrow()[0][sub_addr]),
+                    0x0400..=0x07FF => Some(self.vram.borrow()[0][sub_addr]),
+                    0x0800..=0x0BFF => Some(self.vram.borrow()[1][sub_addr]),
+                    0x0C00..=0x0FFF => Some(self.vram.borrow()[1][sub_addr]),
+                    _ => None,
                 }
-            },
+            }
             0x3F00..=0x3FFF => {
                 let addr = addr & 0x001F;
                 let addr = match addr {
@@ -113,32 +101,20 @@ impl RWPpuBus for PpuMemory {
     fn read_only(&self, addr: Addr) -> Option<u8> {
         let addr = addr & INTERN_PPU_MASK;
         match &addr {
-            0x0000..=0x1FFF => {
-                Some(self.pattern.borrow()[addr as usize])
-            }
+            0x0000..=0x1FFF => Some(self.pattern.borrow()[addr as usize]),
             0x2000..=0x3EFF => {
                 // TODO: Implement mirroring properly
                 let addr = addr & 0x0FFF;
                 let sub_addr = (addr & 0x03FF) as usize;
                 match addr {
                     // Horizontal
-                    0x0000..=0x03FF => {
-                        Some(self.vram.borrow()[0][sub_addr])
-                    },
-                    0x0400..=0x07FF => {
-                        Some(self.vram.borrow()[0][sub_addr])
-                    },
-                    0x0800..=0x0BFF => {
-                        Some(self.vram.borrow()[1][sub_addr])
-                    },
-                    0x0C00..=0x0FFF => {
-                        Some(self.vram.borrow()[1][sub_addr])
-                    }
-                    _ => {
-                        None
-                    }
+                    0x0000..=0x03FF => Some(self.vram.borrow()[0][sub_addr]),
+                    0x0400..=0x07FF => Some(self.vram.borrow()[0][sub_addr]),
+                    0x0800..=0x0BFF => Some(self.vram.borrow()[1][sub_addr]),
+                    0x0C00..=0x0FFF => Some(self.vram.borrow()[1][sub_addr]),
+                    _ => None,
                 }
-            },
+            }
             0x3F00..=0x3FFF => {
                 let addr = addr & 0x001F;
                 let addr = match addr {
@@ -171,20 +147,20 @@ impl RWPpuBus for PpuMemory {
                     // Horizontal
                     0x0000..=0x03FF => {
                         self.vram.borrow_mut()[0][sub_addr] = data;
-                    },
+                    }
                     0x0400..=0x07FF => {
                         self.vram.borrow_mut()[0][sub_addr] = data;
-                    },
+                    }
                     0x0800..=0x0BFF => {
                         self.vram.borrow_mut()[1][sub_addr] = data;
-                    },
+                    }
                     0x0C00..=0x0FFF => {
                         self.vram.borrow_mut()[1][sub_addr] = data;
                     }
                     _ => {}
                 }
                 Some(())
-            },
+            }
             0x3F00..=0x3FFF => {
                 let addr = addr & 0x001F;
                 let addr = match addr {

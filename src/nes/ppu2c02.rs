@@ -1,13 +1,13 @@
-mod color;
-mod palette;
 mod bus;
+mod color;
 mod memory;
+mod palette;
 mod registers;
 
-pub use color::*;
-pub use palette::*;
 pub use bus::*;
+pub use color::*;
 pub use memory::*;
+pub use palette::*;
 pub use registers::*;
 
 use std::cell::RefCell;
@@ -15,8 +15,8 @@ use std::rc::Rc;
 
 use egui::TextureOptions;
 
-use crate::{bus::Bus, ppu_bus::PpuBus};
 use crate::nes::board::PPU_RAM_MASK;
+use crate::{bus::Bus, ppu_bus::PpuBus};
 
 use super::{Addr, RangeRWCpuBus, HI_MASK, LO_MASK};
 
@@ -42,8 +42,8 @@ pub struct Ppu2C02 {
     memory: Rc<RefCell<PpuMemory>>,
     reg: RefCell<Registers>,
     screen: [Color; 256 * 240],
-    cycle: u16,
-    scanline: u16,
+    pub cycle: u16,
+    pub scanline: u16,
     pub bus: bus::PpuBus,
 
     debug_data: DebugPpuData,
@@ -66,7 +66,8 @@ impl Ppu2C02 {
     }
 
     pub fn nmi(&self) -> bool {
-        self.reg.borrow().ctrl & Ctrl::V == Ctrl::V && self.reg.borrow().status & Status::V == Status::V
+        self.reg.borrow().ctrl & Ctrl::V == Ctrl::V
+            && self.reg.borrow().status & Status::V == Status::V
     }
 
     pub fn clock(&mut self, _bus: &mut dyn Bus) {
@@ -76,9 +77,6 @@ impl Ppu2C02 {
 
         if self.scanline == 241 && self.cycle == 1 {
             self.reg.borrow_mut().status.set(Status::V, true);
-            if self.reg.borrow().ctrl & Ctrl::V == Ctrl::V {
-
-            }
         }
 
         let mut set_pixel = |x, y, v| {
@@ -135,23 +133,13 @@ impl Ppu2C02 {
         }
     }
 
-    fn debug_color_from_palette(
-        &self,
-        ppu_bus: &dyn PpuBus,
-        palette: Addr,
-        pixel: Addr,
-    ) -> Color {
+    fn debug_color_from_palette(&self, ppu_bus: &dyn PpuBus, palette: Addr, pixel: Addr) -> Color {
         let addr = 0x3F00 + palette.overflowing_shl(2).0 + pixel;
         let addr = ppu_bus.read_only(addr) & 0x3F;
         self.memory.borrow().col_palette[addr as usize]
     }
 
-    pub fn draw_pattern_tbl(
-        &mut self,
-        ui: &mut egui::Ui,
-        tbl: Addr,
-        palette: Addr,
-    ) {
+    pub fn draw_pattern_tbl(&mut self, ui: &mut egui::Ui, tbl: Addr, palette: Addr) {
         let mut borrowed = self.debug_data.pattern_texture[tbl as usize].borrow_mut();
         let texture = borrowed.get_or_insert_with(|| {
             let name = format!("ppu2c02_{tbl}");
@@ -216,14 +204,19 @@ impl RangeRWCpuBus for Ppu2C02 {
         let addr = addr & PPU_RAM_MASK;
         match addr {
             0x0002 => {
-                let tmp = u8::from(self.reg.borrow().status.get(Status::V | Status::S | Status::O));
+                let tmp = u8::from(
+                    self.reg
+                        .borrow()
+                        .status
+                        .get(Status::V | Status::S | Status::O),
+                );
                 let tmp = tmp | self.reg.borrow().data_buffer & 0x1f;
                 self.reg.borrow_mut().status.set(Status::V, false);
                 self.reg.borrow_mut().addr_latch = 0;
 
                 Some(tmp)
             }
-            0x0007 => { 
+            0x0007 => {
                 let mut tmp = self.reg.borrow().data_buffer;
                 let addr = self.reg.borrow().addr;
                 self.reg.borrow_mut().data_buffer = self.bus.read(addr);
@@ -233,8 +226,8 @@ impl RangeRWCpuBus for Ppu2C02 {
                 }
                 self.reg.borrow_mut().addr = addr.wrapping_add(1);
                 Some(tmp)
-            },
-            _ => None
+            }
+            _ => None,
         }
     }
 
@@ -244,7 +237,7 @@ impl RangeRWCpuBus for Ppu2C02 {
             0x0000 => Some(self.reg.borrow().ctrl.into()),
             0x0001 => Some(self.reg.borrow().mask.into()),
             0x0002 => Some(self.reg.borrow().status.into()),
-            _ => None
+            _ => None,
         }
     }
 
@@ -253,11 +246,11 @@ impl RangeRWCpuBus for Ppu2C02 {
             0x0000 => {
                 self.reg.borrow_mut().ctrl = Ctrl::new(data);
                 Some(())
-            },
+            }
             0x0001 => {
                 self.reg.borrow_mut().mask = Mask::new(data);
                 Some(())
-            },
+            }
             0x0006 => {
                 if self.reg.borrow().addr_latch == 0 {
                     let addr = self.reg.borrow().addr;
@@ -276,9 +269,7 @@ impl RangeRWCpuBus for Ppu2C02 {
                 self.reg.borrow_mut().addr = ppu_addr.wrapping_add(1);
                 Some(())
             }
-            _ => {
-                None
-            }
+            _ => None,
         }
     }
 }

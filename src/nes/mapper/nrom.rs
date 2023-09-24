@@ -43,8 +43,7 @@ impl NesPpuMapper for Nrom {
         if (0x0000..=0x1FFF).contains(&addr) {
             if self.chr_bnks == 0 {
                 Some(addr)
-            }
-            else {
+            } else {
                 None
             }
         } else {

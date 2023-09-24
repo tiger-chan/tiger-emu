@@ -4,17 +4,19 @@ mod opcode;
 mod registers;
 
 use self::address_mode::AddrMode;
+use self::instructions::Instruction;
+use self::opcode::{AddrModeData, OperData};
 
-use super::board::{PS, RES_LO, RES_HI, IRQ_LO, IRQ_HI, NMI_LO, NMI_HI};
+use super::board::{IRQ_HI, IRQ_LO, NMI_HI, NMI_LO, PS, RES_HI, RES_LO};
 use crate::gui::{CpuDisplay, CURSOR, DIAGNOSTIC_FONT, DISABLED, ENABLED};
-use crate::nes::Addr;
 use crate::nes::board::ClockBusContext;
 use crate::nes::cpu6502::registers::StatusReg;
+use crate::nes::Addr;
 use crate::{bus::Bus, cpu::Cpu};
 use std::ops::Range;
 
 use egui::RichText;
-use opcode::{ ADDER_MODE, INSTRUCTION_TYPE, OPER };
+use opcode::{ADDER_MODE, INSTRUCTION_TYPE, OPER};
 use registers::Registers;
 
 struct Assembly {
@@ -76,22 +78,52 @@ impl Assembly {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct InstructionState {
+    pub reg: Registers,
+    pub tcc: u64,
+    pub opcode: u8,
+    pub addr: AddrModeData,
+    pub oper: OperData,
+    pub op: Instruction,
+}
+
+impl Default for InstructionState {
+    fn default() -> Self {
+        Self {
+            reg: Registers::default(),
+            tcc: 0,
+            opcode: 0xFF,
+            addr: AddrModeData::Imp,
+            oper: OperData::None,
+            op: Instruction::ADC,
+        }
+    }
+}
+
 pub struct Cpu6502 {
     pub(super) reg: Registers,
-	/// Clock Count
-	pub(crate) cc: u8,
-	// Total Clock Count
-	pub(crate) tcc: u64,
+    /// Clock Count
+    pub(crate) cc: u8,
+    // Total Clock Count
+    pub(crate) tcc: u64,
     asm: Assembly,
+
+    pub prev_instruct: InstructionState,
 }
 
 impl Cpu6502 {
     pub fn new() -> Self {
         Self {
-            reg: Registers::default(),
+            reg: Registers {
+                p: StatusReg::U | StatusReg::I,
+                sp: 0xFD,
+                ..Default::default()
+            },
             asm: Assembly::new(),
-			cc: 0,
-			tcc: 0,
+            cc: 0,
+            tcc: 0,
+            prev_instruct: InstructionState::default(),
         }
     }
 
@@ -106,44 +138,62 @@ impl Cpu6502 {
             let opcode = bus.read_only(ln_addr) as usize;
             addr += 1;
             let op = INSTRUCTION_TYPE[opcode];
-			let am = ADDER_MODE[opcode];
+            let am = ADDER_MODE[opcode];
 
             let line = match am {
                 AddrMode::A => {
-					format!("${:>04X}: {:?} A            {{{:?}}}", ln_addr, op, am)
-				},
+                    format!("${:>04X}: {:?} A            {{{:?}}}", ln_addr, op, am)
+                }
                 AddrMode::IMP => {
-					format!("${:>04X}: {:?}              {{{:?}}}", ln_addr, op, am)
-				},
+                    format!("${:>04X}: {:?}              {{{:?}}}", ln_addr, op, am)
+                }
                 AddrMode::IMM => {
                     let lo = bus.read_only(addr as u16);
                     addr += 1;
-                    format!("${:>04X}: {:?} #${:>02X}         {{{:?}}}", ln_addr, op, lo, am)
+                    format!(
+                        "${:>04X}: {:?} #${:>02X}         {{{:?}}}",
+                        ln_addr, op, lo, am
+                    )
                 }
                 AddrMode::ZPG => {
                     let lo = bus.read_only(addr as u16);
                     addr += 1;
-                    format!("${:>04X}: {:?} ${:>02X}          {{{:?}}}", ln_addr, op, lo, am)
+                    format!(
+                        "${:>04X}: {:?} ${:>02X}          {{{:?}}}",
+                        ln_addr, op, lo, am
+                    )
                 }
                 AddrMode::ZPX => {
                     let lo = bus.read_only(addr as u16);
                     addr += 1;
-                    format!("${:>04X}: {:?} ${:>02X},X        {{{:?}}}", ln_addr, op, lo, am)
+                    format!(
+                        "${:>04X}: {:?} ${:>02X},X        {{{:?}}}",
+                        ln_addr, op, lo, am
+                    )
                 }
                 AddrMode::ZPY => {
                     let lo = bus.read_only(addr as u16);
                     addr += 1;
-                    format!("${:>04X}: {:?} ${:>02X},Y         {{{:?}}}", ln_addr, op, lo, am)
+                    format!(
+                        "${:>04X}: {:?} ${:>02X},Y         {{{:?}}}",
+                        ln_addr, op, lo, am
+                    )
                 }
                 AddrMode::IZX => {
                     let lo = bus.read_only(addr as u16);
                     addr += 1;
-                    format!("${:>04X}: {:?} (${:>02X},X)     {{{:?}}}", ln_addr, op, lo, am)
+                    format!(
+                        "${:>04X}: {:?} (${:>02X},X)     {{{:?}}}",
+                        ln_addr, op, lo, am
+                    )
                 }
                 AddrMode::IZY => {
                     let lo = bus.read_only(addr as u16);
                     addr += 1;
-					format!("${:>04X}: {:?} (${:>02X}),Y      {{{:?}}}", ln_addr, op, lo, am)
+                    format!(
+                        "${:>04X}: {:?} (${:>02X}),Y      {{{:?}}}",
+                        ln_addr, op, lo, am
+                    )
                 }
                 AddrMode::ABS => {
                     let lo = bus.read_only(addr as u16) as u16;
@@ -151,7 +201,10 @@ impl Cpu6502 {
                     let hi = (bus.read_only(addr as u16) as u16) << 8;
                     addr += 1;
                     let val = hi | lo;
-                    format!("${:>04X}: {:?} ${:>04X}        {{{:?}}}", ln_addr, op, val, am)
+                    format!(
+                        "${:>04X}: {:?} ${:>04X}        {{{:?}}}",
+                        ln_addr, op, val, am
+                    )
                 }
                 AddrMode::ABX => {
                     let lo = bus.read_only(addr as u16) as u16;
@@ -205,65 +258,78 @@ impl Cpu6502 {
 
 impl Cpu for Cpu6502 {
     fn clock(&mut self, bus: &mut dyn Bus) {
-		let mut bus = ClockBusContext::new(bus);
-		log::trace!("clock");
+        let mut bus = ClockBusContext::new(bus);
         if self.cc == 0 {
-			let reg = &mut self.reg;
-			let opc = bus.read(reg.pc) as usize;
+            let mut prev = InstructionState {
+                reg: self.reg,
+                tcc: self.tcc,
+                ..Default::default()
+            };
 
-			let am = ADDER_MODE[opc];
-			let op = INSTRUCTION_TYPE[opc];
-			let oper = OPER[opc];
+            let reg = &mut self.reg;
+            let opc = bus.read(reg.pc) as usize;
+            prev.opcode = opc as u8;
 
-			{
-				let f = |f, i, e| {
-					match reg.p.get(f) == 1 {
-						true => i,
-						false => e
-					}
-				};
+            let am = ADDER_MODE[opc];
+            let op = INSTRUCTION_TYPE[opc];
+            prev.op = op;
 
-				log::trace!("{:>010}:{:>02X} {} ({}) PC:{:>04X} XXX AC:{:>02X} X:{:>02X} Y:{:>02X} {:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?} SP:{:>02X}",
+            {
+                let f = |f, i, e| match reg.p.get(f) == 1 {
+                    true => i,
+                    false => e,
+                };
+
+                log::trace!("{:>010}:{:>02X} {} ({}) PC:{:>04X} XXX AC:{:>02X} X:{:>02X} Y:{:>02X} {:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?} SP:{:>02X}",
 					self.tcc, opc, op, am, reg.pc, reg.ac, reg.x, reg.y,
-					f(StatusReg::N, 'N', '.'), f(StatusReg::V, 'V', '.'),	f(StatusReg::U, '-', '.'),	
-					f(StatusReg::B, 'B', '.'), f(StatusReg::D, 'D', '.'),	f(StatusReg::I, 'I', '.'),	
+					f(StatusReg::N, 'N', '.'), f(StatusReg::V, 'V', '.'),	f(StatusReg::U, '-', '.'),
+					f(StatusReg::B, 'B', '.'), f(StatusReg::D, 'D', '.'),	f(StatusReg::I, 'I', '.'),
 					f(StatusReg::Z, 'Z', '.'),	f(StatusReg::C, 'C', '.'), reg.sp);
-			}
+            }
 
-			reg.pc = reg.pc.wrapping_add(1);
-			
+            reg.pc = reg.pc.wrapping_add(1);
 
-			reg.p.set(StatusReg::U, true);
-			oper(reg, &mut bus);
+            reg.p.set(StatusReg::U, true);
+            let oper = OPER[opc];
+            (prev.addr, prev.oper) = oper(reg, &mut bus);
 
-			reg.p.set(StatusReg::U, true);
+            reg.p.set(StatusReg::U, true);
 
-			// Minimum amount of cycles for a command is two once for the
-			// initial reading of the op code and another dead read (likely)
-			// to prefech the next value
-			self.cc = *bus.rw_count.borrow();
+            // Minimum amount of cycles for a command is two once for the
+            // initial reading of the op code and another dead read (likely)
+            // to prefech the next value
+            self.cc = *bus.rw_count.borrow();
 
-			{
-				log::trace!("{:>010}:{:>02X} CC:{:>02X}", self.tcc, opc, self.cc);
-			}
+            self.prev_instruct = prev;
         }
 
         self.tcc = self.tcc.wrapping_add(1);
         self.cc -= 1;
     }
 
-	/// Start/Reset Operations
-	/// An active-low reset line allows to hold the processor in a known disabled
-	/// state, while the system is initialized. As the reset line goes high, the
-	/// processor performs a start sequence of 7 cycles, at the end of which the
-	/// program counter (PC) is read from the address provided in the 16-bit reset
-	/// vector at $FFFC (LB-HB). Then, at the eighth cycle, the processor transfers
-	/// control by performing a JMP to the provided address.
-	///
-	/// Any other initializations are left to the thus executed program. (Notably,
-	/// instructions exist for the initialization and loading of all registers, but
-	/// for the program counter, which is provided by the reset vector at $FFFC.)
+    /// Start/Reset Operations
+    /// An active-low reset line allows to hold the processor in a known disabled
+    /// state, while the system is initialized. As the reset line goes high, the
+    /// processor performs a start sequence of 7 cycles, at the end of which the
+    /// program counter (PC) is read from the address provided in the 16-bit reset
+    /// vector at $FFFC (LB-HB). Then, at the eighth cycle, the processor transfers
+    /// control by performing a JMP to the provided address.
+    ///
+    /// Any other initializations are left to the thus executed program. (Notably,
+    /// instructions exist for the initialization and loading of all registers, but
+    /// for the program counter, which is provided by the reset vector at $FFFC.)
     fn reset(&mut self, bus: &mut dyn Bus) {
+        // #  address R/W description
+        // --- ------- --- -----------------------------------------------
+        // 1    PC     R  fetch opcode (and discard it - $00 (BRK) is forced into the opcode register instead)
+        // 2    PC     R  read next instruction byte (actually the same as above, since PC increment is suppressed. Also discarded.)
+        // 3  $0100,S  W  push PCH on stack, decrement S
+        // 4  $0100,S  W  push PCL on stack, decrement S
+        // *** At this point, the signal status determines which interrupt vector is used ***
+        // 5  $0100,S  W  push P on stack (with B flag *clear*), decrement S
+        // 6   A       R  fetch PCL (A = FFFE for IRQ, A = FFFA for NMI), set I flag
+        // 7   A       R  fetch PCH (A = FFFF for IRQ, A = FFFB for NMI)
+
         let lo = bus.read(RES_LO) as u16;
         let hi = bus.read(RES_HI) as u16;
 
@@ -275,32 +341,32 @@ impl Cpu for Cpu6502 {
         self.reg.sp = 0xFD;
         self.reg.p = StatusReg::U;
 
-		self.cc = 8;
+        self.cc = 7;
     }
 
-	/// A hardware interrupt (maskable IRQ and non-maskable NMI), will cause
-	/// the processor to put first the address currently in the program
-	/// counter onto the stack (in HB-LB order), followed by the value of
-	/// the status register. (The stack will now contain, seen from the
-	/// bottom or from the most recently added byte, SR PC-L PC-H with the
-	/// stack pointer pointing to the address below the stored contents of
-	/// status register.) Then, the processor will divert its control flow
-	/// to the address provided in the two word-size interrupt vectors at
-	/// $FFFA (IRQ) and $FFFE (NMI).
-	///
-	/// A set interrupt disable flag will inhibit the execution of an IRQ,
-	/// but not of a NMI, which will be executed anyways.
-	///
-	/// The break instruction (BRK) behaves like a NMI, but will push the
-	/// value of PC+2 onto the stack to be used as the return address. Also,
-	/// as with any software initiated transfer of the status register to
-	/// the stack, the break flag will be found set on the respective value
-	/// pushed onto the stack. Then, control is transferred to the address
-	/// in the NMI-vector at $FFFE.
-	///
-	/// In any way, the interrupt disable flag is set to inhibit any further
-	/// IRQ as control is transferred to the interrupt handler specified by
-	/// the respective interrupt vector.
+    /// A hardware interrupt (maskable IRQ and non-maskable NMI), will cause
+    /// the processor to put first the address currently in the program
+    /// counter onto the stack (in HB-LB order), followed by the value of
+    /// the status register. (The stack will now contain, seen from the
+    /// bottom or from the most recently added byte, SR PC-L PC-H with the
+    /// stack pointer pointing to the address below the stored contents of
+    /// status register.) Then, the processor will divert its control flow
+    /// to the address provided in the two word-size interrupt vectors at
+    /// $FFFA (IRQ) and $FFFE (NMI).
+    ///
+    /// A set interrupt disable flag will inhibit the execution of an IRQ,
+    /// but not of a NMI, which will be executed anyways.
+    ///
+    /// The break instruction (BRK) behaves like a NMI, but will push the
+    /// value of PC+2 onto the stack to be used as the return address. Also,
+    /// as with any software initiated transfer of the status register to
+    /// the stack, the break flag will be found set on the respective value
+    /// pushed onto the stack. Then, control is transferred to the address
+    /// in the NMI-vector at $FFFE.
+    ///
+    /// In any way, the interrupt disable flag is set to inhibit any further
+    /// IRQ as control is transferred to the interrupt handler specified by
+    /// the respective interrupt vector.
     fn irq(&mut self, bus: &mut dyn Bus) {
         if self.reg.p.get(StatusReg::I) == 0 {
             // Push the program counter to the stack. It's 16-bits dont
@@ -315,8 +381,8 @@ impl Cpu for Cpu6502 {
             // Push flags indicating that there was an interupt
             let mut p = self.reg.p;
             p.set(StatusReg::B, false)
-            .set(StatusReg::U, true)
-            .set(StatusReg::I, true);
+                .set(StatusReg::U, true)
+                .set(StatusReg::I, true);
             self.reg.p = p;
             bus.write(PS + sp, p.into());
             sp = sp.wrapping_sub(1);
@@ -333,29 +399,29 @@ impl Cpu for Cpu6502 {
         }
     }
 
-	/// A hardware interrupt (maskable IRQ and non-maskable NMI), will cause
-	/// the processor to put first the address currently in the program
-	/// counter onto the stack (in HB-LB order), followed by the value of
-	/// the status register. (The stack will now contain, seen from the
-	/// bottom or from the most recently added byte, SR PC-L PC-H with the
-	/// stack pointer pointing to the address below the stored contents of
-	/// status register.) Then, the processor will divert its control flow
-	/// to the address provided in the two word-size interrupt vectors at
-	/// $FFFA (IRQ) and $FFFE (NMI).
-	///
-	/// A set interrupt disable flag will inhibit the execution of an IRQ,
-	/// but not of a NMI, which will be executed anyways.
-	///
-	/// The break instruction (BRK) behaves like a NMI, but will push the
-	/// value of PC+2 onto the stack to be used as the return address. Also,
-	/// as with any software initiated transfer of the status register to
-	/// the stack, the break flag will be found set on the respective value
-	/// pushed onto the stack. Then, control is transferred to the address
-	/// in the NMI-vector at $FFFE.
-	///
-	/// In any way, the interrupt disable flag is set to inhibit any further
-	/// IRQ as control is transferred to the interrupt handler specified by
-	/// the respective interrupt vector.
+    /// A hardware interrupt (maskable IRQ and non-maskable NMI), will cause
+    /// the processor to put first the address currently in the program
+    /// counter onto the stack (in HB-LB order), followed by the value of
+    /// the status register. (The stack will now contain, seen from the
+    /// bottom or from the most recently added byte, SR PC-L PC-H with the
+    /// stack pointer pointing to the address below the stored contents of
+    /// status register.) Then, the processor will divert its control flow
+    /// to the address provided in the two word-size interrupt vectors at
+    /// $FFFA (IRQ) and $FFFE (NMI).
+    ///
+    /// A set interrupt disable flag will inhibit the execution of an IRQ,
+    /// but not of a NMI, which will be executed anyways.
+    ///
+    /// The break instruction (BRK) behaves like a NMI, but will push the
+    /// value of PC+2 onto the stack to be used as the return address. Also,
+    /// as with any software initiated transfer of the status register to
+    /// the stack, the break flag will be found set on the respective value
+    /// pushed onto the stack. Then, control is transferred to the address
+    /// in the NMI-vector at $FFFE.
+    ///
+    /// In any way, the interrupt disable flag is set to inhibit any further
+    /// IRQ as control is transferred to the interrupt handler specified by
+    /// the respective interrupt vector.
     fn nmi(&mut self, bus: &mut dyn Bus) {
         // Push the program counter to the stack. It's 16-bits dont
         // forget so that takes two pushes
@@ -369,8 +435,8 @@ impl Cpu for Cpu6502 {
         // Push flags indicating that there was an interupt
         let mut p = self.reg.p;
         p.set(StatusReg::B, false)
-        .set(StatusReg::U, true)
-        .set(StatusReg::I, true);
+            .set(StatusReg::U, true)
+            .set(StatusReg::I, true);
         self.reg.p = p;
         bus.write(PS + sp, p.into());
         sp = sp.wrapping_sub(1);
@@ -397,14 +463,46 @@ impl CpuDisplay for Cpu6502 {
                 };
 
                 ui.label(RichText::new("Status: ").font(DIAGNOSTIC_FONT));
-                ui.label(RichText::new("N").color(f(StatusReg::N)).font(DIAGNOSTIC_FONT));
-                ui.label(RichText::new("V").color(f(StatusReg::V)).font(DIAGNOSTIC_FONT));
-                ui.label(RichText::new("U").color(f(StatusReg::U)).font(DIAGNOSTIC_FONT));
-                ui.label(RichText::new("B").color(f(StatusReg::B)).font(DIAGNOSTIC_FONT));
-                ui.label(RichText::new("D").color(f(StatusReg::D)).font(DIAGNOSTIC_FONT));
-                ui.label(RichText::new("I").color(f(StatusReg::I)).font(DIAGNOSTIC_FONT));
-                ui.label(RichText::new("Z").color(f(StatusReg::Z)).font(DIAGNOSTIC_FONT));
-                ui.label(RichText::new("C").color(f(StatusReg::C)).font(DIAGNOSTIC_FONT));
+                ui.label(
+                    RichText::new("N")
+                        .color(f(StatusReg::N))
+                        .font(DIAGNOSTIC_FONT),
+                );
+                ui.label(
+                    RichText::new("V")
+                        .color(f(StatusReg::V))
+                        .font(DIAGNOSTIC_FONT),
+                );
+                ui.label(
+                    RichText::new("U")
+                        .color(f(StatusReg::U))
+                        .font(DIAGNOSTIC_FONT),
+                );
+                ui.label(
+                    RichText::new("B")
+                        .color(f(StatusReg::B))
+                        .font(DIAGNOSTIC_FONT),
+                );
+                ui.label(
+                    RichText::new("D")
+                        .color(f(StatusReg::D))
+                        .font(DIAGNOSTIC_FONT),
+                );
+                ui.label(
+                    RichText::new("I")
+                        .color(f(StatusReg::I))
+                        .font(DIAGNOSTIC_FONT),
+                );
+                ui.label(
+                    RichText::new("Z")
+                        .color(f(StatusReg::Z))
+                        .font(DIAGNOSTIC_FONT),
+                );
+                ui.label(
+                    RichText::new("C")
+                        .color(f(StatusReg::C))
+                        .font(DIAGNOSTIC_FONT),
+                );
             });
 
             ui.vertical(|ui| {

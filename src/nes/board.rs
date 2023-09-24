@@ -1,5 +1,5 @@
 use std::{
-    cell::{RefCell, Ref},
+    cell::{Ref, RefCell},
     ops::{AddAssign, RangeInclusive},
     rc::{Rc, Weak},
 };
@@ -13,7 +13,7 @@ use crate::{
     motherboard::Motherboard,
 };
 
-use super::{Cartridge as Cart, Cpu6502, Ppu2C02, RangeRWCpuBus};
+use super::{cpu6502, Cartridge as Cart, Cpu6502, Ppu2C02, RangeRWCpuBus};
 
 /// Bytes, Words, Addressing
 /// 8 bit bytes, 16 bit words in lobyte-hibyte representation (Little-Endian).
@@ -259,7 +259,7 @@ impl Board {
     }
 
     #[allow(unused)]
-    pub fn pc(&mut self, addr: Addr)  {
+    pub fn pc(&mut self, addr: Addr) {
         self.cpu.borrow_mut().reg.pc = addr;
     }
 
@@ -269,11 +269,33 @@ impl Board {
     }
 
     #[allow(unused)]
+    pub fn instruction_state(&self) -> ((u16, u16), cpu6502::InstructionState) {
+        let x = self.ppu.borrow().cycle;
+        let y = self.ppu.borrow().scanline;
+        let last_cpu = self.cpu.borrow().prev_instruct;
+        ((x, y), last_cpu)
+    }
+
+    #[allow(unused)]
     pub fn run_until(&mut self, addr: Addr) {
         let mut pc = self.cpu.borrow().reg.pc;
         while pc != addr {
             self.clock();
             pc = self.cpu.borrow().reg.pc
+        }
+    }
+
+    #[allow(unused)]
+    pub fn run_pc(&mut self, addr: Addr) {
+        while self.cpu().cc != 0 {
+            self.clock();
+        }
+        self.pc(addr);
+        while self.cpu().cc == 0 {
+            self.clock();
+        }
+        while self.cpu().cc != 0 {
+            self.clock();
         }
     }
 
@@ -312,9 +334,7 @@ impl Bus for Board {
 impl Motherboard for Board {
     fn clock(&mut self) {
         // PPU runs once every 4 master clock cycles
-        self.ppu
-            .borrow_mut()
-            .clock(&mut self.bus);
+        self.ppu.borrow_mut().clock(&mut self.bus);
 
         // CPU runs once every 12 master clock cycles
         if self.tcc % 3 == 0 {

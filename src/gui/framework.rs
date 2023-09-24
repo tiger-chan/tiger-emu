@@ -6,7 +6,7 @@ use winit::window::Window;
 
 use crate::motherboard::Motherboard;
 
-use super::{CpuDisplay, Gui, MemoryDisplay, PpuDisplay, BoardCommand};
+use super::{BoardCommand, CpuDisplay, Gui, MemoryDisplay, PpuDisplay};
 
 /// Manages all state required for rendering egui over `Pixels`.
 pub(crate) struct Framework {
@@ -76,8 +76,12 @@ impl Framework {
     }
 
     /// Prepare egui.
-    pub(crate) fn prepare<TMotherBoard>(&mut self, window: &Window, run_emu: &mut bool, board: &mut TMotherBoard)
-    where
+    pub(crate) fn prepare<TMotherBoard>(
+        &mut self,
+        window: &Window,
+        run_emu: &mut bool,
+        board: &mut TMotherBoard,
+    ) where
         TMotherBoard: Motherboard + BoardCommand + MemoryDisplay + CpuDisplay + PpuDisplay,
     {
         // Run the egui frame and create all paint jobs to prepare for rendering.

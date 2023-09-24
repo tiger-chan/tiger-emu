@@ -3,7 +3,7 @@
 use core::fmt;
 
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Instruction {
     /// add with carry
     ADC,
@@ -120,7 +120,7 @@ pub enum Instruction {
 
     /// ILLEGAL
     XXX,
-	JAM,
+    JAM,
 }
 
 impl fmt::Display for Instruction {
