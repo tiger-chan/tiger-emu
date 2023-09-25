@@ -5,6 +5,13 @@ pub struct Nes {
     cpu: CpuRef<CpuBus>,
 }
 
+impl Nes {
+    #[allow(unused)]
+    pub fn new() -> Self {
+        Nes::default()
+    }
+}
+
 // impl  for Nes {
 //     fn default() -> Self {
 //         Self {

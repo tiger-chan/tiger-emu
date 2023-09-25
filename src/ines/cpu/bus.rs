@@ -10,10 +10,16 @@ pub struct Bus {
     ram: [Byte; CPU_RAM],
 }
 
+impl Bus {
+    pub fn new() -> Self {
+        Self { ram: [0; CPU_RAM] }
+    }
+}
+
 impl ReadDevice for Bus {
     fn read(&self, addr: Word) -> Byte {
         match addr {
-            CPU_MIRROR => self.ram[(addr & CPU_RAM_MASK) as usize],
+            0x0000..=CPU_MIRROR => self.ram[(addr & CPU_RAM_MASK) as usize],
             _ => unimplemented!(),
         }
     }
@@ -22,7 +28,7 @@ impl ReadDevice for Bus {
 impl WriteDevice for Bus {
     fn write(&mut self, addr: Word, data: Byte) {
         match addr {
-            CPU_MIRROR => self.ram[(addr & CPU_RAM_MASK) as usize] = data,
+            0x0000..=CPU_MIRROR => self.ram[(addr & CPU_RAM_MASK) as usize] = data,
             _ => unimplemented!(),
         }
     }
