@@ -4,6 +4,7 @@ mod cpu;
 mod gui;
 mod motherboard;
 mod nes;
+mod ines;
 mod ppu_bus;
 
 use std::path::Path;
