@@ -3,7 +3,7 @@ mod instruction;
 mod registers;
 mod status_reg;
 
-use std::{borrow::BorrowMut, cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 pub use bus::Bus;
 pub use registers::Registers;
