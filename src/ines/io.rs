@@ -12,4 +12,5 @@ pub trait WriteDevice {
 
 pub trait RwDevice: ReadDevice + WriteDevice {}
 
+#[allow(dead_code)]
 pub type RwDeviceRef = Rc<RefCell<dyn RwDevice>>;

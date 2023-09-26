@@ -134,14 +134,14 @@ pub mod addr {
         0
     }
 
-    fn ind_02(reg: &mut Registers, bus: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+    fn ind_02(_: &mut Registers, bus: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
         let ptr = state.addr;
         let lo = bus.read(ptr) as Word;
         state.tmp = lo;
         0
     }
 
-    fn ind_03(reg: &mut Registers, bus: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+    fn ind_03(_: &mut Registers, bus: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
         let ptr = state.addr;
         let lo = state.tmp;
 
@@ -843,12 +843,12 @@ pub mod act {
         0
     }
 
-    fn brk_02(reg: &mut Registers, bus: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+    fn brk_02(reg: &mut Registers, bus: &mut dyn RwDevice, _: &mut InstructionState) -> i8 {
         bus.read(reg.pc);
         0
     }
 
-    fn brk_03(reg: &mut Registers, bus: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+    fn brk_03(reg: &mut Registers, bus: &mut dyn RwDevice, _: &mut InstructionState) -> i8 {
         bus.write(PS.wrapping_add(reg.sp as Word), (reg.pc >> 8) as Byte);
         reg.sp = reg.sp.wrapping_sub(1);
         0
@@ -865,7 +865,7 @@ pub mod act {
         0
     }
 
-    fn brk_05(reg: &mut Registers, bus: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+    fn brk_05(reg: &mut Registers, bus: &mut dyn RwDevice, _: &mut InstructionState) -> i8 {
         let p = reg.p | Status::B;
         bus.write(PS.wrapping_add(reg.sp as Word), p.into());
         reg.sp = reg.sp.wrapping_sub(1);
@@ -1008,7 +1008,7 @@ pub mod act {
 
     steps! {DEC [dec]}
 
-    fn dex(reg: &mut Registers, bus: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+    fn dex(reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
         reg.x = reg.x.wrapping_sub(1);
 
         reg.p
@@ -1021,7 +1021,7 @@ pub mod act {
 
     steps! {DEX [dex]}
 
-    fn dey(reg: &mut Registers, bus: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+    fn dey(reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
         reg.y = reg.y.wrapping_sub(1);
 
         reg.p
@@ -1065,7 +1065,7 @@ pub mod act {
 
     steps! {INC [inc]}
 
-    fn inx(reg: &mut Registers, bus: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+    fn inx(reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
         reg.x = reg.x.wrapping_add(1);
 
         reg.p
@@ -1078,7 +1078,7 @@ pub mod act {
 
     steps! {INX [inx]}
 
-    fn iny(reg: &mut Registers, bus: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+    fn iny(reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
         reg.y = reg.y.wrapping_add(1);
 
         reg.p
@@ -1091,7 +1091,7 @@ pub mod act {
 
     steps! {INY [iny]}
 
-    fn jmp(reg: &mut Registers, bus: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+    fn jmp(reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
         reg.pc = state.addr;
 
         state.oper = OperData::None;
@@ -1186,7 +1186,7 @@ pub mod act {
 
     steps! {LSR [lsr]}
 
-    fn nop(reg: &mut Registers, bus: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+    fn nop(_: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
         state.oper = OperData::None;
         0
     }
@@ -1245,6 +1245,17 @@ pub mod act {
     }
 
     steps! {PLA [pla]}
+
+    fn plp(reg: &mut Registers, bus: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+        let sp = (reg.sp.wrapping_add(1)) as Word;
+        reg.p = Status::from(bus.read(PS.wrapping_add(sp))) | Status::U;
+        reg.sp = sp as Byte;
+
+        state.oper = OperData::None;
+        0
+    }
+
+    steps! {PLP [plp]}
 
     fn rol(reg: &mut Registers, bus: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
         let addr = state.addr;
@@ -1350,19 +1361,1919 @@ pub mod act {
     }
 
     steps! {SBC [sbc]}
+
+    fn sec(reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+        reg.p.set(Status::C, true);
+        state.oper = OperData::None;
+        0
+    }
+
+    steps! {SEC [sec]}
+
+    fn sed(reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+        reg.p.set(Status::D, true);
+        state.oper = OperData::None;
+        0
+    }
+
+    steps! {SED [sed]}
+
+    fn sei(reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+        reg.p.set(Status::I, true);
+        state.oper = OperData::None;
+        0
+    }
+
+    steps! {SEI [sei]}
+
+    fn sta(reg: &mut Registers, bus: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+        bus.write(state.addr, reg.ac);
+        state.oper = OperData::None;
+        0
+    }
+
+    steps! {STA [sta]}
+
+    fn stx(reg: &mut Registers, bus: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+        bus.write(state.addr, reg.x);
+        state.oper = OperData::None;
+        0
+    }
+
+    steps! {STX [stx]}
+
+    fn sty(reg: &mut Registers, bus: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+        bus.write(state.addr, reg.y);
+        state.oper = OperData::None;
+        0
+    }
+
+    steps! {STY [sty]}
+
+    fn tax(reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+        reg.x = reg.ac;
+        reg.p
+            .set(Status::Z, is_zero!(reg.x))
+            .set(Status::N, is_neg!(reg.x));
+        state.oper = OperData::None;
+        0
+    }
+
+    steps! {TAX [tax]}
+
+    fn tay(reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+        reg.y = reg.ac;
+        reg.p
+            .set(Status::Z, is_zero!(reg.y))
+            .set(Status::N, is_neg!(reg.y));
+        state.oper = OperData::None;
+        0
+    }
+
+    steps! {TAY [tay]}
+
+    fn tsx(reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+        reg.x = reg.sp;
+        reg.p
+            .set(Status::Z, is_zero!(reg.x))
+            .set(Status::N, is_neg!(reg.x));
+        state.oper = OperData::None;
+        0
+    }
+
+    steps! {TSX [tsx]}
+
+    fn txa(reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+        reg.ac = reg.x;
+        reg.p
+            .set(Status::Z, is_zero!(reg.ac))
+            .set(Status::N, is_neg!(reg.ac));
+        state.oper = OperData::None;
+        0
+    }
+
+    steps! {TXA [txa]}
+
+    fn txs(reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+        reg.sp = reg.x;
+        state.oper = OperData::None;
+        0
+    }
+
+    steps! {TXS [txs]}
+
+    fn tya(reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+        reg.ac = reg.y;
+        reg.p
+            .set(Status::Z, is_zero!(reg.ac))
+            .set(Status::N, is_neg!(reg.ac));
+        state.oper = OperData::None;
+        0
+    }
+
+    steps! {TYA [tya]}
+
+    // Illegal op codes
+
+    fn jam(_: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+        // repeatedly perform this action, effectively halt the cpu until a
+        // hardware reset is performed
+        state.oper = OperData::None;
+        -1
+    }
+
+    steps! {JAM [jam]}
 }
 
 macro_rules! make_instruction {
-    ([$opc:tt, $ami:tt, $inst:tt] $op:tt $($am:tt)*) => {
-        #[allow(dead_code)]
+    // ([$opc:tt, $ami:tt, $inst:tt] $op:tt $($am:tt)*) => {
+    //     #[allow(dead_code)]
+    //     fn $opc() -> InstructionIterator {
+    //         let addr = addr_mode![$($am)*];
+    //         let work = &act::$op;
+    //         InstructionIterator::new(&addr, work)
+    //     }
+
+    //     am_const!([$ami] $($am)*);
+    //     #[allow(dead_code)]
+    //     pub const $inst: OperType = OperType::$op;
+    // };
+
+    ([$opc:tt, $ami:tt, $inst:tt] ADC $($am:tt)*) => {
+        /// # ADC
+		/// Add Memory to Accumulator with Carry
+		///```text
+		/// A + M + C -> A, C                 N  Z  C  I  D  V
+		///                                   +  +  +  -  -  +
+		/// addressing   assembler       opc    bytes    cycles
+		/// immediate    ADC #oper       69     2        2
+		/// zeropage     ADC oper        65     2        3
+		/// zeropage,X   ADC oper,X      75     2        4
+		/// absolute     ADC oper        6D     3        4
+		/// absolute,X   ADC oper,X      7D     3        4*
+		/// absolute,Y   ADC oper,Y      79     3        4*
+		/// (indirect,X) ADC (oper,X)    61     2        6
+		/// (indirect),Y ADC (oper),Y    71     2        5*
+		/// ```
         fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
-            let work = &act::$op;
+            let work = &act::ADC;
             InstructionIterator::new(&addr, work)
         }
 
         am_const!([$ami] $($am)*);
-        pub const $inst: OperType = OperType::$op;
+        /// # ADC
+		/// Add Memory to Accumulator with Carry
+		///```text
+		/// A + M + C -> A, C                 N  Z  C  I  D  V
+		///                                   +  +  +  -  -  +
+		/// addressing   assembler       opc    bytes    cycles
+		/// immediate    ADC #oper       69     2        2
+		/// zeropage     ADC oper        65     2        3
+		/// zeropage,X   ADC oper,X      75     2        4
+		/// absolute     ADC oper        6D     3        4
+		/// absolute,X   ADC oper,X      7D     3        4*
+		/// absolute,Y   ADC oper,Y      79     3        4*
+		/// (indirect,X) ADC (oper,X)    61     2        6
+		/// (indirect),Y ADC (oper),Y    71     2        5*
+		/// ```
+        pub const $inst: OperType = OperType::ADC;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] AND $($am:tt)*) => {
+        /// AND
+		/// AND Memory with Accumulator
+		///```text
+		/// A AND M -> A                      N  Z  C  I  D  V
+		///                                   +  +  -  -  -  -
+		/// addressing   assembler       opc     bytes   cycles
+		/// immediate    AND #oper       29      2       2
+		/// zeropage     AND oper        25      2       3
+		/// zeropage,X   AND oper,X      35      2       4
+		/// absolute     AND oper        2D      3       4
+		/// absolute,X   AND oper,X      3D      3       4*
+		/// absolute,Y   AND oper,Y      39      3       4*
+		/// (indirect,X) AND (oper,X)    21      2       6
+		/// (indirect),Y AND (oper),Y    31      2       5*
+		/// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::AND;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// AND
+		/// AND Memory with Accumulator
+		///```text
+		/// A AND M -> A                      N  Z  C  I  D  V
+		///                                   +  +  -  -  -  -
+		/// addressing   assembler       opc     bytes   cycles
+		/// immediate    AND #oper       29      2       2
+		/// zeropage     AND oper        25      2       3
+		/// zeropage,X   AND oper,X      35      2       4
+		/// absolute     AND oper        2D      3       4
+		/// absolute,X   AND oper,X      3D      3       4*
+		/// absolute,Y   AND oper,Y      39      3       4*
+		/// (indirect,X) AND (oper,X)    21      2       6
+		/// (indirect),Y AND (oper),Y    31      2       5*
+		/// ```
+        pub const $inst: OperType = OperType::AND;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] ASL $($am:tt)*) => {
+        //// ASL
+        /// Shift Left One Bit (Memory or Accumulator)
+        ///```text
+        /// C <- [76543210] <- 0              N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// accumulator  ASL A           0A      1       2
+        /// zeropage     ASL oper        06      2       5
+        /// zeropage,X   ASL oper,X      16      2       6
+        /// absolute     ASL oper        0E      3       6
+        /// absolute,X   ASL oper,X      1E      3       7
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::ASL;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        //// ASL
+        /// Shift Left One Bit (Memory or Accumulator)
+        ///```text
+        /// C <- [76543210] <- 0              N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// accumulator  ASL A           0A      1       2
+        /// zeropage     ASL oper        06      2       5
+        /// zeropage,X   ASL oper,X      16      2       6
+        /// absolute     ASL oper        0E      3       6
+        /// absolute,X   ASL oper,X      1E      3       7
+        /// ```
+        pub const $inst: OperType = OperType::ASL;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] BCC $($am:tt)*) => {
+        /// BCC
+        /// Branch on Carry Clear
+        ///```text
+        /// branch on C = 0                   N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// relative     BCC oper        90      2       2**
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::BCC;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// BCC
+        /// Branch on Carry Clear
+        ///```text
+        /// branch on C = 0                   N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// relative     BCC oper        90      2       2**
+        /// ```
+        pub const $inst: OperType = OperType::BCC;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] BCS $($am:tt)*) => {
+        /// BCS
+        /// Branch on Carry Set
+        ///```text
+        /// branch on C = 1                         N Z C I D V
+        ///                                         - - - - - -
+        /// addressing   assembler       opc     bytes   cycles
+        /// relative     BCS oper        B0      2       2**
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::BCS;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// BCS
+        /// Branch on Carry Set
+        ///```text
+        /// branch on C = 1                         N Z C I D V
+        ///                                         - - - - - -
+        /// addressing   assembler       opc     bytes   cycles
+        /// relative     BCS oper        B0      2       2**
+        /// ```
+        pub const $inst: OperType = OperType::BCS;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] BEQ $($am:tt)*) => {
+       /// BEQ
+        /// Branch on Result Zero
+        ///```text
+        /// branch on Z = 1                   N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// relative     BEQ oper        F0      2       2**
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::BEQ;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// BEQ
+        /// Branch on Result Zero
+        ///```text
+        /// branch on Z = 1                   N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// relative     BEQ oper        F0      2       2**
+        /// ```
+        pub const $inst: OperType = OperType::BEQ;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] BIT $($am:tt)*) => {
+        /// BIT
+        /// Test Bits in Memory with Accumulator
+        ///
+        /// bits 7 and 6 of operand are transfered to bit 7 and 6 of SR (N,V);
+        /// the zero-flag is set according to the result of the operand AND
+        /// the accumulator (set, if the result is zero, unset otherwise).
+        /// This allows a quick check of a few bits at once without affecting
+        /// any of the registers, other than the status register (SR).
+        ///```text
+        /// A AND M, M7 -> N, M6 -> V         N  Z  C  I  D  V
+        ///                                   M7 +  -  -  -  M6
+        /// addressing   assembler       opc     bytes   cycles
+        /// zeropage     BIT oper        24      2       3
+        /// absolute     BIT oper        2C      3       4
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::BIT;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// BIT
+        /// Test Bits in Memory with Accumulator
+        ///
+        /// bits 7 and 6 of operand are transfered to bit 7 and 6 of SR (N,V);
+        /// the zero-flag is set according to the result of the operand AND
+        /// the accumulator (set, if the result is zero, unset otherwise).
+        /// This allows a quick check of a few bits at once without affecting
+        /// any of the registers, other than the status register (SR).
+        ///```text
+        /// A AND M, M7 -> N, M6 -> V         N  Z  C  I  D  V
+        ///                                   M7 +  -  -  -  M6
+        /// addressing   assembler       opc     bytes   cycles
+        /// zeropage     BIT oper        24      2       3
+        /// absolute     BIT oper        2C      3       4
+        /// ```
+        pub const $inst: OperType = OperType::BIT;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] BMI $($am:tt)*) => {
+        /// BMI
+        /// Branch on Result Minus
+        ///```text
+        /// branch on N = 1                   N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// relative     BMI oper        30      2       2**
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::BMI;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// BMI
+        /// Branch on Result Minus
+        ///```text
+        /// branch on N = 1                   N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// relative     BMI oper        30      2       2**
+        /// ```
+        pub const $inst: OperType = OperType::BMI;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] BNE $($am:tt)*) => {
+        /// BNE
+        /// Branch on Result not Zero
+        ///```text
+        /// branch on Z = 0                   N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// relative     BNE oper        D0      2       2**
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::BNE;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// BNE
+        /// Branch on Result not Zero
+        ///```text
+        /// branch on Z = 0                   N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// relative     BNE oper        D0      2       2**
+        /// ```
+        pub const $inst: OperType = OperType::BNE;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] BPL $($am:tt)*) => {
+        /// BPL
+        /// Branch on Result Plus
+        ///```text
+        /// branch on N = 0                   N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// relative     BPL oper        10      2       2**
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::BPL;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// BPL
+        /// Branch on Result Plus
+        ///```text
+        /// branch on N = 0                   N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// relative     BPL oper        10      2       2**
+        /// ```
+        pub const $inst: OperType = OperType::BPL;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] BRK $($am:tt)*) => {
+        /// BRK
+		/// Force Break
+		///
+		/// BRK initiates a software interrupt similar to a hardware
+		/// interrupt (IRQ). The return address pushed to the stack is
+		/// PC+2, providing an extra byte of spacing for a break mark
+		/// (identifying a reason for the break.)
+		/// The status register will be pushed to the stack with the break
+		/// flag set to 1. However, when retrieved during RTI or by a PLP
+		/// instruction, the break flag will be ignored.
+		/// The interrupt disable flag is not set automatically.
+		///```text
+		/// interrupt,                        N  Z  C  I  D  V
+		/// push PC+2, push SR                -  -  -  1  -  -
+		/// addressing   assembler       opc     bytes   cycles
+		/// implied      BRK             00      1       7
+		/// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::BRK;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// BRK
+		/// Force Break
+		///
+		/// BRK initiates a software interrupt similar to a hardware
+		/// interrupt (IRQ). The return address pushed to the stack is
+		/// PC+2, providing an extra byte of spacing for a break mark
+		/// (identifying a reason for the break.)
+		/// The status register will be pushed to the stack with the break
+		/// flag set to 1. However, when retrieved during RTI or by a PLP
+		/// instruction, the break flag will be ignored.
+		/// The interrupt disable flag is not set automatically.
+		///```text
+		/// interrupt,                        N  Z  C  I  D  V
+		/// push PC+2, push SR                -  -  -  1  -  -
+		/// addressing   assembler       opc     bytes   cycles
+		/// implied      BRK             00      1       7
+		/// ```
+        pub const $inst: OperType = OperType::BRK;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] BVC $($am:tt)*) => {
+        /// BVC
+		/// Branch on Overflow Clear
+		///```text
+		/// branch on V = 0                   N  Z  C  I  D  V
+		///                                   -  -  -  -  -  -
+		/// addressing   assembler       opc     bytes   cycles
+		/// relative     BVC oper        50      2       2**
+		/// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::BVC;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// BVC
+		/// Branch on Overflow Clear
+		///```text
+		/// branch on V = 0                   N  Z  C  I  D  V
+		///                                   -  -  -  -  -  -
+		/// addressing   assembler       opc     bytes   cycles
+		/// relative     BVC oper        50      2       2**
+		/// ```
+        pub const $inst: OperType = OperType::BVC;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] BVS $($am:tt)*) => {
+        /// BVS
+		/// Branch on Overflow Set
+		///```text
+		/// branch on V = 1                   N  Z  C  I  D  V
+		///                                   -  -  -  -  -  -
+		/// addressing   assembler       opc     bytes   cycles
+		/// relative     BVS oper        70      2       2**
+		/// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::BVS;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// BVS
+		/// Branch on Overflow Set
+		///```text
+		/// branch on V = 1                   N  Z  C  I  D  V
+		///                                   -  -  -  -  -  -
+		/// addressing   assembler       opc     bytes   cycles
+		/// relative     BVS oper        70      2       2**
+		/// ```
+        pub const $inst: OperType = OperType::BVS;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] CLC $($am:tt)*) => {
+        /// CLC
+        /// Clear Carry Flag
+        ///```text
+        /// 0 -> C                            N  Z  C  I  D  V
+        ///                                   -  -  0  -  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// implied      CLC             18      1       2
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::CLC;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// CLC
+        /// Clear Carry Flag
+        ///```text
+        /// 0 -> C                            N  Z  C  I  D  V
+        ///                                   -  -  0  -  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// implied      CLC             18      1       2
+        /// ```
+        pub const $inst: OperType = OperType::CLC;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] CLD $($am:tt)*) => {
+        /// CLD
+        /// Clear Decimal Mode
+        ///```text
+        /// 0 -> D                            N  Z  C  I  D  V
+        ///                                   -  -  -  -  0  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// implied      CLD             D8      1       2
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::CLD;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// CLD
+        /// Clear Decimal Mode
+        ///```text
+        /// 0 -> D                            N  Z  C  I  D  V
+        ///                                   -  -  -  -  0  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// implied      CLD             D8      1       2
+        /// ```
+        pub const $inst: OperType = OperType::CLD;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] CLI $($am:tt)*) => {
+        /// CLI
+        /// Clear Interrupt Disable Bit
+        ///```text
+        /// 0 -> I                            N  Z  C  I  D  V
+        ///                                   -  -  -  0  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// implied      CLI             58      1       2
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::CLI;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// CLI
+        /// Clear Interrupt Disable Bit
+        ///```text
+        /// 0 -> I                            N  Z  C  I  D  V
+        ///                                   -  -  -  0  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// implied      CLI             58      1       2
+        /// ```
+        pub const $inst: OperType = OperType::CLI;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] CLV $($am:tt)*) => {
+        /// CLV
+        /// Clear Interrupt Disable Bit
+        ///```text
+        /// 0 -> I                            N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  0
+        /// addressing   assembler       opc     bytes   cycles
+        /// implied      CLV             B8      1       2
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::CLV;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// CLV
+        /// Clear Interrupt Disable Bit
+        ///```text
+        /// 0 -> I                            N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  0
+        /// addressing   assembler       opc     bytes   cycles
+        /// implied      CLV             B8      1       2
+        /// ```
+        pub const $inst: OperType = OperType::CLV;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] CMP $($am:tt)*) => {
+        /// CMP
+        /// Compare Memory with Accumulator
+        ///```text
+        /// A - M                             N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// immediate    CMP #oper       C9      2       2
+        /// zeropage     CMP oper        C5      2       3
+        /// zeropage,X   CMP oper,X      D5      2       4
+        /// absolute     CMP oper        CD      3       4
+        /// absolute,X   CMP oper,X      DD      3       4*
+        /// absolute,Y   CMP oper,Y      D9      3       4*
+        /// (indirect,X) CMP (oper,X)    C1      2       6
+        /// (indirect),Y CMP (oper),Y    D1      2       5*
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::CMP;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// CMP
+        /// Compare Memory with Accumulator
+        ///```text
+        /// A - M                             N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// immediate    CMP #oper       C9      2       2
+        /// zeropage     CMP oper        C5      2       3
+        /// zeropage,X   CMP oper,X      D5      2       4
+        /// absolute     CMP oper        CD      3       4
+        /// absolute,X   CMP oper,X      DD      3       4*
+        /// absolute,Y   CMP oper,Y      D9      3       4*
+        /// (indirect,X) CMP (oper,X)    C1      2       6
+        /// (indirect),Y CMP (oper),Y    D1      2       5*
+        /// ```
+        pub const $inst: OperType = OperType::CMP;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] CPX $($am:tt)*) => {
+        /// CPX
+        /// Compare Memory and Index X
+        ///```text
+        /// X - M                             N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// immediate    CPX #oper       E0      2       2
+        /// zeropage     CPX oper        E4      2       3
+        /// absolute     CPX oper        EC      3       4
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::CPX;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// CPX
+        /// Compare Memory and Index X
+        ///```text
+        /// X - M                             N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// immediate    CPX #oper       E0      2       2
+        /// zeropage     CPX oper        E4      2       3
+        /// absolute     CPX oper        EC      3       4
+        /// ```
+        pub const $inst: OperType = OperType::CPX;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] CPY $($am:tt)*) => {
+        /// CPY
+        /// Compare Memory and Index Y
+        ///```text
+        /// Y - M                             N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// immediate    CPY #oper       C0      2       2
+        /// zeropage     CPY oper        C4      2       3
+        /// absolute     CPY oper        CC      3       4
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::CPY;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// CPY
+        /// Compare Memory and Index Y
+        ///```text
+        /// Y - M                             N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// immediate    CPY #oper       C0      2       2
+        /// zeropage     CPY oper        C4      2       3
+        /// absolute     CPY oper        CC      3       4
+        /// ```
+        pub const $inst: OperType = OperType::CPY;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] DEC $($am:tt)*) => {
+        /// DEC
+        /// Decrement Memory by One
+        ///```text
+        /// M - 1 -> M                        N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// zeropage     DEC oper        C6      2       5
+        /// zeropage,X   DEC oper,X      D6      2       6
+        /// absolute     DEC oper        CE      3       6
+        /// absolute,X   DEC oper,X      DE      3       7
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::DEC;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// DEC
+        /// Decrement Memory by One
+        ///```text
+        /// M - 1 -> M                        N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// zeropage     DEC oper        C6      2       5
+        /// zeropage,X   DEC oper,X      D6      2       6
+        /// absolute     DEC oper        CE      3       6
+        /// absolute,X   DEC oper,X      DE      3       7
+        /// ```
+        pub const $inst: OperType = OperType::DEC;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] DEX $($am:tt)*) => {
+        /// DEX
+        /// Decrement Index X by One
+        ///```text
+        /// X - 1 -> X                        N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// implied      DEX             CA      1       2
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::DEX;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// DEX
+        /// Decrement Index X by One
+        ///```text
+        /// X - 1 -> X                        N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// implied      DEX             CA      1       2
+        /// ```
+        pub const $inst: OperType = OperType::DEX;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] DEY $($am:tt)*) => {
+        /// DEY
+        /// Decrement Index Y by One
+        ///```text
+        /// Y - 1 -> Y                        N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// implied      DEY             88      1       2
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::DEY;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// DEY
+        /// Decrement Index Y by One
+        ///```text
+        /// Y - 1 -> Y                        N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc     bytes   cycles
+        /// implied      DEY             88      1       2
+        /// ```
+        pub const $inst: OperType = OperType::DEY;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] EOR $($am:tt)*) => {
+        /// EOR
+        /// Exclusive-OR Memory with Accumulator
+        ///```text
+        /// A EOR M -> A                      N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// immediate    EOR #oper       49     2        2
+        /// zeropage     EOR oper        45     2        3
+        /// zeropage,X   EOR oper,X      55     2        4
+        /// absolute     EOR oper        4D     3        4
+        /// absolute,X   EOR oper,X      5D     3        4*
+        /// absolute,Y   EOR oper,Y      59     3        4*
+        /// (indirect,X) EOR (oper,X)    41     2        6
+        /// (indirect),Y EOR (oper),Y    51     2        5*
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::EOR;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// EOR
+        /// Exclusive-OR Memory with Accumulator
+        ///```text
+        /// A EOR M -> A                      N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// immediate    EOR #oper       49     2        2
+        /// zeropage     EOR oper        45     2        3
+        /// zeropage,X   EOR oper,X      55     2        4
+        /// absolute     EOR oper        4D     3        4
+        /// absolute,X   EOR oper,X      5D     3        4*
+        /// absolute,Y   EOR oper,Y      59     3        4*
+        /// (indirect,X) EOR (oper,X)    41     2        6
+        /// (indirect),Y EOR (oper),Y    51     2        5*
+        /// ```
+        pub const $inst: OperType = OperType::EOR;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] INC $($am:tt)*) => {
+        /// INC
+        /// Increment Memory by One
+        ///```text
+        /// M + 1 -> M                        N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// zeropage     INC oper        E6     2        5
+        /// zeropage,X   INC oper,X      F6     2        6
+        /// absolute     INC oper        EE     3        6
+        /// absolute,X   INC oper,X      FE     3        7
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::INC;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// INC
+        /// Increment Memory by One
+        ///```text
+        /// M + 1 -> M                        N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// zeropage     INC oper        E6     2        5
+        /// zeropage,X   INC oper,X      F6     2        6
+        /// absolute     INC oper        EE     3        6
+        /// absolute,X   INC oper,X      FE     3        7
+        /// ```
+        pub const $inst: OperType = OperType::INC;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] INX $($am:tt)*) => {
+        /// INX
+        /// Increment Index X by One
+        ///```text
+        /// X + 1 -> X                        N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      INX             E8     1        2
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::INX;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// INX
+        /// Increment Index X by One
+        ///```text
+        /// X + 1 -> X                        N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      INX             E8     1        2
+        /// ```
+        pub const $inst: OperType = OperType::INX;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] INY $($am:tt)*) => {
+        /// INY
+        /// Increment Index Y by One
+        ///```text
+        /// Y + 1 -> Y                        N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      INY             C8     1        2
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::INY;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// INY
+        /// Increment Index Y by One
+        ///```text
+        /// Y + 1 -> Y                        N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      INY             C8     1        2
+        /// ```
+        pub const $inst: OperType = OperType::INY;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] JMP $($am:tt)*) => {
+        /// JMP
+        /// Jump to New Location
+        ///```text
+        /// push (PC+2),                      N  Z  C  I  D  V
+        /// (PC+1) -> PCL                     -  -  -  -  -  -
+        /// (PC+2) -> PCH
+        /// addressing   assembler       opc    bytes    cycles
+        /// absolute     JMP oper        4C     3        3
+        /// indirect     JMP (oper)      6C     3        5
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::JMP;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// JMP
+        /// Jump to New Location
+        ///```text
+        /// push (PC+2),                      N  Z  C  I  D  V
+        /// (PC+1) -> PCL                     -  -  -  -  -  -
+        /// (PC+2) -> PCH
+        /// addressing   assembler       opc    bytes    cycles
+        /// absolute     JMP oper        4C     3        3
+        /// indirect     JMP (oper)      6C     3        5
+        /// ```
+        pub const $inst: OperType = OperType::JMP;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] JSR $($am:tt)*) => {
+        /// JSR
+        /// Jump to New Location Saving Return Address
+        ///```text
+        /// push (PC+2),                      N  Z  C  I  D  V
+        /// (PC+1) -> PCL                     -  -  -  -  -  -
+        /// (PC+2) -> PCH
+        /// addressing   assembler       opc    bytes    cycles
+        /// absolute     JSR oper        20     3        6
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::JSR;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// JSR
+        /// Jump to New Location Saving Return Address
+        ///```text
+        /// push (PC+2),                      N  Z  C  I  D  V
+        /// (PC+1) -> PCL                     -  -  -  -  -  -
+        /// (PC+2) -> PCH
+        /// addressing   assembler       opc    bytes    cycles
+        /// absolute     JSR oper        20     3        6
+        /// ```
+        pub const $inst: OperType = OperType::JSR;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] LDA $($am:tt)*) => {
+        /// LDA
+        /// Load Accumulator with Memory
+        ///```text
+        /// M -> A                            N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// immediate    LDA #oper       A9     2        2
+        /// zeropage     LDA oper        A5     2        3
+        /// zeropage,X   LDA oper,X      B5     2        4
+        /// absolute     LDA oper        AD     3        4
+        /// absolute,X   LDA oper,X      BD     3        4*
+        /// absolute,Y   LDA oper,Y      B9     3        4*
+        /// (indirect,X) LDA (oper,X)    A1     2        6
+        /// (indirect),Y LDA (oper),Y    B1     2        5*
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::LDA;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// LDA
+        /// Load Accumulator with Memory
+        ///```text
+        /// M -> A                            N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// immediate    LDA #oper       A9     2        2
+        /// zeropage     LDA oper        A5     2        3
+        /// zeropage,X   LDA oper,X      B5     2        4
+        /// absolute     LDA oper        AD     3        4
+        /// absolute,X   LDA oper,X      BD     3        4*
+        /// absolute,Y   LDA oper,Y      B9     3        4*
+        /// (indirect,X) LDA (oper,X)    A1     2        6
+        /// (indirect),Y LDA (oper),Y    B1     2        5*
+        /// ```
+        pub const $inst: OperType = OperType::LDA;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] LDX $($am:tt)*) => {
+        /// LDX
+        /// Load Index X with Memory
+        ///```text
+        /// M -> X                            N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// immediate    LDX #oper       A2     2        2
+        /// zeropage     LDX oper        A6     2        3
+        /// zeropage,Y   LDX oper,Y      B6     2        4
+        /// absolute     LDX oper        AE     3        4
+        /// absolute,Y   LDX oper,Y      BE     3        4*
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::LDX;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// LDX
+        /// Load Index X with Memory
+        ///```text
+        /// M -> X                            N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// immediate    LDX #oper       A2     2        2
+        /// zeropage     LDX oper        A6     2        3
+        /// zeropage,Y   LDX oper,Y      B6     2        4
+        /// absolute     LDX oper        AE     3        4
+        /// absolute,Y   LDX oper,Y      BE     3        4*
+        /// ```
+        pub const $inst: OperType = OperType::LDX;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] LDY $($am:tt)*) => {
+        /// LDY
+        /// Load Index Y with Memory
+        ///```text
+        /// M -> Y                            N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// immediate    LDY #oper       A0     2        2
+        /// zeropage     LDY oper        A4     2        3
+        /// zeropage,X   LDY oper,X      B4     2        4
+        /// absolute     LDY oper        AC     3        4
+        /// absolute,X   LDY oper,X      BC     3        4*
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::LDY;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// LDY
+        /// Load Index Y with Memory
+        ///```text
+        /// M -> Y                            N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// immediate    LDY #oper       A0     2        2
+        /// zeropage     LDY oper        A4     2        3
+        /// zeropage,X   LDY oper,X      B4     2        4
+        /// absolute     LDY oper        AC     3        4
+        /// absolute,X   LDY oper,X      BC     3        4*
+        /// ```
+        pub const $inst: OperType = OperType::LDY;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] LSR $($am:tt)*) => {
+        /// LSR
+        /// Shift One Bit Right (Memory or Accumulator)
+        ///```text
+        /// 0 -> [76543210] -> C              N  Z  C  I  D  V
+        ///                                   0  +  +  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// accumulator  LSR A           4A     1        2
+        /// zeropage     LSR oper        46     2        5
+        /// zeropage,X   LSR oper,X      56     2        6
+        /// absolute     LSR oper        4E     3        6
+        /// absolute,X   LSR oper,X      5E     3        7
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::LSR;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// LSR
+        /// Shift One Bit Right (Memory or Accumulator)
+        ///```text
+        /// 0 -> [76543210] -> C              N  Z  C  I  D  V
+        ///                                   0  +  +  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// accumulator  LSR A           4A     1        2
+        /// zeropage     LSR oper        46     2        5
+        /// zeropage,X   LSR oper,X      56     2        6
+        /// absolute     LSR oper        4E     3        6
+        /// absolute,X   LSR oper,X      5E     3        7
+        /// ```
+        pub const $inst: OperType = OperType::LSR;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] NOP $($am:tt)*) => {
+        /// NOP
+        /// No Operation
+        ///```text
+        /// ---                               N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      NOP             EA     1        2
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::NOP;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// NOP
+        /// No Operation
+        ///```text
+        /// ---                               N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      NOP             EA     1        2
+        /// ```
+        pub const $inst: OperType = OperType::NOP;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] ORA $($am:tt)*) => {
+        /// ORA
+        /// OR Memory with Accumulator
+        ///```text
+        /// A OR M -> A                       N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// immediate    ORA #oper       09     2        2
+        /// zeropage     ORA oper        05     2        3
+        /// zeropage,X   ORA oper,X      15     2        4
+        /// absolute     ORA oper        0D     3        4
+        /// absolute,X   ORA oper,X      1D     3        4*
+        /// absolute,Y   ORA oper,Y      19     3        4*
+        /// (indirect,X) ORA (oper,X)    01     2        6
+        /// (indirect),Y ORA (oper),Y    11     2        5*
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::ORA;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// ORA
+        /// OR Memory with Accumulator
+        ///```text
+        /// A OR M -> A                       N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// immediate    ORA #oper       09     2        2
+        /// zeropage     ORA oper        05     2        3
+        /// zeropage,X   ORA oper,X      15     2        4
+        /// absolute     ORA oper        0D     3        4
+        /// absolute,X   ORA oper,X      1D     3        4*
+        /// absolute,Y   ORA oper,Y      19     3        4*
+        /// (indirect,X) ORA (oper,X)    01     2        6
+        /// (indirect),Y ORA (oper),Y    11     2        5*
+        /// ```
+        pub const $inst: OperType = OperType::ORA;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] PHA $($am:tt)*) => {
+        /// PHA
+        /// Push Accumulator on Stack
+        ///```text
+        /// push A                            N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      PHA             48     1        3
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::PHA;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// PHA
+        /// Push Accumulator on Stack
+        ///```text
+        /// push A                            N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      PHA             48     1        3
+        /// ```
+        pub const $inst: OperType = OperType::PHA;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] PHP $($am:tt)*) => {
+        /// PHP
+        /// Push Processor Status on Stack
+        ///
+        /// The status register will be pushed with the break
+        /// flag and bit 5 set to 1.
+        ///```text
+        /// push SR                           N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      PHP             08     1        3
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::PHP;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// PHP
+        /// Push Processor Status on Stack
+        ///
+        /// The status register will be pushed with the break
+        /// flag and bit 5 set to 1.
+        ///```text
+        /// push SR                           N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      PHP             08     1        3
+        /// ```
+        pub const $inst: OperType = OperType::PHP;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] PLA $($am:tt)*) => {
+        /// PLA
+        /// Pull Accumulator from Stack
+        ///```text
+        /// pull A                            N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      PLA             68     1        4
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::PLA;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// PLA
+        /// Pull Accumulator from Stack
+        ///```text
+        /// pull A                            N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      PLA             68     1        4
+        /// ```
+        pub const $inst: OperType = OperType::PLA;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] PLP $($am:tt)*) => {
+        /// PLP
+        /// Pull Processor Status from Stack
+        ///
+        /// The status register will be pulled with the break
+        /// flag and bit 5 ignored.
+        ///```text
+        /// pull SR                           N  Z  C  I  D  V
+        ///                                      from stack
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      PLP             28     1        4
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::PLP;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// PLP
+        /// Pull Processor Status from Stack
+        ///
+        /// The status register will be pulled with the break
+        /// flag and bit 5 ignored.
+        ///```text
+        /// pull SR                           N  Z  C  I  D  V
+        ///                                      from stack
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      PLP             28     1        4
+        /// ```
+        pub const $inst: OperType = OperType::PLP;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] ROL $($am:tt)*) => {
+        /// ROL
+        /// Rotate One Bit Left (Memory or Accumulator)
+        ///```text
+        /// C <- [76543210] <- C              N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// accumulator  ROL A           2A     1        2
+        /// zeropage     ROL oper        26     2        5
+        /// zeropage,X   ROL oper,X      36     2        6
+        /// absolute     ROL oper        2E     3        6
+        /// absolute,X   ROL oper,X      3E     3        7
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::ROL;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// ROL
+        /// Rotate One Bit Left (Memory or Accumulator)
+        ///```text
+        /// C <- [76543210] <- C              N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// accumulator  ROL A           2A     1        2
+        /// zeropage     ROL oper        26     2        5
+        /// zeropage,X   ROL oper,X      36     2        6
+        /// absolute     ROL oper        2E     3        6
+        /// absolute,X   ROL oper,X      3E     3        7
+        /// ```
+        pub const $inst: OperType = OperType::ROL;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] ROR $($am:tt)*) => {
+        /// ROR
+        /// Rotate One Bit Right (Memory or Accumulator)
+        ///```text
+        /// C -> [76543210] -> C              N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// accumulator  ROR A           6A     1        2
+        /// zeropage     ROR oper        66     2        5
+        /// zeropage,X   ROR oper,X      76     2        6
+        /// absolute     ROR oper        6E     3        6
+        /// absolute,X   ROR oper,X      7E     3        7
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::ROR;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// ROR
+        /// Rotate One Bit Right (Memory or Accumulator)
+        ///```text
+        /// C -> [76543210] -> C              N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// accumulator  ROR A           6A     1        2
+        /// zeropage     ROR oper        66     2        5
+        /// zeropage,X   ROR oper,X      76     2        6
+        /// absolute     ROR oper        6E     3        6
+        /// absolute,X   ROR oper,X      7E     3        7
+        /// ```
+        pub const $inst: OperType = OperType::ROR;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] RTI $($am:tt)*) => {
+        /// RTI
+        /// Return from Interrupt
+        ///
+        /// The status register is pulled with the break flag
+        /// and bit 5 ignored. Then PC is pulled from the stack.
+        ///```text
+        /// pull SR, pull PC                  N  Z  C  I  D  V
+        ///                                      from stack
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      RTI             40     1        6
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::RTI;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// RTI
+        /// Return from Interrupt
+        ///
+        /// The status register is pulled with the break flag
+        /// and bit 5 ignored. Then PC is pulled from the stack.
+        ///```text
+        /// pull SR, pull PC                  N  Z  C  I  D  V
+        ///                                      from stack
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      RTI             40     1        6
+        /// ```
+        pub const $inst: OperType = OperType::RTI;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] RTS $($am:tt)*) => {
+        /// RTS
+        /// Return from Subroutine
+        ///```text
+        /// pull PC, PC+1 -> PC               N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      RTS             60     1        6
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::RTS;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// RTS
+        /// Return from Subroutine
+        ///```text
+        /// pull PC, PC+1 -> PC               N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      RTS             60     1        6
+        /// ```
+        pub const $inst: OperType = OperType::RTS;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] SBC $($am:tt)*) => {
+        /// SBC
+        /// Subtract Memory from Accumulator with Borrow
+        ///```text
+        /// A - M - C̅ -> A                   N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  +
+        /// addressing   assembler       opc    bytes    cycles
+        /// immediate    SBC #oper       E9     2        2
+        /// zeropage     SBC oper        E5     2        3
+        /// zeropage,X   SBC oper,X      F5     2        4
+        /// absolute     SBC oper        ED     3        4
+        /// absolute,X   SBC oper,X      FD     3        4*
+        /// absolute,Y   SBC oper,Y      F9     3        4*
+        /// (indirect,X) SBC (oper,X)    E1     2        6
+        /// (indirect),Y SBC (oper),Y    F1     2        5*
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::SBC;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// SBC
+        /// Subtract Memory from Accumulator with Borrow
+        ///```text
+        /// A - M - C̅ -> A                   N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  +
+        /// addressing   assembler       opc    bytes    cycles
+        /// immediate    SBC #oper       E9     2        2
+        /// zeropage     SBC oper        E5     2        3
+        /// zeropage,X   SBC oper,X      F5     2        4
+        /// absolute     SBC oper        ED     3        4
+        /// absolute,X   SBC oper,X      FD     3        4*
+        /// absolute,Y   SBC oper,Y      F9     3        4*
+        /// (indirect,X) SBC (oper,X)    E1     2        6
+        /// (indirect),Y SBC (oper),Y    F1     2        5*
+        /// ```
+        pub const $inst: OperType = OperType::SBC;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] SEC $($am:tt)*) => {
+        /// SEC
+        /// Set Carry Flag
+        ///```text
+        /// 1 -> C                            N  Z  C  I  D  V
+        ///                                   -  -  1  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      SEC             38     1        2
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::SEC;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// SEC
+        /// Set Carry Flag
+        ///```text
+        /// 1 -> C                            N  Z  C  I  D  V
+        ///                                   -  -  1  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      SEC             38     1        2
+        /// ```
+        pub const $inst: OperType = OperType::SEC;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] SED $($am:tt)*) => {
+        /// SED
+        /// Set Decimal Flag
+        ///```text
+        /// 1 -> D                            N  Z  C  I  D  V
+        ///                                   -  -  -  -  1  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      SED             F8     1        2
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::SED;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// SED
+        /// Set Decimal Flag
+        ///```text
+        /// 1 -> D                            N  Z  C  I  D  V
+        ///                                   -  -  -  -  1  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      SED             F8     1        2
+        /// ```
+        pub const $inst: OperType = OperType::SED;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] SEI $($am:tt)*) => {
+        /// SEI
+        /// Set Interrupt Disable Status
+        ///```text
+        /// 1 -> I                            N  Z  C  I  D  V
+        ///                                   -  -  -  1  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      SEI             78     1        2
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::SEI;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// SEI
+        /// Set Interrupt Disable Status
+        ///```text
+        /// 1 -> I                            N  Z  C  I  D  V
+        ///                                   -  -  -  1  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      SEI             78     1        2
+        /// ```
+        pub const $inst: OperType = OperType::SEI;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] STA $($am:tt)*) => {
+        /// STA
+        /// Store Accumulator in Memory
+        ///```text
+        /// A -> M                            N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// zeropage     STA oper        85     2        3
+        /// zeropage,X   STA oper,X      95     2        4
+        /// absolute     STA oper        8D     3        4
+        /// absolute,X   STA oper,X      9D     3        5
+        /// absolute,Y   STA oper,Y      99     3        5
+        /// (indirect,X) STA (oper,X)    81     2        6
+        /// (indirect),Y STA (oper),Y    91     2        6
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::STA;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// STA
+        /// Store Accumulator in Memory
+        ///```text
+        /// A -> M                            N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// zeropage     STA oper        85     2        3
+        /// zeropage,X   STA oper,X      95     2        4
+        /// absolute     STA oper        8D     3        4
+        /// absolute,X   STA oper,X      9D     3        5
+        /// absolute,Y   STA oper,Y      99     3        5
+        /// (indirect,X) STA (oper,X)    81     2        6
+        /// (indirect),Y STA (oper),Y    91     2        6
+        /// ```
+        pub const $inst: OperType = OperType::STA;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] STX $($am:tt)*) => {
+        /// STX
+        /// Store Index X in Memory
+        ///```text
+        /// X -> M                            N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// zeropage     STX oper        86     2        3
+        /// zeropage,Y   STX oper,Y      96     2        4
+        /// absolute     STX oper        8E     3        4
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::STX;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// STX
+        /// Store Index X in Memory
+        ///```text
+        /// X -> M                            N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// zeropage     STX oper        86     2        3
+        /// zeropage,Y   STX oper,Y      96     2        4
+        /// absolute     STX oper        8E     3        4
+        /// ```
+        pub const $inst: OperType = OperType::STX;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] STY $($am:tt)*) => {
+        /// STY
+        /// Sore Index Y in Memory
+        ///```text
+        /// Y -> M                            N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// zeropage     STY oper        84     2        3
+        /// zeropage,X   STY oper,X      94     2        4
+        /// absolute     STY oper        8C     3        4
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::STY;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// STY
+        /// Sore Index Y in Memory
+        ///```text
+        /// Y -> M                            N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// zeropage     STY oper        84     2        3
+        /// zeropage,X   STY oper,X      94     2        4
+        /// absolute     STY oper        8C     3        4
+        /// ```
+        pub const $inst: OperType = OperType::STY;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] TAX $($am:tt)*) => {
+        /// TAX
+        /// Transfer Accumulator to Index X
+        ///```text
+        /// A -> X                            N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      TAX             AA     1        2
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::TAX;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// TAX
+        /// Transfer Accumulator to Index X
+        ///```text
+        /// A -> X                            N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      TAX             AA     1        2
+        /// ```
+        pub const $inst: OperType = OperType::TAX;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] TAY $($am:tt)*) => {
+        /// TAY
+        /// Transfer Accumulator to Index Y
+        ///```text
+        /// A -> Y                            N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      TAY             A8     1        2
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::TAY;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// TAY
+        /// Transfer Accumulator to Index Y
+        ///```text
+        /// A -> Y                            N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      TAY             A8     1        2
+        /// ```
+        pub const $inst: OperType = OperType::TAY;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] TSX $($am:tt)*) => {
+        /// TSX
+        /// Transfer Stack Pointer to Index X
+        ///```text
+        /// SP -> X                           N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      TSX             BA     1        2
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::TSX;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// TSX
+        /// Transfer Stack Pointer to Index X
+        ///```text
+        /// SP -> X                           N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      TSX             BA     1        2
+        /// ```
+        pub const $inst: OperType = OperType::TSX;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] TXA $($am:tt)*) => {
+        /// TXA
+        /// Transfer Index X to Accumulator
+        ///```text
+        /// X -> A                            N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      TXA             8A     1        2
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::TXA;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// TXA
+        /// Transfer Index X to Accumulator
+        ///```text
+        /// X -> A                            N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      TXA             8A     1        2
+        /// ```
+        pub const $inst: OperType = OperType::TXA;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] TXS $($am:tt)*) => {
+        /// TXS
+        /// Transfer Index X to Stack Register
+        ///```text
+        /// X -> SP                           N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      TXS             9A     1        2
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::TXS;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// TXS
+        /// Transfer Index X to Stack Register
+        ///```text
+        /// X -> SP                           N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      TXS             9A     1        2
+        /// ```
+        pub const $inst: OperType = OperType::TXS;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] TYA $($am:tt)*) => {
+        /// TYA
+        /// Transfer Index Y to Accumulator
+        ///```text
+        /// Y -> A                            N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      TYA             98     1        2
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::TYA;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// TYA
+        /// Transfer Index Y to Accumulator
+        ///```text
+        /// Y -> A                            N  Z  C  I  D  V
+        ///                                   +  +  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      TYA             98     1        2
+        /// ```
+        pub const $inst: OperType = OperType::TYA;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] JAM $($am:tt)*) => {
+        /// # JAM (KIL, HLT)
+        ///```text
+        /// These instructions freeze the CPU.
+        /// The processor will be trapped infinitely in T1 phase with $FF on the data bus. — Reset required.
+        /// Instruction codes: 02, 12, 22, 32, 42, 52, 62, 72, 92, B2, D2, F2
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::JAM;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// # JAM (KIL, HLT)
+        ///```text
+        /// These instructions freeze the CPU.
+        /// The processor will be trapped infinitely in T1 phase with $FF on the data bus. — Reset required.
+        /// Instruction codes: 02, 12, 22, 32, 42, 52, 62, 72, 92, B2, D2, F2
+        /// ```
+        pub const $inst: OperType = OperType::JAM;
     };
 }
 

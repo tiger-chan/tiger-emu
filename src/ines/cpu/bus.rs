@@ -11,6 +11,7 @@ pub struct Bus {
 }
 
 impl Bus {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self { ram: [0; CPU_RAM] }
     }
