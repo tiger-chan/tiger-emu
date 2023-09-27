@@ -1,7 +1,7 @@
-mod registers;
+mod console;
 mod cpu;
 mod io;
-mod console;
+mod registers;
 
 pub use console::*;
 
@@ -33,21 +33,26 @@ pub const LO_MASK: Word = 0x00FF;
 // System Vectors
 
 /// $FFFA, $FFFB ... NMI (Non-Maskable Interrupt) vector, 16-bit (LB, HB)
+#[allow(dead_code)]
 pub const NMI_LO: Word = 0xFFFA;
 
 /// $FFFA, $FFFB ... NMI (Non-Maskable Interrupt) vector, 16-bit (LB, HB)
+#[allow(dead_code)]
 pub const NMI_HI: Word = 0xFFFB;
 
 /// $FFFC, $FFFD ... RES (Reset) vector, 16-bit (LB, HB)
+#[allow(dead_code)]
 pub const RES_LO: Word = 0xFFFC;
 
 /// $FFFC, $FFFD ... RES (Reset) vector, 16-bit (LB, HB)
+#[allow(dead_code)]
 pub const RES_HI: Word = 0xFFFD;
 
 /// $FFFE, $FFFF ... IRQ (Interrupt Request) vector, 16-bit (LB, HB)
 pub const IRQ_LO: Word = 0xFFFE;
 
 /// $FFFE, $FFFF ... IRQ (Interrupt Request) vector, 16-bit (LB, HB)
+#[allow(dead_code)]
 pub const IRQ_HI: Word = 0xFFFF;
 
 pub const CPU_RAM: usize = 64 * 1024;
