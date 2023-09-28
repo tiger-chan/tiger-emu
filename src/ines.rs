@@ -1,5 +1,6 @@
 mod clock_counter;
 mod console;
+mod cart;
 mod cpu;
 mod io;
 mod registers;
