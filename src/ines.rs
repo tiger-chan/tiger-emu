@@ -1,8 +1,10 @@
+mod clock_counter;
 mod console;
 mod cpu;
 mod io;
 mod registers;
 
+use clock_counter::*;
 pub use console::*;
 
 /// Bytes, Words, Addressing
