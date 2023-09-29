@@ -7,7 +7,7 @@ use std::io::Seek;
 use std::path::Path;
 use std::{io, io::Read, io::SeekFrom};
 
-pub use mapper::Mapper;
+pub use mapper::{Mapper, MapperRef};
 
 type ProgramMemory = Vec<u8>;
 type CharacterMemory = Vec<u8>;
@@ -22,6 +22,7 @@ pub struct Cartridge {
     chr_bnk: u8,
 }
 
+#[derive(Debug)]
 pub enum CartridgeLoadError {
     BadHeader,
     BadPrgChunk,

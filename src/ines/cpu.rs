@@ -13,7 +13,7 @@ use instruction::{AddrModeData, InstructionIterator, OperData, OperType, INSTRUC
 
 use self::instruction::OPER;
 
-use super::io::RwDevice;
+use super::{io::RwDevice, Word};
 
 pub type CpuRef<CpuBus> = Rc<RefCell<Cpu<CpuBus>>>;
 
@@ -40,6 +40,11 @@ impl Default for InstructionState {
     }
 }
 
+pub enum CpuState {
+    OperExecuting,
+    OperComplete(InstructionState),
+}
+
 #[derive(Debug)]
 pub struct Cpu<CpuBus: RwDevice> {
     reg: Registers,
@@ -47,6 +52,36 @@ pub struct Cpu<CpuBus: RwDevice> {
     instruction: InstructionIterator,
     tcc: u64,
     prev: InstructionState,
+}
+
+impl<CpuBus: RwDevice> Cpu<CpuBus> {
+    pub fn configure_bus(&mut self, bus: CpuBus) {
+        self.bus = Some(bus);
+    }
+
+    pub fn cur_pc(&self) -> Word {
+        self.reg.pc
+    }
+
+    pub fn pc(&mut self, addr: Word) {
+        self.reg.pc = addr;
+    }
+
+    pub fn waiting(&self) -> bool {
+        self.instruction.waiting()
+    }
+
+    #[allow(unused)]
+    pub fn reset(&mut self) {
+        self.prev = InstructionState {
+            reg: self.reg,
+            tcc: self.tcc,
+            opcode: 0xFF,
+            op: OperType::BRK,
+            ..Default::default()
+        };
+        self.instruction = instruction::reset();
+    }
 }
 
 impl<CpuBus: RwDevice> Default for Cpu<CpuBus> {
@@ -62,19 +97,37 @@ impl<CpuBus: RwDevice> Default for Cpu<CpuBus> {
 }
 
 impl<CpuBus: RwDevice> Iterator for Cpu<CpuBus> {
-    type Item = ();
+    type Item = CpuState;
     fn next(&mut self) -> Option<Self::Item> {
+        self.tcc = self.tcc.wrapping_add(1);
+
+        todo!("Add handling for actions that indicate that they should be instantantious");
+        for result in self.instruction {
+            match result {
+                instruction::InstructionResult::Clock => {
+                    let bus = self.bus.as_mut().expect("Bus is set");
+                    self.instruction.clock(&mut self.reg, bus);
+                    Some(CpuState::OperExecuting)
+                }
+                instruction::InstructionResult::Result(addr, oper) => {
+                    self.prev.addr = addr;
+                    self.prev.oper = oper;
+                    Some(CpuState::OperComplete(self.prev))
+                }
+            }
+        }
+
         match self.instruction.next() {
             Some(result) => match result {
                 instruction::InstructionResult::Clock => {
                     let bus = self.bus.as_mut().expect("Bus is set");
                     self.instruction.clock(&mut self.reg, bus);
-                    Some(())
+                    Some(CpuState::OperExecuting)
                 }
                 instruction::InstructionResult::Result(addr, oper) => {
                     self.prev.addr = addr;
                     self.prev.oper = oper;
-                    Some(())
+                    Some(CpuState::OperComplete(self.prev))
                 }
             },
             None => {
@@ -83,7 +136,7 @@ impl<CpuBus: RwDevice> Iterator for Cpu<CpuBus> {
 
                 self.prev = InstructionState {
                     reg: self.reg,
-                    tcc: self.tcc,
+                    tcc: self.tcc.wrapping_sub(1),
                     opcode: opc as u8,
                     op: INSTRUCTION_TYPE[opc],
                     ..Default::default()

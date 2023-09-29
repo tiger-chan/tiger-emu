@@ -8,7 +8,7 @@ pub enum Process {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ClockCounter {
-    proc: Process,
+    pub proc: Process,
     step: u8,
     cycl: u8,
     curr: u8,
@@ -30,7 +30,7 @@ impl Iterator for ClockCounter {
     fn next(&mut self) -> Option<Self::Item> {
         self.curr += self.step;
         match self.curr {
-            x if self.cycl >= x => {
+            x if x >= self.cycl => {
                 self.curr -= self.cycl;
                 Some(self.proc)
             }

@@ -315,18 +315,31 @@ make_instruction![[op_b2, AM_B2, IN_B2] JAM        ];
 make_instruction![[op_d2, AM_D2, IN_D2] JAM        ];
 make_instruction![[op_f2, AM_F2, IN_F2] JAM        ];
 
+pub fn reset() -> InstructionIterator {
+    InstructionIterator::new(&addr::IMP, &act::RESET)
+}
+
 #[cfg(test)]
 mod test {
+    use std::{cell::RefCell, rc::Rc};
+
     use crate::ines::{
+        cart::{Cartridge, CartridgeLoadError, Mapper},
+        console::Nes,
         cpu::{Bus, Status},
         io::{ReadDevice, WriteDevice},
+        NesState,
     };
 
     use super::*;
 
+    const NES_TEST: &[u8; 24592] = include_bytes!("nestest.nes");
+    const NES_TEST_LOGS: &str = include_str!("nestest.log");
+
     #[test]
     fn adc_imm() {
-        let mut bus = Bus::new();
+        let mpr = Rc::new(RefCell::new(Mapper::default()));
+        let mut bus = Bus::new(mpr);
         let mut reg = Registers {
             ac: 0x05,
             p: Status::U,
@@ -355,7 +368,8 @@ mod test {
 
     #[test]
     fn bne_no_branch() {
-        let mut bus = Bus::new();
+        let mpr = Rc::new(RefCell::new(Mapper::default()));
+        let mut bus = Bus::new(mpr);
         let mut reg = Registers {
             p: Status::U | Status::Z,
             pc: 0x00, // Where the next instruction will be loaded
@@ -383,7 +397,8 @@ mod test {
 
     #[test]
     fn bne_branch_same_page() {
-        let mut bus = Bus::new();
+        let mpr = Rc::new(RefCell::new(Mapper::default()));
+        let mut bus = Bus::new(mpr);
         let mut reg = Registers {
             p: Status::U,
             pc: 0x00, // Where the next instruction will be loaded
@@ -410,7 +425,8 @@ mod test {
 
     #[test]
     fn bne_branch_new_page() {
-        let mut bus = Bus::new();
+        let mpr = Rc::new(RefCell::new(Mapper::default()));
+        let mut bus = Bus::new(mpr);
         let mut reg = Registers {
             p: Status::U,
             pc: 0xFD, // Where the next instruction will be loaded
@@ -433,5 +449,27 @@ mod test {
 
         assert_eq!(reg.pc, 0x00FD + 0x0001 + 0x0005, "PC");
         assert_eq!(iter.cc, 4, "cycle count");
+    }
+
+    #[test]
+    fn nestest_log() -> Result<(), CartridgeLoadError> {
+        let cart = Cartridge::try_from(NES_TEST.as_slice())?;
+        let mut nes = Nes::with_cart(cart);
+
+        let logs = NES_TEST_LOGS.split('\n').map(|s| s.trim_end());
+        for instruction in logs {
+            let next_pc = u16::from_str_radix(&instruction[0..4], 16)
+                .expect("First 4 values represent the pc in hex");
+
+            let NesState { ppu, cpu, tcc: _ } = nes.run_pc(next_pc);
+
+            let last_instruction = format!("{:>04X}  {:>02X} {} {} {}A:{:>02X} X:{:>02X} Y:{:>02X} P:{:>02X} SP:{:>02X} PPU:{:>3},{:>3} CYC:{}",
+                    cpu.reg.pc, cpu.opcode, cpu.addr.nestest_log_addr1(), cpu.op, cpu.addr.nestest_log_addr2(), cpu.reg.ac, cpu.reg.x, cpu.reg.y, u8::from(cpu.reg.p), cpu.reg.sp, ppu.y, ppu.x, cpu.tcc
+            );
+
+            assert_eq!(last_instruction, instruction);
+        }
+
+        Ok(())
     }
 }

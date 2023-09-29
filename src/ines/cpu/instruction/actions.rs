@@ -1483,6 +1483,49 @@ pub mod act {
     }
 
     steps! {JAM [jam]}
+
+    /// https://www.nesdev.org/wiki/CPU_interrupts#IRQ_and_NMI_tick-by-tick_execution
+    /// 
+    /// IRQ and NMI tick-by-tick execution
+    /// For exposition and to emphasize similarity with BRK, here's the
+    /// tick-by-tick breakdown of IRQ and NMI (derived from Visual 6502). A
+    /// reset also goes through the same sequence, but suppresses writes,
+    /// decrementing the stack pointer thrice without modifying memory. This is
+    /// why the I flag is always set on reset.
+    /// 
+    /// #  address R/W description
+    /// ```text
+    /// --- ------- --- -----------------------------------------------
+    /// 1    PC     R  fetch opcode (and discard it - $00 (BRK) is forced into the opcode register instead)
+    /// 2    PC     R  read next instruction byte (actually the same as above, since PC increment is suppressed. Also discarded.)
+    /// 3  $0100,S  W  push PCH on stack, decrement S
+    /// 4  $0100,S  W  push PCL on stack, decrement S
+    /// *** At this point, the signal status determines which interrupt vector is used ***
+    /// 5  $0100,S  W  push P on stack (with B flag *clear*), decrement S
+    /// 6   A       R  fetch PCL (A = FFFE for IRQ, A = FFFA for NMI), set I flag
+    /// 7   A       R  fetch PCH (A = FFFF for IRQ, A = FFFB for NMI)
+    /// ```
+    fn rest_03(reg: &mut Registers, _: &mut dyn RwDevice, _: &mut InstructionState) -> i8 {
+        reg.sp = reg.sp.wrapping_sub(1);
+        0
+    }
+
+    fn reset_04(reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState) -> i8 {
+        reg.sp = reg.sp.wrapping_sub(1);
+        state.tmp = if reg.p & Status::I == Status::I {
+            IRQ_LO
+        } else {
+            NMI_LO
+        };
+        0
+    }
+
+    fn reset_05(reg: &mut Registers, _: &mut dyn RwDevice, _: &mut InstructionState) -> i8 {
+        reg.sp = reg.sp.wrapping_sub(1);
+        0
+    }
+
+    steps! {RESET [brk_01, brk_02, rest_03, reset_04, reset_05, brk_06, brk_07]}
 }
 
 macro_rules! make_instruction {

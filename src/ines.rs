@@ -1,6 +1,6 @@
+mod cart;
 mod clock_counter;
 mod console;
-mod cart;
 mod cpu;
 mod io;
 mod registers;
@@ -59,7 +59,3 @@ pub const IRQ_LO: Word = 0xFFFE;
 pub const IRQ_HI: Word = 0xFFFF;
 
 pub const CPU_RAM: usize = 64 * 1024;
-
-pub const CPU_RAM_MASK: Word = 0x07FF;
-
-//pub const PPU_RAM_MASK: Word = 0x0007;

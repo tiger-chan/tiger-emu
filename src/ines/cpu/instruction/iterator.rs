@@ -51,6 +51,11 @@ impl InstructionIterator {
         let oper = &self.operations[(self.cur - 1) as usize];
         let skip_count = oper(reg, bus, &mut self.state);
         self.cur += skip_count;
+        todo!("Update method to return a signal indicating that the action should be considered instantanious");
+    }
+
+    pub fn waiting(&self) -> bool {
+        self.cur > self.len as i8
     }
 }
 
