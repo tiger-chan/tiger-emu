@@ -566,19 +566,27 @@ pub mod addr {
     /// execute, as there is one byte less to fetch.
     pub const ZPG: [Operation; 2] = [zpg_00, zpg_01];
 
-    fn zpx(
+    fn zpx_00(
         reg: &mut Registers,
         bus: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
-        let lo = bus.read(reg.pc) as Word;
-        let lo_off = lo + reg.x as Word;
-        let addr = lo_off & LO_MASK;
+        state.addr = bus.read(reg.pc) as Word;
         reg.pc = reg.pc.wrapping_add(1);
+        OperationResult::None
+    }
 
-        state.addr = addr;
-        state.addr_data = AddrModeData::Zpx(lo as Byte, addr as Byte);
-        OperationResult::Instant
+    fn zpx_01(
+        reg: &mut Registers,
+        _: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        let lo = state.addr;
+        let lo_off = lo + reg.x as Word;
+        state.addr = lo_off & LO_MASK;
+
+        state.addr_data = AddrModeData::Zpx(lo as Byte, state.addr as Byte);
+        OperationResult::None
     }
 
     /// Zeropage, X-indexed - OPC $LL,X
@@ -598,21 +606,29 @@ pub mod addr {
     /// zero-page indexed instructions never affect the high-byte of the
     /// effective address, which will simply wrap around in the zero-page,
     /// and there is no penalty for crossing any page boundaries.
-    pub const ZPX: [Operation; 1] = [zpx];
+    pub const ZPX: [Operation; 2] = [zpx_00, zpx_01];
 
-    fn zpy(
+    fn zpy_00(
         reg: &mut Registers,
         bus: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
-        let lo = bus.read(reg.pc) as Word;
-        let lo_off = lo + reg.y as Word;
-        let addr = lo_off & LO_MASK;
+        state.addr = bus.read(reg.pc) as Word;
         reg.pc = reg.pc.wrapping_add(1);
+        OperationResult::None
+    }
 
-        state.addr = addr;
-        state.addr_data = AddrModeData::Zpy(lo as Byte, addr as Byte);
-        OperationResult::Instant
+    fn zpy_01(
+        reg: &mut Registers,
+        _: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        let lo = state.addr;
+        let lo_off = lo + reg.y as Word;
+        state.addr = lo_off & LO_MASK;
+
+        state.addr_data = AddrModeData::Zpy(lo as Byte, state.addr as Byte);
+        OperationResult::None
     }
 
     /// Zeropage, Y-indexed - OPC $LL,Y
@@ -632,7 +648,7 @@ pub mod addr {
     /// zero-page indexed instructions never affect the high-byte of the
     /// effective address, which will simply wrap around in the zero-page,
     /// and there is no penalty for crossing any page boundaries.
-    pub const ZPY: [Operation; 1] = [zpy];
+    pub const ZPY: [Operation; 2] = [zpy_00, zpy_01];
 }
 
 macro_rules! addr_mode {

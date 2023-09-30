@@ -289,7 +289,7 @@ make_instruction![[op_91, AM_91, IN_91] STA (&LL),Y];
 
 make_instruction![[op_86, AM_86, IN_86] STX &LL    ];
 make_instruction![[op_96, AM_96, IN_96] STX &LL,Y  ];
-make_instruction![[op_8e, AM_8E, IN_8E] STX &LLHH,Y];
+make_instruction![[op_8e, AM_8E, IN_8E] STX &LLHH  ];
 
 make_instruction![[op_84, AM_84, IN_84] STY &LL    ];
 make_instruction![[op_94, AM_94, IN_94] STY &LL,X  ];
