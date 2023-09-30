@@ -910,7 +910,7 @@ pub mod act {
             .set(Status::N, is_neg!(data))
             .set(Status::V, data & 0x40 == 0x40);
 
-        state.oper = OperData::Byte(reg.ac);
+        state.oper = OperData::Byte(data);
         OperationResult::None
     }
 
@@ -1484,69 +1484,92 @@ pub mod act {
 
     steps! {ORA [ora]}
 
-    fn pha(
+    fn pha_00(
         reg: &mut Registers,
         bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
+        _: &mut InstructionState,
     ) -> OperationResult {
         bus.write(PS.wrapping_add(reg.sp as Word), reg.ac);
+
+        OperationResult::None
+    }
+
+    fn pha_01(
+        reg: &mut Registers,
+        _: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
         reg.sp = reg.sp.wrapping_sub(1);
 
         state.oper = OperData::None;
         OperationResult::None
     }
 
-    steps! {PHA [pha]}
+    steps! {PHA [pha_00, pha_01]}
 
-    fn php(
+    fn php_00(
         reg: &mut Registers,
         bus: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
         let p = reg.p | Status::B | Status::U;
         bus.write(PS.wrapping_add(reg.sp as Word), p.into());
-        reg.p.set(Status::B, false).set(Status::U, false);
         reg.sp = reg.sp.wrapping_sub(1);
 
         state.oper = OperData::None;
         OperationResult::None
     }
 
-    steps! {PHP [php]}
+    steps! {PHP [spin, php_00]}
 
-    fn pla(
+    fn pla_00(
         reg: &mut Registers,
         bus: &mut dyn RwDevice,
+        _: &mut InstructionState,
+    ) -> OperationResult {
+        reg.sp = reg.sp.wrapping_add(1);
+        reg.ac = bus.read(PS.wrapping_add(reg.sp as Word));
+
+        OperationResult::None
+    }
+
+    fn pla_01(
+        reg: &mut Registers,
+        _: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
-        let sp = (reg.sp.wrapping_add(1)) as Word;
-        let ac = bus.read(PS.wrapping_add(sp));
         reg.p
-            .set(Status::Z, is_zero!(ac))
-            .set(Status::N, is_neg!(ac));
-        reg.sp = sp as Byte;
-        reg.ac = ac;
+            .set(Status::Z, is_zero!(reg.ac))
+            .set(Status::N, is_neg!(reg.ac));
 
         state.oper = OperData::None;
         OperationResult::None
     }
 
-    steps! {PLA [pla]}
+    steps! {PLA [spin, pla_00, pla_01]}
 
-    fn plp(
+    fn plp_00(
+        reg: &mut Registers,
+        _: &mut dyn RwDevice,
+        _: &mut InstructionState,
+    ) -> OperationResult {
+        reg.sp = reg.sp.wrapping_add(1);
+        OperationResult::None
+    }
+
+    fn plp_01(
         reg: &mut Registers,
         bus: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
-        let sp = (reg.sp.wrapping_add(1)) as Word;
-        reg.p = Status::from(bus.read(PS.wrapping_add(sp))) | Status::U;
-        reg.sp = sp as Byte;
+        let tmp = bus.read(PS.wrapping_add(reg.sp as Word));
+        reg.p = Status::from(tmp) & !(Status::U | Status::B);
 
         state.oper = OperData::None;
         OperationResult::None
     }
 
-    steps! {PLP [plp]}
+    steps! {PLP [spin, plp_00, plp_01]}
 
     fn rol(
         reg: &mut Registers,

@@ -16,6 +16,7 @@ pub type PpuRef<PpuBus> = Rc<RefCell<Ppu<PpuBus>>>;
 
 #[derive(Debug)]
 pub struct Ppu<PpuBus: RwDevice> {
+    #[allow(unused)]
     bus: Option<PpuBus>,
     state: PpuState,
 }

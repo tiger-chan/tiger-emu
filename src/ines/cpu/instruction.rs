@@ -444,7 +444,7 @@ mod test {
         let mut nes = Nes::with_cart(cart);
 
         let logs = NES_TEST_LOGS.split('\n').map(|s| s.trim_end());
-        for instruction in logs {
+        for (i, instruction) in logs.enumerate() {
             let next_pc = u16::from_str_radix(&instruction[0..4], 16)
                 .expect("First 4 values represent the pc in hex");
 
@@ -465,7 +465,7 @@ mod test {
                     cpu.reg.pc, cpu.opcode, cpu.addr.nestest_log_addr1(), instruction_debug, cpu.reg.ac, cpu.reg.x, cpu.reg.y, u8::from(cpu.reg.p), cpu.reg.sp, ppu.scanline, ppu.cycle, cpu.tcc
             );
 
-            assert_eq!(last_instruction, instruction);
+            assert_eq!(last_instruction, instruction, "Error at line: {i}");
         }
 
         Ok(())

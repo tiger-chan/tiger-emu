@@ -4,6 +4,7 @@ use crate::ines::{
     Byte,
 };
 
+#[allow(unused)]
 #[derive(Debug)]
 pub struct Bus {
     cpu: RwDeviceRef,
