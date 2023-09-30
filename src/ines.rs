@@ -2,6 +2,7 @@ mod cart;
 mod clock_counter;
 mod console;
 mod cpu;
+mod ppu;
 mod io;
 mod registers;
 

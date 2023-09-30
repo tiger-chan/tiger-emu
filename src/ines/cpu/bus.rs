@@ -127,9 +127,14 @@ impl ReadDevice for Bus {
 }
 
 impl WriteDevice for Bus {
-    fn write(&mut self, addr: Word, data: Byte) {
+    fn write(&mut self, addr: Word, data: Byte) -> Byte {
         match addr {
-            CPU_RAM_LO..=CPU_RAM_HI => self.ram[(addr & CPU_MIRROR_MASK) as usize] = data,
+            CPU_RAM_LO..=CPU_RAM_HI => {
+                let masked = (addr & CPU_MIRROR_MASK) as usize;
+                let tmp = self.ram[masked];
+                self.ram[masked] = data;
+                tmp
+            }
             MPR_IO_LO..=MPR_IO_HI => self.mpr.borrow_mut().write_prg(addr, data),
             _ => unimplemented!(),
         }

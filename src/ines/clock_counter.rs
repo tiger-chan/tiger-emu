@@ -20,7 +20,7 @@ impl ClockCounter {
             proc: p,
             cycl: cycle,
             step,
-            curr: 0,
+            curr: cycle,
         }
     }
 }

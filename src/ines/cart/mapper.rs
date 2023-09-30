@@ -34,13 +34,13 @@ impl RwMapper for Mapper {
         }
     }
 
-    fn write_chr(&mut self, addr: Word, data: Byte) {
+    fn write_chr(&mut self, addr: Word, data: Byte) -> Byte {
         match self {
             Mapper::Nrom(x) => x.write_chr(addr, data),
         }
     }
 
-    fn write_prg(&mut self, addr: Word, data: Byte) {
+    fn write_prg(&mut self, addr: Word, data: Byte) -> Byte {
         match self {
             Mapper::Nrom(x) => x.write_prg(addr, data),
         }

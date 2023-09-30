@@ -49,8 +49,25 @@ pub mod addr {
     fn a(_: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState) -> OperationResult {
         state.addr_data = AddrModeData::A;
         state.addr = 0;
-        OperationResult::None
+        OperationResult::Instant
     }
+
+    /// A Accumulator - OPC A
+    ///
+    /// operand is AC (implied single byte instruction)
+    ///
+    /// These instructions act directly on one or more registers or flags
+    /// internal to the CPU. Therefor, these instructions are principally
+    /// single-byte instructions, lacking an explicit operand. The operand
+    /// is implied, as it is already provided by the very instruction.
+    ///
+    /// Instructions targeting exclusively the contents of the accumulator
+    /// may or may not be denoted by using an explicit "A" as the operand,
+    /// depending on the flavor of syntax. (This may be regarded as a
+    /// special address mode of its own, but it is really a special case of
+    /// an implied instruction. It is still a single-byte instruction and no
+    /// operand is provided in machine language.)
+    pub const A: [Operation; 1] = [a];
 
     fn abs_00(
         reg: &mut Registers,
@@ -61,7 +78,7 @@ pub mod addr {
         reg.pc = reg.pc.wrapping_add(1);
 
         state.addr = lo;
-        OperationResult::None
+        OperationResult::Instant
     }
 
     fn abs_01(
@@ -78,6 +95,23 @@ pub mod addr {
         OperationResult::None
     }
 
+    /// Absolute - OPC $LLHH
+    ///
+    /// operand is address $HHLL *
+    ///
+    /// Absolute addressing modes provides the 16-bit address of a memory
+    /// location, the contents of which used as the operand to the
+    /// instruction. In machine language, the address is provided in two
+    /// bytes immediately after the instruction (making these 3-byte
+    /// instructions) in low-byte, high-byte order (LLHH) or little-endian.
+    /// In assembler, conventional numbers (HHLL order or big-endian words)
+    /// are used to provide the address.
+    ///
+    /// Absolute addresses are also used for the jump instructions JMP and
+    /// JSR to provide the address for the next instruction to continue with
+    /// in the control flow.
+    pub const ABS: [Operation; 2] = [abs_00, abs_01];
+
     fn abx_00(
         reg: &mut Registers,
         bus: &mut dyn RwDevice,
@@ -87,7 +121,7 @@ pub mod addr {
         reg.pc = reg.pc.wrapping_add(1);
 
         state.addr = lo;
-        OperationResult::None
+        OperationResult::Instant
     }
 
     fn abx_01(
@@ -109,6 +143,30 @@ pub mod addr {
         }
     }
 
+    /// Absolute, X-indexed - OPC $LLHH,X
+    ///
+    /// operand is address; effective address is address incremented by X with carry **
+    ///
+    /// Indexed addressing adds the contents of either the X-register or the
+    /// Y-register to the provided address to give the effective address,
+    /// which provides the operand.
+    ///
+    /// These instructions are usefull to e.g., load values from tables or
+    /// to write to a continuous segment of memory in a loop. The most basic
+    /// forms are "absolute,X" and "absolute,X", where either the X- or the
+    /// Y-register, respectively, is added to a given base address. As the
+    /// base address is a 16-bit value, these are generally 3-byte
+    /// instructions. Since there is an additional operation to perform to
+    /// determine the effective address, these instructions are one cycle
+    /// slower than those using absolute addressing mode.*
+    ///
+    /// *) If the addition of the contents of the index register effects in
+    /// a change of the high-byte given by the base address so that the
+    /// effective address is on the next memory page, the additional
+    /// operation to increment the high-byte takes another CPU cycle. This
+    /// is also known as a crossing of page boundaries.
+    pub const ABX: [Operation; 3] = [abx_00, abx_01, spin];
+
     fn aby_00(
         reg: &mut Registers,
         bus: &mut dyn RwDevice,
@@ -118,7 +176,7 @@ pub mod addr {
         reg.pc = reg.pc.wrapping_add(1);
 
         state.addr = lo;
-        OperationResult::None
+        OperationResult::Instant
     }
 
     fn aby_01(
@@ -140,6 +198,30 @@ pub mod addr {
         }
     }
 
+    /// Absolute, Y-indexed - OPC $LLHH,Y
+    ///
+    /// operand is address; effective address is address incremented by Y with carry **
+    ///
+    /// Indexed addressing adds the contents of either the X-register or the
+    /// Y-register to the provided address to give the effective address,
+    /// which provides the operand.
+    ///
+    /// These instructions are usefull to e.g., load values from tables or
+    /// to write to a continuous segment of memory in a loop. The most basic
+    /// forms are "absolute,X" and "absolute,X", where either the X- or the
+    /// Y-register, respectively, is added to a given base address. As the
+    /// base address is a 16-bit value, these are generally 3-byte
+    /// instructions. Since there is an additional operation to perform to
+    /// determine the effective address, these instructions are one cycle
+    /// slower than those using absolute addressing mode.*
+    ///
+    /// *) If the addition of the contents of the index register effects in
+    /// a change of the high-byte given by the base address so that the
+    /// effective address is on the next memory page, the additional
+    /// operation to increment the high-byte takes another CPU cycle. This
+    /// is also known as a crossing of page boundaries.
+    pub const ABY: [Operation; 3] = [aby_00, aby_01, spin];
+
     fn imp(
         _: &mut Registers,
         _: &mut dyn RwDevice,
@@ -150,6 +232,23 @@ pub mod addr {
         OperationResult::Instant
     }
 
+    /// Implied - OPC
+    ///
+    /// operand implied
+    ///
+    /// These instructions act directly on one or more registers or flags
+    /// internal to the CPU. Therefor, these instructions are principally
+    /// single-byte instructions, lacking an explicit operand. The operand
+    /// is implied, as it is already provided by the very instruction.
+    ///
+    /// Instructions targeting exclusively the contents of the accumulator
+    /// may or may not be denoted by using an explicit "A" as the operand,
+    /// depending on the flavor of syntax. (This may be regarded as a
+    /// special address mode of its own, but it is really a special case of
+    /// an implied instruction. It is still a single-byte instruction and no
+    /// operand is provided in machine language.)
+    pub const IMP: [Operation; 1] = [imp];
+
     fn ind_00(
         reg: &mut Registers,
         bus: &mut dyn RwDevice,
@@ -158,7 +257,7 @@ pub mod addr {
         let ptr_lo = bus.read(reg.pc) as Word;
         reg.pc = reg.pc.wrapping_add(1);
         state.addr = ptr_lo;
-        OperationResult::None
+        OperationResult::Instant
     }
 
     fn ind_01(
@@ -206,6 +305,24 @@ pub mod addr {
         OperationResult::None
     }
 
+    /// Indirect - OPC ($LLHH)
+    ///
+    /// operand is address; effective address is contents of word at address: C.w($HHLL)
+    ///
+    /// This mode looks up a given address and uses the contents of this
+    /// address and the next one (in LLHH little-endian order) as the
+    /// effective address. In its basic form, this mode is available for the
+    /// JMP instruction only. (Its generally use is jump vectors and jump tables.)
+    ///
+    /// Like the absolute JMP instruction it uses a 16-bit address (3 bytes
+    /// in total), but takes two additional CPU cycles to execute, since
+    /// there are two additional bytes to fetch for the lookup of the
+    /// effective jump target.
+    ///
+    /// Generally, indirect addressing is denoted by putting the lookup
+    /// address in parenthesis.
+    pub const IND: [Operation; 4] = [ind_00, ind_01, ind_02, ind_03];
+
     fn izx_00(
         reg: &mut Registers,
         bus: &mut dyn RwDevice,
@@ -213,7 +330,7 @@ pub mod addr {
     ) -> OperationResult {
         state.tmp = bus.read(reg.pc) as Word;
         reg.pc = reg.pc.wrapping_add(1);
-        OperationResult::None
+        OperationResult::Instant
     }
 
     fn izx_01(
@@ -243,6 +360,36 @@ pub mod addr {
         OperationResult::None
     }
 
+    /// Indirect, X-indexed - OPC ($LL,X)
+    ///
+    /// operand is zeropage address; effective address is word in (LL + X, LL +
+    /// X + 1), inc. without carry: C.w($00LL + X)
+    ///
+    /// Indexed indirect address modes are generally available only for
+    /// instructions supplying an operand to the accumulator (LDA, STA, ADC,
+    /// SBC, AND, ORA, EOR, etc). The placement of the index register inside
+    /// or outside of the parenthesis indicating the address lookup will
+    /// give you clue what these instructions are doing.
+    ///
+    /// Pre-indexed indirect address mode is only available in combination
+    /// with the X-register. It works much like the "zero-page,X" mode, but,
+    /// after the X-register has been added to the base address, instead of
+    /// directly accessing this, an additional lookup is performed, reading
+    /// the contents of resulting address and the next one (in LLHH little-
+    /// endian order), in order to determine the effective address.
+    ///
+    /// Like with "zero-page,X" mode, the total instruction length is 2
+    /// bytes, but there are two additional CPU cycles in order to fetch
+    /// the effective 16-bit address. As "zero-page,X" mode, a lookup address
+    /// will never overflow into the next page, but will simply wrap around
+    /// in the zero-page.
+    ///
+    /// These instructions are useful, whenever we want to loop over a table
+    /// of pointers to disperse addresses, or where we want to apply the
+    /// same operation to various addresses, which we have stored as a table
+    /// in the zero-page.
+    pub const IZX: [Operation; 4] = [izx_00, izx_01, izx_02, spin];
+
     fn izy_00(
         reg: &mut Registers,
         bus: &mut dyn RwDevice,
@@ -250,7 +397,7 @@ pub mod addr {
     ) -> OperationResult {
         state.tmp = bus.read(reg.pc) as Word;
         reg.pc = reg.pc.wrapping_add(1);
-        OperationResult::None
+        OperationResult::Instant
     }
 
     fn izy_01(
@@ -281,240 +428,10 @@ pub mod addr {
         }
     }
 
-    fn imm(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let addr = reg.pc;
-        reg.pc = reg.pc.wrapping_add(1);
-        state.addr_data = AddrModeData::Imm(addr as Byte);
-        state.addr = addr;
-        OperationResult::None
-    }
-
-    fn rel(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let rel_addr = bus.read(reg.pc) as Word;
-        reg.pc = reg.pc.wrapping_add(1);
-
-        let addr = if is_neg!(rel_addr) {
-            rel_addr | HI_MASK
-        } else {
-            rel_addr
-        };
-
-        state.addr_data = AddrModeData::Rel(rel_addr as Byte, addr);
-        state.addr = addr;
-        OperationResult::None
-    }
-
-    fn zpg(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let addr = bus.read(reg.pc) as Word;
-        reg.pc = reg.pc.wrapping_add(1);
-
-        state.addr = addr;
-        state.addr_data = AddrModeData::Zpg(addr as Byte);
-        OperationResult::None
-    }
-
-    fn zpx(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let lo = bus.read(reg.pc) as Word;
-        let lo_off = lo + reg.x as Word;
-        let addr = lo_off & LO_MASK;
-        reg.pc = reg.pc.wrapping_add(1);
-
-        state.addr = addr;
-        state.addr_data = AddrModeData::Zpx(lo as Byte, addr as Byte);
-        OperationResult::None
-    }
-
-    fn zpy(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let lo = bus.read(reg.pc) as Word;
-        let lo_off = lo + reg.y as Word;
-        let addr = lo_off & LO_MASK;
-        reg.pc = reg.pc.wrapping_add(1);
-
-        state.addr = addr;
-        state.addr_data = AddrModeData::Zpy(lo as Byte, addr as Byte);
-        OperationResult::None
-    }
-
-    /// A Accumulator - OPC A
-    ///
-    /// operand is AC (implied single byte instruction)
-    ///
-    /// These instructions act directly on one or more registers or flags
-    /// internal to the CPU. Therefor, these instructions are principally
-    /// single-byte instructions, lacking an explicit operand. The operand
-    /// is implied, as it is already provided by the very instruction.
-    ///
-    /// Instructions targeting exclusively the contents of the accumulator
-    /// may or may not be denoted by using an explicit "A" as the operand,
-    /// depending on the flavor of syntax. (This may be regarded as a
-    /// special address mode of its own, but it is really a special case of
-    /// an implied instruction. It is still a single-byte instruction and no
-    /// operand is provided in machine language.)
-    pub const A: [Operation; 1] = [a];
-
-    /// Absolute - OPC $LLHH
-    ///
-    /// operand is address $HHLL *
-    ///
-    /// Absolute addressing modes provides the 16-bit address of a memory
-    /// location, the contents of which used as the operand to the
-    /// instruction. In machine language, the address is provided in two
-    /// bytes immediately after the instruction (making these 3-byte
-    /// instructions) in low-byte, high-byte order (LLHH) or little-endian.
-    /// In assembler, conventional numbers (HHLL order or big-endian words)
-    /// are used to provide the address.
-    ///
-    /// Absolute addresses are also used for the jump instructions JMP and
-    /// JSR to provide the address for the next instruction to continue with
-    /// in the control flow.
-    pub const ABS: [Operation; 2] = [abs_00, abs_01];
-
-    /// Absolute, X-indexed - OPC $LLHH,X
-    ///
-    /// operand is address; effective address is address incremented by X with carry **
-    ///
-    /// Indexed addressing adds the contents of either the X-register or the
-    /// Y-register to the provided address to give the effective address,
-    /// which provides the operand.
-    ///
-    /// These instructions are usefull to e.g., load values from tables or
-    /// to write to a continuous segment of memory in a loop. The most basic
-    /// forms are "absolute,X" and "absolute,X", where either the X- or the
-    /// Y-register, respectively, is added to a given base address. As the
-    /// base address is a 16-bit value, these are generally 3-byte
-    /// instructions. Since there is an additional operation to perform to
-    /// determine the effective address, these instructions are one cycle
-    /// slower than those using absolute addressing mode.*
-    ///
-    /// *) If the addition of the contents of the index register effects in
-    /// a change of the high-byte given by the base address so that the
-    /// effective address is on the next memory page, the additional
-    /// operation to increment the high-byte takes another CPU cycle. This
-    /// is also known as a crossing of page boundaries.
-    pub const ABX: [Operation; 3] = [abx_00, abx_01, spin];
-
-    /// Absolute, Y-indexed - OPC $LLHH,Y
-    ///
-    /// operand is address; effective address is address incremented by Y with carry **
-    ///
-    /// Indexed addressing adds the contents of either the X-register or the
-    /// Y-register to the provided address to give the effective address,
-    /// which provides the operand.
-    ///
-    /// These instructions are usefull to e.g., load values from tables or
-    /// to write to a continuous segment of memory in a loop. The most basic
-    /// forms are "absolute,X" and "absolute,X", where either the X- or the
-    /// Y-register, respectively, is added to a given base address. As the
-    /// base address is a 16-bit value, these are generally 3-byte
-    /// instructions. Since there is an additional operation to perform to
-    /// determine the effective address, these instructions are one cycle
-    /// slower than those using absolute addressing mode.*
-    ///
-    /// *) If the addition of the contents of the index register effects in
-    /// a change of the high-byte given by the base address so that the
-    /// effective address is on the next memory page, the additional
-    /// operation to increment the high-byte takes another CPU cycle. This
-    /// is also known as a crossing of page boundaries.
-    pub const ABY: [Operation; 3] = [aby_00, aby_01, spin];
-
-    /// Immediate - OPC #$BB
-    ///
-    /// operand is byte BB
-    ///
-    /// Here, a literal operand is given immediately after the instruction.
-    /// The operand is always an 8-bit value and the total instruction
-    /// length is always 2 bytes. In memory, the operand is a single byte
-    /// following immediately after the instruction code. In assembler, the
-    /// mode is usually indicated by a "#" prefix adjacent to the operand.
-    pub const IMM: [Operation; 1] = [imm];
-
-    /// Implied - OPC
-    ///
-    /// operand implied
-    ///
-    /// These instructions act directly on one or more registers or flags
-    /// internal to the CPU. Therefor, these instructions are principally
-    /// single-byte instructions, lacking an explicit operand. The operand
-    /// is implied, as it is already provided by the very instruction.
-    ///
-    /// Instructions targeting exclusively the contents of the accumulator
-    /// may or may not be denoted by using an explicit "A" as the operand,
-    /// depending on the flavor of syntax. (This may be regarded as a
-    /// special address mode of its own, but it is really a special case of
-    /// an implied instruction. It is still a single-byte instruction and no
-    /// operand is provided in machine language.)
-    pub const IMP: [Operation; 1] = [imp];
-
-    /// Indirect - OPC ($LLHH)
-    ///
-    /// operand is address; effective address is contents of word at address: C.w($HHLL)
-    ///
-    /// This mode looks up a given address and uses the contents of this
-    /// address and the next one (in LLHH little-endian order) as the
-    /// effective address. In its basic form, this mode is available for the
-    /// JMP instruction only. (Its generally use is jump vectors and jump tables.)
-    ///
-    /// Like the absolute JMP instruction it uses a 16-bit address (3 bytes
-    /// in total), but takes two additional CPU cycles to execute, since
-    /// there are two additional bytes to fetch for the lookup of the
-    /// effective jump target.
-    ///
-    /// Generally, indirect addressing is denoted by putting the lookup
-    /// address in parenthesis.
-    pub const IND: [Operation; 4] = [ind_00, ind_01, ind_02, ind_03];
-
-    /// Indirect, X-indexed - OPC ($LL,X)
-    ///
-    /// operand is zeropage address; effective address is word in (LL + X, LL + X + 1), inc. without carry: C.w($00LL + X)
-    ///
-    /// Indexed indirect address modes are generally available only for
-    /// instructions supplying an operand to the accumulator (LDA, STA, ADC,
-    /// SBC, AND, ORA, EOR, etc). The placement of the index register inside
-    /// or outside of the parenthesis indicating the address lookup will
-    /// give you clue what these instructions are doing.
-    ///
-    /// Pre-indexed indirect address mode is only available in combination
-    /// with the X-register. It works much like the "zero-page,X" mode, but,
-    /// after the X-register has been added to the base address, instead of
-    /// directly accessing this, an additional lookup is performed, reading
-    /// the contents of resulting address and the next one (in LLHH little-
-    /// endian order), in order to determine the effective address.
-    ///
-    /// Like with "zero-page,X" mode, the total instruction length is 2
-    /// bytes, but there are two additional CPU cycles in order to fetch
-    /// the effective 16-bit address. As "zero-page,X" mode, a lookup address
-    /// will never overflow into the next page, but will simply wrap around
-    /// in the zero-page.
-    ///
-    /// These instructions are useful, whenever we want to loop over a table
-    /// of pointers to disperse addresses, or where we want to apply the
-    /// same operation to various addresses, which we have stored as a table
-    /// in the zero-page.
-    pub const IZX: [Operation; 4] = [izx_00, izx_01, izx_02, spin];
-
     /// Indirect, Y-indexed - OPC ($LL),Y
     ///
-    /// operand is zeropage address; effective address is word in (LL, LL + 1) incremented by Y with carry: C.w($00LL) + Y
+    /// operand is zeropage address; effective address is word in (LL, LL + 1)
+    /// incremented by Y with carry: C.w($00LL) + Y
     ///
     /// Post-indexed indirect addressing is only available in combination
     /// with the Y-register. As indicated by the indexing term ",Y" being
@@ -533,6 +450,48 @@ pub mod addr {
     /// on varying bases addresses or whenever we want to loop over tables,
     /// the base address of which we have stored in the zero-page.
     pub const IZY: [Operation; 4] = [izy_00, izy_01, izy_02, spin];
+
+    fn imm(
+        reg: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        let addr = reg.pc;
+        reg.pc = reg.pc.wrapping_add(1);
+        state.addr_data = AddrModeData::Imm(bus.read(addr));
+        state.addr = addr;
+        OperationResult::Instant
+    }
+
+    /// Immediate - OPC #$BB
+    ///
+    /// operand is byte BB
+    ///
+    /// Here, a literal operand is given immediately after the instruction.
+    /// The operand is always an 8-bit value and the total instruction
+    /// length is always 2 bytes. In memory, the operand is a single byte
+    /// following immediately after the instruction code. In assembler, the
+    /// mode is usually indicated by a "#" prefix adjacent to the operand.
+    pub const IMM: [Operation; 1] = [imm];
+
+    fn rel(
+        reg: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        let rel_addr = bus.read(reg.pc) as Word;
+        reg.pc = reg.pc.wrapping_add(1);
+
+        let addr = if is_neg!(rel_addr) {
+            rel_addr | HI_MASK
+        } else {
+            rel_addr
+        };
+
+        state.addr_data = AddrModeData::Rel(rel_addr as Byte, addr);
+        state.addr = addr;
+        OperationResult::Instant
+    }
 
     /// Relative - OPC $BB
     ///
@@ -562,6 +521,27 @@ pub mod addr {
     /// page, this adds another CPU cycle (4 in total).
     pub const REL: [Operation; 1] = [rel];
 
+    fn zpg_00(
+        reg: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        let addr = bus.read(reg.pc) as Word;
+        reg.pc = reg.pc.wrapping_add(1);
+
+        state.addr = addr;
+        OperationResult::Instant
+    }
+
+    fn zpg_01(
+        _: &mut Registers,
+        _: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        state.addr_data = AddrModeData::Zpg(state.addr as Byte);
+        OperationResult::None
+    }
+
     /// Zeropage - OPC $LL
     ///
     /// operand is zeropage address (hi-byte is zero, address = $00LL)
@@ -578,7 +558,22 @@ pub mod addr {
     /// Therefore, these instructions have a total length of just two bytes
     /// (one less than absolute mode) and take one CPU cycle less to
     /// execute, as there is one byte less to fetch.
-    pub const ZPG: [Operation; 1] = [zpg];
+    pub const ZPG: [Operation; 2] = [zpg_00, zpg_01];
+
+    fn zpx(
+        reg: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        let lo = bus.read(reg.pc) as Word;
+        let lo_off = lo + reg.x as Word;
+        let addr = lo_off & LO_MASK;
+        reg.pc = reg.pc.wrapping_add(1);
+
+        state.addr = addr;
+        state.addr_data = AddrModeData::Zpx(lo as Byte, addr as Byte);
+        OperationResult::Instant
+    }
 
     /// Zeropage, X-indexed - OPC $LL,X
     ///
@@ -598,6 +593,21 @@ pub mod addr {
     /// effective address, which will simply wrap around in the zero-page,
     /// and there is no penalty for crossing any page boundaries.
     pub const ZPX: [Operation; 1] = [zpx];
+
+    fn zpy(
+        reg: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        let lo = bus.read(reg.pc) as Word;
+        let lo_off = lo + reg.y as Word;
+        let addr = lo_off & LO_MASK;
+        reg.pc = reg.pc.wrapping_add(1);
+
+        state.addr = addr;
+        state.addr_data = AddrModeData::Zpy(lo as Byte, addr as Byte);
+        OperationResult::Instant
+    }
 
     /// Zeropage, Y-indexed - OPC $LL,Y
     ///
@@ -843,7 +853,7 @@ pub mod act {
     ) -> OperationResult {
         let pc = reg.pc;
         state.addr = pc.wrapping_add(state.addr);
-        state.oper = OperData::None;
+        state.oper = OperData::Word(state.addr);
         if reg.p.get(Status::C) == 0 {
             OperationResult::None
         } else {
@@ -858,9 +868,8 @@ pub mod act {
         _: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
-        let pc = reg.pc;
-        state.addr = pc.wrapping_add(state.addr);
-        state.oper = OperData::None;
+        state.addr = reg.pc.wrapping_add(state.addr);
+        state.oper = OperData::Word(state.addr);
         if reg.p.get(Status::C) == 1 {
             OperationResult::None
         } else {
@@ -877,7 +886,7 @@ pub mod act {
     ) -> OperationResult {
         let pc = reg.pc;
         state.addr = pc.wrapping_add(state.addr);
-        state.oper = OperData::None;
+        state.oper = OperData::Word(state.addr);
         if reg.p.get(Status::Z) == 1 {
             OperationResult::None
         } else {
@@ -914,7 +923,7 @@ pub mod act {
     ) -> OperationResult {
         let pc = reg.pc;
         state.addr = pc.wrapping_add(state.addr);
-        state.oper = OperData::None;
+        state.oper = OperData::Word(state.addr);
         if reg.p.get(Status::N) == 1 {
             OperationResult::None
         } else {
@@ -931,7 +940,7 @@ pub mod act {
     ) -> OperationResult {
         let pc = reg.pc;
         state.addr = pc.wrapping_add(state.addr);
-        state.oper = OperData::None;
+        state.oper = OperData::Word(state.addr);
         if reg.p.get(Status::Z) == 0 {
             OperationResult::None
         } else {
@@ -948,7 +957,7 @@ pub mod act {
     ) -> OperationResult {
         let pc = reg.pc;
         state.addr = pc.wrapping_add(state.addr);
-        state.oper = OperData::None;
+        state.oper = OperData::Word(state.addr);
         if reg.p.get(Status::N) == 0 {
             OperationResult::None
         } else {
@@ -1328,28 +1337,38 @@ pub mod act {
 
     steps! {JMP [jmp]}
 
-    fn jsr(
+    fn jsr_00(
         reg: &mut Registers,
         bus: &mut dyn RwDevice,
+        _: &mut InstructionState,
+    ) -> OperationResult {
+        bus.write(PS.wrapping_add(reg.sp as Word), (reg.pc >> 8) as Byte);
+        reg.sp = reg.sp.wrapping_sub(1);
+        OperationResult::None
+    }
+
+    fn jsr_01(
+        reg: &mut Registers,
+        bus: &mut dyn RwDevice,
+        _: &mut InstructionState,
+    ) -> OperationResult {
+        bus.write(PS.wrapping_add(reg.sp as Word), reg.pc as Byte);
+        reg.sp = reg.sp.wrapping_sub(1);
+        OperationResult::None
+    }
+
+    fn jsr_02(
+        reg: &mut Registers,
+        _: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
-        let addr = state.addr;
-        let pc = reg.pc;
-        let mut sp = reg.sp as Word;
-
-        bus.write(PS.wrapping_add(sp), (pc >> 8) as Byte);
-        sp = sp.wrapping_sub(1);
-        bus.write(PS.wrapping_add(sp), pc as Byte);
-        sp = sp.wrapping_sub(1);
-
-        reg.sp = sp as Byte;
-        reg.pc = addr;
+        reg.pc = state.addr;
 
         state.oper = OperData::None;
         OperationResult::None
     }
 
-    steps! {JSR [jsr]}
+    steps! {JSR [spin, jsr_00, jsr_01, jsr_02]}
 
     fn lda(
         reg: &mut Registers,
@@ -1707,8 +1726,8 @@ pub mod act {
         bus: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
-        bus.write(state.addr, reg.x);
-        state.oper = OperData::None;
+        let tmp = bus.write(state.addr, reg.x);
+        state.oper = OperData::Byte(tmp);
         OperationResult::None
     }
 

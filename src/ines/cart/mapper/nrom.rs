@@ -74,16 +74,24 @@ impl RwMapper for Nrom {
         }
     }
 
-    fn write_chr(&mut self, addr: Word, data: Byte) {
+    fn write_chr(&mut self, addr: Word, data: Byte) -> Byte {
         if (CHR_LO..=CHR_HI).contains(&addr) && self.chr_bnk == 0 {
+            let tmp = self.chr[addr as usize];
             self.chr[addr as usize] = data;
+            tmp
+        } else {
+            0
         }
     }
 
-    fn write_prg(&mut self, addr: Word, data: Byte) {
+    fn write_prg(&mut self, addr: Word, data: Byte) -> Byte {
         if (RAM_LO..=RAM_HI).contains(&addr) {
             let masked = addr & RAM_MASK;
+            let tmp = self.prg[masked as usize];
             self.prg[masked as usize] = data;
+            tmp
+        } else {
+            0
         }
     }
 }

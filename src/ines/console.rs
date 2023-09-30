@@ -3,14 +3,9 @@ use std::{cell::RefCell, rc::Rc};
 use super::{
     cart::{Cartridge, Mapper, MapperRef},
     cpu::{Bus as CpuBus, CpuRef, CpuState, InstructionState},
+    ppu::{Bus as PpuBus, PpuRef, PpuState},
     ClockSeq, Process, Word, NTSC_SEQ,
 };
-
-#[derive(Debug, Default, Clone)]
-pub struct PpuState {
-    pub x: u16,
-    pub y: u16,
-}
 
 #[derive(Debug, Default, Clone)]
 pub struct NesState {
@@ -22,10 +17,12 @@ pub struct NesState {
 #[derive(Debug)]
 pub struct Nes {
     cpu: CpuRef<CpuBus>,
+    ppu: PpuRef<PpuBus>,
     mpr: MapperRef,
     seq: ClockSeq,
     tcc: u64,
     state: NesState,
+    ppu_cur: PpuState,
 }
 
 impl Nes {
@@ -62,10 +59,12 @@ impl Nes {
 
     #[allow(unused)]
     pub fn run_pc(&mut self, addr: Word) -> NesState {
-        while !self.cpu.borrow().waiting() {
-            self.next();
+        if self.cpu.borrow().cur_pc() != addr {
+            while !self.cpu.borrow().waiting() {
+                self.next();
+            }
+            self.cpu.borrow_mut().pc(addr);
         }
-        self.cpu.borrow_mut().pc(addr);
         if let Some(cc) = self.count_until_process(Process::Cpu) {
             for _ in 0..=cc {
                 self.next();
@@ -112,10 +111,12 @@ impl Default for Nes {
     fn default() -> Self {
         Self {
             cpu: CpuRef::default(),
+            ppu: PpuRef::default(),
             mpr: MapperRef::default(),
             seq: NTSC_SEQ,
             tcc: 0,
             state: NesState::default(),
+            ppu_cur: PpuState::default(),
         }
     }
 }
@@ -127,13 +128,19 @@ impl Iterator for Nes {
             if let Some(process) = p.next() {
                 match process {
                     Process::Ppu => {
-                        //self.ppu.borrow_mut().next();
-                    }
-                    Process::Cpu => {
-                        if let Some(CpuState::OperComplete(state)) = self.cpu.borrow_mut().next() {
-                            self.state.cpu = state;
+                        if let Some(state) = self.ppu.borrow_mut().next() {
+                            self.ppu_cur = state;
                         }
                     }
+                    Process::Cpu => match self.cpu.borrow_mut().next() {
+                        Some(CpuState::OperComplete(state)) => {
+                            self.state.cpu = state;
+                        }
+                        None => {
+                            self.state.ppu = self.ppu_cur;
+                        }
+                        _ => {}
+                    },
                     Process::Apu => {
                         //self.apu.borrow_mut().next();
                     }

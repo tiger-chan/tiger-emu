@@ -454,8 +454,15 @@ mod test {
                 tcc: _tcc,
             } = nes.run_pc(next_pc);
 
-            let last_instruction = format!("{:>04X}  {:>02X} {} {} {}A:{:>02X} X:{:>02X} Y:{:>02X} P:{:>02X} SP:{:>02X} PPU:{:>3},{:>3} CYC:{}",
-                    cpu.reg.pc, cpu.opcode, cpu.addr.nestest_log_addr1(), cpu.op, cpu.addr.nestest_log_addr2(), cpu.reg.ac, cpu.reg.x, cpu.reg.y, u8::from(cpu.reg.p), cpu.reg.sp, ppu.y, ppu.x, cpu.tcc
+            let instruction_debug = format!(
+                "{} {}{}",
+                cpu.op,
+                cpu.addr.nestest_log_addr2(),
+                cpu.oper.nestest_log()
+            );
+
+            let last_instruction = format!("{:>04X}  {:>02X} {} {:<32}A:{:>02X} X:{:>02X} Y:{:>02X} P:{:>02X} SP:{:>02X} PPU:{:>3},{:>3} CYC:{}",
+                    cpu.reg.pc, cpu.opcode, cpu.addr.nestest_log_addr1(), instruction_debug, cpu.reg.ac, cpu.reg.x, cpu.reg.y, u8::from(cpu.reg.p), cpu.reg.sp, ppu.scanline, ppu.cycle, cpu.tcc
             );
 
             assert_eq!(last_instruction, instruction);

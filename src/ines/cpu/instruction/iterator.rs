@@ -67,7 +67,7 @@ impl InstructionIterator {
 
         let len = self.len as i8;
         match self.cur {
-            x if x == len - 1 => InstructionResult::Result(self.state.addr_data, self.state.oper),
+            x if x >= len - 1 => InstructionResult::Result(self.state.addr_data, self.state.oper),
             _ => InstructionResult::Clock,
         }
     }
