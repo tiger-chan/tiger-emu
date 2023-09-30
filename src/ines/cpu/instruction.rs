@@ -20,7 +20,14 @@ use crate::ines::io::RwDevice;
 
 use super::Registers;
 
-pub type Operation = fn(&mut Registers, &mut dyn RwDevice, &mut InstructionState) -> i8;
+pub enum OperationResult {
+    None,
+    Instant,
+    Skip(i8),
+}
+
+pub type Operation =
+    fn(&mut Registers, &mut dyn RwDevice, &mut InstructionState) -> OperationResult;
 
 pub type Instruc = fn() -> InstructionIterator;
 
@@ -350,13 +357,8 @@ mod test {
         bus.write(0x00, 0x05); // Immediate mode value
 
         let mut iter = op_69();
-        while let Some(result) = iter.next() {
-            match result {
-                InstructionResult::Result(_, _) => {}
-                InstructionResult::Clock => {
-                    iter.clock(&mut reg, &mut bus);
-                }
-            }
+        while let Some(_) = iter.next() {
+            iter.clock(&mut reg, &mut bus);
         }
 
         assert_eq!(reg.ac, 0x0A);
@@ -382,13 +384,8 @@ mod test {
 
         let mut iter = op_d0();
 
-        while let Some(result) = iter.next() {
-            match result {
-                InstructionResult::Result(_, _) => {}
-                InstructionResult::Clock => {
-                    iter.clock(&mut reg, &mut bus);
-                }
-            }
+        while let Some(_) = iter.next() {
+            iter.clock(&mut reg, &mut bus);
         }
 
         assert_eq!(reg.pc, 0x01, "PC");
@@ -410,13 +407,8 @@ mod test {
 
         let mut iter = op_d0();
 
-        while let Some(result) = iter.next() {
-            match result {
-                InstructionResult::Result(_, _) => {}
-                InstructionResult::Clock => {
-                    iter.clock(&mut reg, &mut bus);
-                }
-            }
+        while let Some(_) = iter.next() {
+            iter.clock(&mut reg, &mut bus);
         }
 
         assert_eq!(reg.pc, 0x06, "PC");
@@ -438,13 +430,8 @@ mod test {
 
         let mut iter = op_d0();
 
-        while let Some(result) = iter.next() {
-            match result {
-                InstructionResult::Result(_, _) => {}
-                InstructionResult::Clock => {
-                    iter.clock(&mut reg, &mut bus);
-                }
-            }
+        while let Some(_) = iter.next() {
+            iter.clock(&mut reg, &mut bus);
         }
 
         assert_eq!(reg.pc, 0x00FD + 0x0001 + 0x0005, "PC");
@@ -461,7 +448,11 @@ mod test {
             let next_pc = u16::from_str_radix(&instruction[0..4], 16)
                 .expect("First 4 values represent the pc in hex");
 
-            let NesState { ppu, cpu, tcc: _ } = nes.run_pc(next_pc);
+            let NesState {
+                ppu,
+                cpu,
+                tcc: _tcc,
+            } = nes.run_pc(next_pc);
 
             let last_instruction = format!("{:>04X}  {:>02X} {} {} {}A:{:>02X} X:{:>02X} Y:{:>02X} P:{:>02X} SP:{:>02X} PPU:{:>3},{:>3} CYC:{}",
                     cpu.reg.pc, cpu.opcode, cpu.addr.nestest_log_addr1(), cpu.op, cpu.addr.nestest_log_addr2(), cpu.reg.ac, cpu.reg.x, cpu.reg.y, u8::from(cpu.reg.p), cpu.reg.sp, ppu.y, ppu.x, cpu.tcc

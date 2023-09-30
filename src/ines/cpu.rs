@@ -101,38 +101,23 @@ impl<CpuBus: RwDevice> Iterator for Cpu<CpuBus> {
     fn next(&mut self) -> Option<Self::Item> {
         self.tcc = self.tcc.wrapping_add(1);
 
-        todo!("Add handling for actions that indicate that they should be instantantious");
-        for result in self.instruction {
-            match result {
-                instruction::InstructionResult::Clock => {
-                    let bus = self.bus.as_mut().expect("Bus is set");
-                    self.instruction.clock(&mut self.reg, bus);
-                    Some(CpuState::OperExecuting)
-                }
-                instruction::InstructionResult::Result(addr, oper) => {
-                    self.prev.addr = addr;
-                    self.prev.oper = oper;
-                    Some(CpuState::OperComplete(self.prev))
+        match self.instruction.next() {
+            Some(_) => {
+                let bus = self.bus.as_mut().expect("Bus is set");
+                match self.instruction.clock(&mut self.reg, bus) {
+                    instruction::InstructionResult::Clock => Some(CpuState::OperExecuting),
+                    instruction::InstructionResult::Result(addr, oper) => {
+                        self.prev.addr = addr;
+                        self.prev.oper = oper;
+                        Some(CpuState::OperComplete(self.prev))
+                    }
                 }
             }
-        }
-
-        match self.instruction.next() {
-            Some(result) => match result {
-                instruction::InstructionResult::Clock => {
-                    let bus = self.bus.as_mut().expect("Bus is set");
-                    self.instruction.clock(&mut self.reg, bus);
-                    Some(CpuState::OperExecuting)
-                }
-                instruction::InstructionResult::Result(addr, oper) => {
-                    self.prev.addr = addr;
-                    self.prev.oper = oper;
-                    Some(CpuState::OperComplete(self.prev))
-                }
-            },
             None => {
                 let bus = self.bus.as_ref().expect("Bus is set");
                 let opc = bus.read(self.reg.pc) as usize;
+
+                self.reg.p.set(Status::U, true);
 
                 self.prev = InstructionState {
                     reg: self.reg,
@@ -142,6 +127,7 @@ impl<CpuBus: RwDevice> Iterator for Cpu<CpuBus> {
                     ..Default::default()
                 };
 
+                self.reg.pc = self.reg.pc.wrapping_add(1);
                 self.instruction = OPER[opc]();
                 None
             }

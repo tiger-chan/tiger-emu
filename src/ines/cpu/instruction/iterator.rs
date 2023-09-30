@@ -1,4 +1,7 @@
-use crate::ines::{cpu::Registers, io::RwDevice};
+use crate::ines::{
+    cpu::{instruction::OperationResult, Registers},
+    io::RwDevice,
+};
 
 use super::{actions::spin, InstructionResult, InstructionState, Operation};
 
@@ -46,31 +49,42 @@ impl InstructionIterator {
     }
 
     #[allow(unused)]
-    pub fn clock(&mut self, reg: &mut Registers, bus: &mut dyn RwDevice) {
+    pub fn clock(&mut self, reg: &mut Registers, bus: &mut dyn RwDevice) -> InstructionResult {
         self.cc += 1;
         let oper = &self.operations[(self.cur - 1) as usize];
-        let skip_count = oper(reg, bus, &mut self.state);
-        self.cur += skip_count;
-        todo!("Update method to return a signal indicating that the action should be considered instantanious");
+        let result = oper(reg, bus, &mut self.state);
+        match result {
+            OperationResult::Instant => {
+                self.cc -= 1;
+                self.cur += 1;
+                self.clock(reg, bus);
+            }
+            OperationResult::Skip(count) => {
+                self.cur += count;
+            }
+            OperationResult::None => {}
+        }
+
+        let len = self.len as i8;
+        match self.cur {
+            x if x == len - 1 => InstructionResult::Result(self.state.addr_data, self.state.oper),
+            _ => InstructionResult::Clock,
+        }
     }
 
     pub fn waiting(&self) -> bool {
-        self.cur > self.len as i8
+        self.cur >= self.len as i8
     }
 }
 
 impl Iterator for InstructionIterator {
-    type Item = InstructionResult;
+    type Item = ();
     fn next(&mut self) -> Option<Self::Item> {
         let len = self.len as i8;
         match self.cur {
-            x if x == len => {
-                self.cur += 1;
-                Some(Self::Item::Result(self.state.addr_data, self.state.oper))
-            }
             x if x < len => {
                 self.cur += 1;
-                Some(Self::Item::Clock)
+                Some(())
             }
             _ => None,
         }
