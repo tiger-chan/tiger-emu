@@ -18,6 +18,12 @@ macro_rules! is_neg {
     };
 }
 
+macro_rules! is_overflow {
+    ($a:expr, $m:expr, $r:expr) => {
+        (!($a ^ $m) & ($a ^ $r)) & 0x80 == 0x80
+    };
+}
+
 macro_rules! count_idents {
     ($($idents:ident),* $(,)*) => {
         {
@@ -767,7 +773,7 @@ pub mod act {
         reg.p
             .set(Status::C, tmp > 255)
             .set(Status::Z, is_zero!(tmp))
-            .set(Status::V, is_neg!(!(ac ^ data) & ac ^ tmp))
+            .set(Status::V, is_overflow!(ac, data, tmp))
             .set(Status::N, is_neg!(tmp));
 
         reg.ac = tmp as Byte;
@@ -1706,12 +1712,12 @@ pub mod act {
         let ac = reg.ac as Word;
         let val = data ^ LO_MASK;
 
-        let tmp = ac + val + Word::from(reg.p.get(Status::C));
+        let tmp = ac + val + reg.p.get(Status::C);
 
         reg.p
             .set(Status::C, tmp > 255)
             .set(Status::Z, is_zero!(tmp))
-            .set(Status::V, is_neg!(!(ac ^ data as Word) & ac ^ tmp))
+            .set(Status::V, is_overflow!(ac, val, tmp))
             .set(Status::N, is_neg!(tmp));
 
         reg.ac = tmp as Byte;
