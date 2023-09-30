@@ -130,7 +130,7 @@ make_instruction![[op_b0, AM_B0, IN_B0] BCS &BB    ];
 
 make_instruction![[op_f0, AM_F0, IN_F0] BEQ &BB    ];
 
-make_instruction![[op_24, AM_24, IN_24] BIT &BB    ];
+make_instruction![[op_24, AM_24, IN_24] BIT &LL    ];
 make_instruction![[op_2c, AM_2C, IN_2C] BIT &LLHH  ];
 
 make_instruction![[op_30, AM_30, IN_30] BMI &BB    ];

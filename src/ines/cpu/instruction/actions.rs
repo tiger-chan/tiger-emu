@@ -910,7 +910,7 @@ pub mod act {
             .set(Status::N, is_neg!(data))
             .set(Status::V, data & 0x40 == 0x40);
 
-        state.oper = OperData::None;
+        state.oper = OperData::Byte(reg.ac);
         OperationResult::None
     }
 
@@ -1063,7 +1063,7 @@ pub mod act {
     ) -> OperationResult {
         let pc = reg.pc;
         state.addr = pc.wrapping_add(state.addr);
-        state.oper = OperData::None;
+        state.oper = OperData::Word(state.addr);
         if reg.p.get(Status::V) == 0 {
             OperationResult::None
         } else {
@@ -1080,7 +1080,7 @@ pub mod act {
     ) -> OperationResult {
         let pc = reg.pc;
         state.addr = pc.wrapping_add(state.addr);
-        state.oper = OperData::None;
+        state.oper = OperData::Word(state.addr);
         if reg.p.get(Status::V) == 1 {
             OperationResult::None
         } else {
@@ -1628,23 +1628,49 @@ pub mod act {
 
     steps! {RTI [rti]}
 
-    fn rts(
+    fn rts_00(
+        _: &mut Registers,
+        _: &mut dyn RwDevice,
+        _: &mut InstructionState,
+    ) -> OperationResult {
+        OperationResult::None
+    }
+
+    fn rts_01(
         reg: &mut Registers,
         bus: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
-        let mut sp = reg.sp as Word + 1;
-        let lo_pc = bus.read(PS.wrapping_add(sp)) as Word;
-        sp += 1;
-        let hi_pc = (bus.read(PS.wrapping_add(sp)) as Word) << 8;
-        reg.pc = lo_pc | hi_pc;
-        reg.sp = sp as Byte;
+        reg.sp = reg.sp.wrapping_add(1);
+        state.tmp = bus.read(PS.wrapping_add(reg.sp as Word)) as Word;
+
+        OperationResult::None
+    }
+
+    fn rts_02(
+        reg: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        reg.sp = reg.sp.wrapping_add(1);
+        let hi_pc = (bus.read(PS.wrapping_add(reg.sp as Word)) as Word) << 8;
+        state.tmp |= hi_pc;
+
+        OperationResult::None
+    }
+
+    fn rts_03(
+        reg: &mut Registers,
+        _: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        reg.pc = state.tmp;
 
         state.oper = OperData::None;
         OperationResult::None
     }
 
-    steps! {RTS [rts]}
+    steps! {RTS [spin, rts_00, rts_01, rts_02, rts_03]}
 
     fn sbc(
         reg: &mut Registers,
@@ -1714,8 +1740,8 @@ pub mod act {
         bus: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
-        bus.write(state.addr, reg.ac);
-        state.oper = OperData::None;
+        let tmp = bus.write(state.addr, reg.ac);
+        state.oper = OperData::Byte(tmp);
         OperationResult::None
     }
 
