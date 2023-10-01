@@ -58,7 +58,7 @@ const INOAM: AddrMode = AddrMode::IMP;
 
 #[allow(dead_code)]
 #[rustfmt::skip]
-pub const ADDER_MODE: [AddrMode; 256] = [
+pub const ADDR_MODE: [AddrMode; 256] = [
     AM_00, AM_01, AM_02, INOAM, INOAM, AM_05, AM_06, INOAM, AM_08, AM_09, AM_0A, INOAM, INOAM, AM_0D, AM_0E, INOAM,
     AM_10, AM_11, AM_12, INOAM, INOAM, AM_15, AM_16, INOAM, AM_18, AM_19, INOAM, INOAM, INOAM, AM_1D, AM_1E, INOAM,
     AM_20, AM_21, AM_22, INOAM, AM_24, AM_25, AM_26, INOAM, AM_28, AM_29, AM_2A, INOAM, AM_2C, AM_2D, AM_2E, INOAM,
@@ -458,7 +458,7 @@ mod test {
                 "{} {}{}",
                 cpu.op,
                 cpu.addr.nestest_log_addr2(),
-                cpu.oper.nestest_log()
+                cpu.oper.nestest_log(ADDR_MODE[cpu.opcode as usize])
             );
 
             let last_instruction = format!("{:>04X}  {:>02X} {} {:<32}A:{:>02X} X:{:>02X} Y:{:>02X} P:{:>02X} SP:{:>02X} PPU:{:>3},{:>3} CYC:{}",

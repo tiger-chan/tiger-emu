@@ -84,7 +84,7 @@ pub mod addr {
         reg.pc = reg.pc.wrapping_add(1);
 
         state.addr = lo;
-        OperationResult::Instant
+        OperationResult::None
     }
 
     fn abs_01(
@@ -117,6 +117,49 @@ pub mod addr {
     /// JSR to provide the address for the next instruction to continue with
     /// in the control flow.
     pub const ABS: [Operation; 2] = [abs_00, abs_01];
+
+    fn abs_jmp_00(
+        reg: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        let lo = bus.read(reg.pc) as Word;
+        reg.pc = reg.pc.wrapping_add(1);
+
+        state.addr = lo;
+        OperationResult::None
+    }
+
+    fn abs_jmp_01(
+        reg: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        let lo = state.addr;
+        let hi = bus.read(reg.pc) as Word;
+        reg.pc = reg.pc.wrapping_add(1);
+
+        state.addr = lo | hi << 8;
+        state.addr_data = AddrModeData::Abs(lo as Byte, hi as Byte);
+        OperationResult::Instant
+    }
+
+    /// Absolute - OPC $LLHH
+    ///
+    /// operand is address $HHLL *
+    ///
+    /// Absolute addressing modes provides the 16-bit address of a memory
+    /// location, the contents of which used as the operand to the
+    /// instruction. In machine language, the address is provided in two
+    /// bytes immediately after the instruction (making these 3-byte
+    /// instructions) in low-byte, high-byte order (LLHH) or little-endian.
+    /// In assembler, conventional numbers (HHLL order or big-endian words)
+    /// are used to provide the address.
+    ///
+    /// Absolute addresses are also used for the jump instructions JMP and
+    /// JSR to provide the address for the next instruction to continue with
+    /// in the control flow.
+    pub const ABS_JMP: [Operation; 2] = [abs_jmp_00, abs_jmp_01];
 
     fn abx_00(
         reg: &mut Registers,
@@ -263,7 +306,7 @@ pub mod addr {
         let ptr_lo = bus.read(reg.pc) as Word;
         reg.pc = reg.pc.wrapping_add(1);
         state.addr = ptr_lo;
-        OperationResult::Instant
+        OperationResult::None
     }
 
     fn ind_01(
@@ -308,7 +351,7 @@ pub mod addr {
         let addr = lo | hi;
         state.addr = addr;
         state.addr_data = AddrModeData::Ind(ptr as Byte, (ptr >> 8) as Byte, addr);
-        OperationResult::None
+        OperationResult::Instant
     }
 
     /// Indirect - OPC ($LLHH)
@@ -536,14 +579,6 @@ pub mod addr {
         reg.pc = reg.pc.wrapping_add(1);
 
         state.addr = addr;
-        OperationResult::Instant
-    }
-
-    fn zpg_01(
-        _: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
         state.addr_data = AddrModeData::Zpg(state.addr as Byte);
         OperationResult::None
     }
@@ -564,7 +599,7 @@ pub mod addr {
     /// Therefore, these instructions have a total length of just two bytes
     /// (one less than absolute mode) and take one CPU cycle less to
     /// execute, as there is one byte less to fetch.
-    pub const ZPG: [Operation; 2] = [zpg_00, zpg_01];
+    pub const ZPG: [Operation; 1] = [zpg_00];
 
     fn zpx_00(
         reg: &mut Registers,
@@ -660,6 +695,10 @@ macro_rules! addr_mode {
         addr::IMP
     };
 
+    (JMP &LLHH) => {
+        addr::ABS_JMP
+    };
+
     (&LLHH) => {
         addr::ABS
     };
@@ -674,6 +713,10 @@ macro_rules! addr_mode {
 
     (#&BB) => {
         addr::IMM
+    };
+
+    (JMP (&LLHH)) => {
+        addr::IND
     };
 
     ((&LLHH)) => {
@@ -1390,7 +1433,7 @@ pub mod act {
         OperationResult::None
     }
 
-    steps! {JSR [spin, jsr_00, jsr_01, jsr_02]}
+    steps! {JSR [jsr_00, jsr_01, jsr_02]}
 
     fn lda(
         reg: &mut Registers,
@@ -1404,7 +1447,7 @@ pub mod act {
             .set(Status::Z, is_zero!(data))
             .set(Status::N, is_neg!(data as Word));
 
-        state.oper = OperData::None;
+        state.oper = OperData::Byte(data);
         OperationResult::None
     }
 
@@ -1422,7 +1465,7 @@ pub mod act {
             .set(Status::Z, is_zero!(data))
             .set(Status::N, is_neg!(data));
 
-        state.oper = OperData::None;
+        state.oper = OperData::Byte(data);
         OperationResult::None
     }
 
@@ -1440,7 +1483,7 @@ pub mod act {
             .set(Status::Z, is_zero!(data))
             .set(Status::N, is_neg!(data));
 
-        state.oper = OperData::None;
+        state.oper = OperData::Byte(data);
         OperationResult::None
     }
 
@@ -1546,20 +1589,20 @@ pub mod act {
 
     fn pla_00(
         reg: &mut Registers,
-        bus: &mut dyn RwDevice,
+        _: &mut dyn RwDevice,
         _: &mut InstructionState,
     ) -> OperationResult {
         reg.sp = reg.sp.wrapping_add(1);
-        reg.ac = bus.read(PS.wrapping_add(reg.sp as Word));
 
         OperationResult::None
     }
 
     fn pla_01(
         reg: &mut Registers,
-        _: &mut dyn RwDevice,
+        bus: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
+        reg.ac = bus.read(PS.wrapping_add(reg.sp as Word));
         reg.p
             .set(Status::Z, is_zero!(reg.ac))
             .set(Status::N, is_neg!(reg.ac));
@@ -2845,7 +2888,7 @@ macro_rules! make_instruction {
         /// indirect     JMP (oper)      6C     3        5
         /// ```
         fn $opc() -> InstructionIterator {
-            let addr = addr_mode![$($am)*];
+            let addr = addr_mode![JMP $($am)*];
             let work = &act::JMP;
             InstructionIterator::new(&addr, work)
         }
