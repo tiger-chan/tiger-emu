@@ -2,7 +2,7 @@
 
 use crate::ines::{
     cart::MapperRef,
-    io::{ReadDevice, RwDevice, RwMapper, WriteDevice},
+    io::{ReadDevice, RwDevice, RwDeviceRef, RwMapper, WriteDevice},
     Byte, Word, CPU_RAM,
 };
 
@@ -103,14 +103,16 @@ const MPR_IO_HI: Word = 0xFFFF;
 #[derive(Debug)]
 pub struct Bus {
     ram: [Byte; CPU_RAM],
+    ppu: RwDeviceRef,
     mpr: MapperRef,
 }
 
 impl Bus {
     #[allow(dead_code)]
-    pub fn new(mpr: MapperRef) -> Self {
+    pub fn new(ppu: RwDeviceRef, mpr: MapperRef) -> Self {
         Self {
             ram: [0; CPU_RAM],
+            ppu,
             mpr,
         }
     }
@@ -121,7 +123,11 @@ impl ReadDevice for Bus {
         match addr {
             CPU_RAM_LO..=CPU_RAM_HI => self.ram[(addr & CPU_MIRROR_MASK) as usize],
             MPR_IO_LO..=MPR_IO_HI => self.mpr.borrow().read_prg(addr),
-            _ => unimplemented!(),
+            PPU_REGISTER_LO..=PPU_REGISTER_HI => self.ppu.borrow().read(addr),
+            _ => {
+                println!("Unimplemented region @ {addr:<04X}");
+                unimplemented!()
+            }
         }
     }
 }
@@ -136,6 +142,10 @@ impl WriteDevice for Bus {
                 tmp
             }
             MPR_IO_LO..=MPR_IO_HI => self.mpr.borrow_mut().write_prg(addr, data),
+            PPU_REGISTER_LO..=PPU_REGISTER_HI => {
+                let masked = addr | PPU_REGISTER_MASK;
+                self.ppu.borrow_mut().write(masked, data)
+            }
             _ => unimplemented!(),
         }
     }

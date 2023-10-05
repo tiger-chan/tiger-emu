@@ -1,6 +1,8 @@
+use crate::ines::registers::{
+    bit_and, bit_or, bit_xor, display, not, partial_eq, reg_add_impl, reg_from_impl,
+};
 use core::fmt;
 use std::ops::{Add, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not};
-use crate::ines::registers::{not, reg_from_impl, reg_add_impl, bit_or, bit_and, bit_xor, partial_eq, display};
 
 ///
 /// ```text
@@ -47,6 +49,7 @@ impl Status {
     ///
     /// All arithmetic operations update the Z, N, C and V flags.
     pub const Z: Status = Status::new(1 << 1);
+
     /// negative flag (N) indicates the presence of a set sign bit in
     /// bit-position 7. These flags are always updated, whenever a
     /// value is transferred to a CPU register (A,X,Y) and as a result
@@ -56,6 +59,7 @@ impl Status {
     ///
     /// All arithmetic operations update the Z, N, C and V flags.
     pub const N: Status = Status::new(1 << 7);
+
     /// The carry flag (C) flag is used as a buffer and as a borrow in
     /// arithmetic operations. Any comparisons will update this
     /// additionally to the Z and N flags, as do shift and rotate
@@ -63,6 +67,7 @@ impl Status {
     ///
     /// All arithmetic operations update the Z, N, C and V flags.
     pub const C: Status = Status::new(1 << 0);
+
     /// The overflow flag (V) indicates overflow with signed binary
     /// arithmetics. As a signed byte represents a range of -128 to
     /// +127, an overflow can never occur when the operands are of
@@ -76,12 +81,15 @@ impl Status {
     ///
     /// All arithmetic operations update the Z, N, C and V flags.
     pub const V: Status = Status::new(1 << 6);
+
     /// The decimal flag (D) sets the ALU to binary coded decimal
     /// (BCD) mode for additions and subtractions (ADC, SBC).
     pub const D: Status = Status::new(1 << 3);
+
     /// The interrupt inhibit flag (I) blocks any maskable interrupt
     /// requests (IRQ).
     pub const I: Status = Status::new(1 << 2);
+
     /// The break flag (B) is not an actual flag implemented in a
     /// register, and rather appears only, when the status register is
     /// pushed onto or pulled from the stack. When pushed, it will be
@@ -100,6 +108,7 @@ impl Status {
     /// an interrupt caused by a BRK instruction from a normal
     /// interrupt initiated by hardware.
     pub const B: Status = Status::new(1 << 4);
+
     /// Unused / Ignored
     pub const U: Status = Status::new(1 << 5);
 }

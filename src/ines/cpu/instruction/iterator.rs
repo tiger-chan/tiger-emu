@@ -50,12 +50,12 @@ impl InstructionIterator {
 
     #[allow(unused)]
     pub fn clock(&mut self, reg: &mut Registers, bus: &mut dyn RwDevice) -> InstructionResult {
-        self.cc += 1;
+        self.cc = self.cc.wrapping_add(1);
         let oper = &self.operations[(self.cur - 1) as usize];
         let result = oper(reg, bus, &mut self.state);
         match result {
             OperationResult::Instant => {
-                self.cc -= 1;
+                self.cc = self.cc.wrapping_sub(1);
                 self.cur += 1;
                 self.clock(reg, bus);
             }

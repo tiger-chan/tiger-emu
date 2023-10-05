@@ -49,7 +49,8 @@ impl AddrModeData {
     #[cfg(test)]
     pub fn nestest_log_addr2(&self) -> String {
         match &self {
-            AddrModeData::A | AddrModeData::Imp => String::from(""),
+            AddrModeData::A => String::from("A"),
+            AddrModeData::Imp => String::from(""),
             AddrModeData::Abs(lo, hi) => {
                 format!("${:>04X}", *lo as Word | (*hi as Word) << 8)
             }

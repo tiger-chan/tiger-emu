@@ -4,7 +4,7 @@ use super::{
     cart::{Cartridge, Mapper, MapperRef},
     cpu::{Bus as CpuBus, CpuRef, CpuState, InstructionState},
     ppu::{Bus as PpuBus, PpuRef, PpuState},
-    ClockSeq, Process, Word, NTSC_SEQ,
+    Byte, ClockSeq, Process, Word, NTSC_SEQ,
 };
 
 #[derive(Debug, Default, Clone)]
@@ -32,19 +32,22 @@ impl Nes {
     }
 
     #[allow(unused)]
-    pub fn with_cart(cart: Cartridge) -> Self {
-        let mut nes = Self {
-            ..Default::default()
-        };
-        nes.insert_cart(cart);
-        nes.cpu.borrow_mut().reset();
-        nes
+    pub fn with_cart(mut self, cart: Cartridge) -> Self {
+        self.insert_cart(cart);
+        self.cpu.borrow_mut().reset();
+        self
+    }
+
+    #[allow(unused)]
+    pub fn with_entry(mut self, addr: Word) -> Self {
+        self.cpu.borrow_mut().pc(addr);
+        self
     }
 
     #[allow(unused)]
     pub fn insert_cart(&mut self, cart: Cartridge) -> &mut Self {
         self.mpr = Rc::new(RefCell::new(Mapper::from(cart)));
-        let cpu_bus = CpuBus::new(self.mpr.clone());
+        let cpu_bus = CpuBus::new(self.ppu.clone(), self.mpr.clone());
         self.cpu.borrow_mut().configure_bus(cpu_bus);
         self
     }
@@ -54,6 +57,7 @@ impl Nes {
         while !self.cpu.borrow().waiting() {
             self.next();
         }
+        self.tcc = 0;
         self.cpu.borrow_mut().reset();
     }
 
@@ -104,6 +108,11 @@ impl Nes {
             }
         }
         None
+    }
+
+    #[allow(unused)]
+    pub fn read(&self, addr: Word) -> Byte {
+        self.cpu.borrow().read(addr)
     }
 }
 

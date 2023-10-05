@@ -2,8 +2,8 @@ mod cart;
 mod clock_counter;
 mod console;
 mod cpu;
-mod ppu;
 mod io;
+mod ppu;
 mod registers;
 
 use clock_counter::*;
@@ -54,6 +54,13 @@ pub const RES_HI: Word = 0xFFFD;
 
 /// $FFFE, $FFFF ... IRQ (Interrupt Request) vector, 16-bit (LB, HB)
 pub const IRQ_LO: Word = 0xFFFE;
+
+/// $FFFC–$FFFD: Reset vector
+#[allow(dead_code)]
+pub const RESET_HI: Word = 0xFFFD;
+
+/// $FFFC–$FFFD: Reset vector
+pub const RESET_LO: Word = 0xFFFC;
 
 /// $FFFE, $FFFF ... IRQ (Interrupt Request) vector, 16-bit (LB, HB)
 #[allow(dead_code)]

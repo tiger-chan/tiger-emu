@@ -248,13 +248,13 @@ make_instruction![[op_68, AM_68, IN_68] PLA        ];
 
 make_instruction![[op_28, AM_28, IN_28] PLP        ];
 
-make_instruction![[op_2a, AM_2A, IN_2A] ROL        ];
+make_instruction![[op_2a, AM_2A, IN_2A] ROL A      ];
 make_instruction![[op_26, AM_26, IN_26] ROL &LL    ];
 make_instruction![[op_36, AM_36, IN_36] ROL &LL,X  ];
 make_instruction![[op_2e, AM_2E, IN_2E] ROL &LLHH  ];
 make_instruction![[op_3e, AM_3E, IN_3E] ROL &LLHH,X];
 
-make_instruction![[op_6a, AM_6A, IN_6A] ROR        ];
+make_instruction![[op_6a, AM_6A, IN_6A] ROR A      ];
 make_instruction![[op_66, AM_66, IN_66] ROR &LL    ];
 make_instruction![[op_76, AM_76, IN_76] ROR &LL,X  ];
 make_instruction![[op_6e, AM_6E, IN_6E] ROR &LLHH  ];
@@ -335,6 +335,7 @@ mod test {
         console::Nes,
         cpu::{Bus, Status},
         io::{ReadDevice, WriteDevice},
+        ppu::{Bus as PpuBus, PpuRef},
         NesState,
     };
 
@@ -346,7 +347,8 @@ mod test {
     #[test]
     fn adc_imm() {
         let mpr = Rc::new(RefCell::new(Mapper::default()));
-        let mut bus = Bus::new(mpr);
+        let ppu: PpuRef<PpuBus> = PpuRef::default();
+        let mut bus = Bus::new(ppu, mpr);
         let mut reg = Registers {
             ac: 0x05,
             p: Status::U,
@@ -371,7 +373,8 @@ mod test {
     #[test]
     fn bne_no_branch() {
         let mpr = Rc::new(RefCell::new(Mapper::default()));
-        let mut bus = Bus::new(mpr);
+        let ppu: PpuRef<PpuBus> = PpuRef::default();
+        let mut bus = Bus::new(ppu, mpr);
         let mut reg = Registers {
             p: Status::U | Status::Z,
             pc: 0x00, // Where the next instruction will be loaded
@@ -395,7 +398,8 @@ mod test {
     #[test]
     fn bne_branch_same_page() {
         let mpr = Rc::new(RefCell::new(Mapper::default()));
-        let mut bus = Bus::new(mpr);
+        let ppu: PpuRef<PpuBus> = PpuRef::default();
+        let mut bus = Bus::new(ppu, mpr);
         let mut reg = Registers {
             p: Status::U,
             pc: 0x00, // Where the next instruction will be loaded
@@ -418,7 +422,8 @@ mod test {
     #[test]
     fn bne_branch_new_page() {
         let mpr = Rc::new(RefCell::new(Mapper::default()));
-        let mut bus = Bus::new(mpr);
+        let ppu: PpuRef<PpuBus> = PpuRef::default();
+        let mut bus = Bus::new(ppu, mpr);
         let mut reg = Registers {
             p: Status::U,
             pc: 0xFD, // Where the next instruction will be loaded
@@ -441,7 +446,7 @@ mod test {
     #[test]
     fn nestest_log() -> Result<(), CartridgeLoadError> {
         let cart = Cartridge::try_from(NES_TEST.as_slice())?;
-        let mut nes = Nes::with_cart(cart);
+        let mut nes = Nes::default().with_cart(cart).with_entry(0xC000);
 
         let logs = NES_TEST_LOGS.split('\n').map(|s| s.trim_end());
         for (i, instruction) in logs.enumerate() {
@@ -467,6 +472,33 @@ mod test {
 
             assert_eq!(last_instruction, instruction, "Error at line: {i}");
         }
+
+        Ok(())
+    }
+
+    #[test]
+    fn nestest() -> Result<(), CartridgeLoadError> {
+        let cart = Cartridge::try_from(NES_TEST.as_slice())?;
+        // According to nestest logs the test ends at $C66E
+        let mut nes = Nes::default().with_cart(cart).with_entry(0xC000);
+
+        nes.run_until(0xCE37); // 873
+        nes.run_until(0xCE3D); // 874
+
+        // Fetch error codes
+        let official_opcode_result = nes.read(0x02);
+        let unofficial_opcode_result = nes.read(0x03);
+
+        assert_eq!(
+            official_opcode_result, 0,
+            "Official opcodes exited with code ${:02X}",
+            official_opcode_result
+        );
+        assert_eq!(
+            unofficial_opcode_result, 0,
+            "Unofficial opcodes exited with code ${:02X}",
+            unofficial_opcode_result
+        );
 
         Ok(())
     }

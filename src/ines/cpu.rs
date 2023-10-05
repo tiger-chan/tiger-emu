@@ -13,7 +13,7 @@ use instruction::{AddrModeData, InstructionIterator, OperData, OperType, INSTRUC
 
 use self::instruction::OPER;
 
-use super::{io::RwDevice, Word};
+use super::{io::RwDevice, Byte, Word};
 
 pub type CpuRef<CpuBus> = Rc<RefCell<Cpu<CpuBus>>>;
 
@@ -52,6 +52,7 @@ pub struct Cpu<CpuBus: RwDevice> {
     instruction: InstructionIterator,
     tcc: u64,
     prev: InstructionState,
+    queued_pc: Option<Word>,
 }
 
 impl<CpuBus: RwDevice> Cpu<CpuBus> {
@@ -64,7 +65,7 @@ impl<CpuBus: RwDevice> Cpu<CpuBus> {
     }
 
     pub fn pc(&mut self, addr: Word) {
-        self.reg.pc = addr;
+        self.queued_pc = Some(addr);
     }
 
     pub fn waiting(&self) -> bool {
@@ -82,16 +83,30 @@ impl<CpuBus: RwDevice> Cpu<CpuBus> {
         };
         self.instruction = instruction::reset();
     }
+
+    pub fn read(&self, addr: Word) -> Byte {
+        let bus = self.bus.as_ref().expect("Bus is set");
+        bus.read(addr)
+    }
 }
 
 impl<CpuBus: RwDevice> Default for Cpu<CpuBus> {
     fn default() -> Self {
+        let state = InstructionState {
+            reg: Registers::default(),
+            tcc: 0,
+            opcode: 0xFF,
+            op: OperType::BRK,
+            ..Default::default()
+        };
+
         Self {
             reg: Registers::default(),
             bus: None,
-            instruction: InstructionIterator::default(),
+            instruction: instruction::reset(),
             tcc: 0,
-            prev: InstructionState::default(),
+            prev: state,
+            queued_pc: None,
         }
     }
 }
@@ -114,6 +129,11 @@ impl<CpuBus: RwDevice> Iterator for Cpu<CpuBus> {
                 }
             }
             None => {
+                if let Some(pc) = self.queued_pc {
+                    self.queued_pc = None;
+                    self.reg.pc = pc;
+                };
+
                 let bus = self.bus.as_ref().expect("Bus is set");
                 let opc = bus.read(self.reg.pc) as usize;
 
