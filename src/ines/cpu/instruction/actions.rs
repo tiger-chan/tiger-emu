@@ -407,23 +407,20 @@ pub mod addr {
 
     fn izx_00(
         reg: &mut Registers,
-        bus: &mut dyn RwDevice,
+        _: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
-        state.tmp = bus.read(reg.pc) as Word;
+        state.tmp = reg.pc;
         reg.pc = reg.pc.wrapping_add(1);
-        OperationResult::Instant
+        OperationResult::None
     }
 
     fn izx_01(
-        reg: &mut Registers,
+        _: &mut Registers,
         bus: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
-        let ptr_lo = state.tmp;
-        let ptr = ptr_lo + reg.x as Word;
-
-        state.addr = bus.read(ptr) as Word;
+        state.tmp = bus.read(state.tmp) as Word;
         OperationResult::None
     }
 
@@ -433,12 +430,25 @@ pub mod addr {
         state: &mut InstructionState,
     ) -> OperationResult {
         let ptr_lo = state.tmp;
-        let ptr = ptr_lo + reg.x as Word;
+        let ptr = (ptr_lo + reg.x as Word) & LO_MASK;
 
-        let hi = (bus.read(ptr + 1) as Word) << 8;
+        state.addr = bus.read(ptr) as Word;
+        OperationResult::None
+    }
+
+    fn izx_03(
+        reg: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        let ptr_lo = state.tmp;
+        let ptr = (ptr_lo + reg.x as Word) & LO_MASK;
+        let ptr_hi = (ptr + 1) & LO_MASK;
+
+        let hi = (bus.read(ptr_hi) as Word) << 8;
         state.addr |= hi;
 
-        state.addr_data = AddrModeData::Izx(ptr_lo as Byte, state.addr);
+        state.addr_data = AddrModeData::Izx(ptr_lo as Byte, ptr as Byte, state.addr);
         OperationResult::None
     }
 
@@ -470,7 +480,7 @@ pub mod addr {
     /// of pointers to disperse addresses, or where we want to apply the
     /// same operation to various addresses, which we have stored as a table
     /// in the zero-page.
-    pub const IZX: [Operation; 4] = [izx_00, izx_01, izx_02, spin];
+    pub const IZX: [Operation; 4] = [izx_00, izx_01, izx_02, izx_03];
 
     fn izy_00(
         reg: &mut Registers,
@@ -873,7 +883,7 @@ pub mod act {
             .set(Status::N, is_neg!(tmp));
 
         reg.ac = tmp as Byte;
-        state.oper = OperData::None;
+        state.oper = OperData::Byte(data as Byte);
         OperationResult::None
     }
 
@@ -895,7 +905,7 @@ pub mod act {
 
         reg.ac = tmp;
 
-        state.oper = OperData::None;
+        state.oper = OperData::Byte(data);
         OperationResult::None
     }
 
@@ -1281,7 +1291,7 @@ pub mod act {
             .set(Status::Z, is_zero!(tmp))
             .set(Status::N, is_neg!(tmp));
 
-        state.oper = OperData::None;
+        state.oper = OperData::Byte(data as Byte);
         OperationResult::None
     }
 
@@ -1301,7 +1311,7 @@ pub mod act {
             .set(Status::Z, is_zero!(tmp))
             .set(Status::N, is_neg!(tmp));
 
-        state.oper = OperData::None;
+        state.oper = OperData::Byte(data as Byte);
         OperationResult::None
     }
 
@@ -1321,7 +1331,7 @@ pub mod act {
             .set(Status::Z, is_zero!(tmp))
             .set(Status::N, is_neg!(tmp));
 
-        state.oper = OperData::None;
+        state.oper = OperData::Byte(data as Byte);
         OperationResult::None
     }
 
@@ -1394,7 +1404,7 @@ pub mod act {
             .set(Status::Z, is_zero!(tmp))
             .set(Status::N, is_neg!(tmp));
 
-        state.oper = OperData::None;
+        state.oper = OperData::Byte(data as Byte);
         OperationResult::None
     }
 
@@ -1567,16 +1577,9 @@ pub mod act {
             .set(Status::Z, is_zero!(tmp))
             .set(Status::N, is_neg!(tmp));
 
-        match &state.addr_data {
-            AddrModeData::A | AddrModeData::Imp => {
-                reg.ac = tmp;
-            }
-            _ => {
-                bus.write(addr, tmp);
-            }
-        }
+        let tmp = bus.write(addr, tmp);
 
-        state.oper = OperData::None;
+        state.oper = OperData::Byte(tmp);
         OperationResult::None
     }
 
@@ -1627,7 +1630,7 @@ pub mod act {
             .set(Status::Z, is_zero!(ac))
             .set(Status::N, is_neg!(ac));
 
-        state.oper = OperData::None;
+        state.oper = OperData::Byte(data);
         OperationResult::None
     }
 
@@ -1929,7 +1932,7 @@ pub mod act {
 
         reg.ac = tmp as Byte;
 
-        state.oper = OperData::None;
+        state.oper = OperData::Byte(data as Byte);
         OperationResult::None
     }
 
@@ -2000,8 +2003,8 @@ pub mod act {
         bus: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
-        bus.write(state.addr, reg.y);
-        state.oper = OperData::None;
+        let tmp = bus.write(state.addr, reg.y);
+        state.oper = OperData::Byte(tmp);
         OperationResult::None
     }
 
