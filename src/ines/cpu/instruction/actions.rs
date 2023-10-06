@@ -931,38 +931,44 @@ pub mod act {
 
     steps! {ASL_A [asl_a]}
 
-    fn asl_m(
+    fn asl_00(
+        _: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        state.tmp = bus.read(state.addr) as Word;
+        OperationResult::None
+    }
+
+    fn asl_01(
         reg: &mut Registers,
         bus: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
-        let addr = state.addr;
+        bus.write(state.addr, state.tmp as Byte);
+        let tmp = state.tmp << 1;
 
-        let data = bus.read(addr) as Word;
-        let tmp = data << 1;
-        let mut p = reg.p;
-
-        p.set(Status::C, tmp & HI_MASK != 0)
+        reg.p
+            .set(Status::C, tmp & HI_MASK != 0)
             .set(Status::Z, is_zero!(tmp))
             .set(Status::N, is_neg!(tmp));
 
-        reg.p = p;
-
-        let tmp = tmp as Byte;
-        match &state.addr_data {
-            AddrModeData::A | AddrModeData::Imp => {
-                reg.ac = tmp;
-            }
-            _ => {
-                bus.write(addr, tmp);
-            }
-        }
-
-        state.oper = OperData::None;
+        state.tmp = tmp;
         OperationResult::None
     }
 
-    steps! {ASL_M [asl_m]}
+    fn asl_02(
+        _: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        let tmp = bus.write(state.addr, state.tmp as Byte);
+
+        state.oper = OperData::Byte(tmp);
+        OperationResult::None
+    }
+
+    steps! {ASL_M [asl_00, asl_01, asl_02]}
 
     fn branch_page_check(
         reg: &mut Registers,
@@ -1564,26 +1570,43 @@ pub mod act {
 
     steps! {LDY [ldy]}
 
-    fn lsr_m(
+    fn lsr_m_00(
+        _: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        state.tmp = bus.read(state.addr) as Word;
+        OperationResult::None
+    }
+
+    fn lsr_m_01(
         reg: &mut Registers,
         bus: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
-        let addr = state.addr;
-        let data = bus.read(addr);
-        let tmp = data >> 1;
-        reg.p
-            .set(Status::C, is_set!(data, 0x0001))
-            .set(Status::Z, is_zero!(tmp))
-            .set(Status::N, is_neg!(tmp));
+        bus.write(state.addr, state.tmp as Byte);
 
-        let tmp = bus.write(addr, tmp);
+        let data = state.tmp as Byte;
+        state.tmp = (data >> 1).into();
+        reg.p
+            .set(Status::C, is_set!(data, 0x01))
+            .set(Status::Z, is_zero!(state.tmp))
+            .set(Status::N, is_neg!(state.tmp));
+        OperationResult::None
+    }
+
+    fn lsr_m_02(
+        _: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        let tmp = bus.write(state.addr, state.tmp as Byte);
 
         state.oper = OperData::Byte(tmp);
         OperationResult::None
     }
 
-    steps! {LSR_M [lsr_m]}
+    steps! {LSR_M [lsr_m_00, lsr_m_01, lsr_m_02]}
 
     fn lsr_a(
         reg: &mut Registers,
@@ -2199,19 +2222,6 @@ macro_rules! a_vs_m {
 }
 
 macro_rules! make_instruction {
-    // ([$opc:tt, $ami:tt, $inst:tt] $op:tt $($am:tt)*) => {
-    //     #[allow(dead_code)]
-    //     fn $opc() -> InstructionIterator {
-    //         let addr = addr_mode![$($am)*];
-    //         let work = &act::$op;
-    //         InstructionIterator::new(&addr, work)
-    //     }
-
-    //     am_const!([$ami] $($am)*);
-    //     #[allow(dead_code)]
-    //     pub const $inst: OperType = OperType::$op;
-    // };
-
     ([$opc:tt, $ami:tt, $inst:tt] ADC $($am:tt)*) => {
         /// # ADC
 		/// Add Memory to Accumulator with Carry
