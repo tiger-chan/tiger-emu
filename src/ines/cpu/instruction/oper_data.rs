@@ -18,6 +18,7 @@ impl OperData {
             }
             OperData::Byte(b) => match addr {
                 AddrMode::IMM => String::from(""),
+                AddrMode::IMP => String::from(""),
                 _ => {
                     format!(" = {:<02X}", b)
                 }

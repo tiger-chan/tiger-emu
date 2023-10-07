@@ -2377,6 +2377,18 @@ pub mod act {
 
     steps! {JAM [jam]}
 
+    fn illegal_nop(
+        _: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        let data = bus.read(state.addr);
+        state.oper = OperData::Byte(data);
+        OperationResult::None
+    }
+
+    steps! {XNOP [illegal_nop]}
+
     /// https://www.nesdev.org/wiki/CPU_interrupts#IRQ_and_NMI_tick-by-tick_execution
     ///
     /// IRQ and NMI tick-by-tick execution
@@ -4284,7 +4296,7 @@ macro_rules! make_instruction {
         /// ```
         fn $opc() -> InstructionIterator {
             let addr = addr_mode![R $($am)*];
-            let work = &act::NOP;
+            let work = &act::XNOP;
             InstructionIterator::new(&addr, work)
         }
 
