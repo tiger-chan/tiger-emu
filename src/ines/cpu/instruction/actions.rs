@@ -497,8 +497,7 @@ pub mod addr {
         bus: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
-        let ptr = state.tmp;
-        state.addr = bus.read(ptr) as Word;
+        state.addr = bus.read(state.tmp) as Word;
         OperationResult::None
     }
 
@@ -507,17 +506,34 @@ pub mod addr {
         bus: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
-        let ptr = state.tmp;
-        let lo = state.addr;
-        let hi = (bus.read(ptr + 1) as Word) << 8;
+        let tmp = bus.read((state.tmp + 1) & LO_MASK) as Word;
+        state.addr |= (tmp << 8) + reg.y as Word;
+        OperationResult::None
+    }
 
-        state.addr = (lo | hi) + reg.y as Word;
-        state.addr_data = AddrModeData::Izy(lo as Byte, state.addr);
-        if state.addr & HI_MASK != hi {
+    fn izy_03(
+        reg: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        let addr = state.addr - reg.y as Word;
+        bus.read(state.addr);
+        if state.addr & HI_MASK != addr & HI_MASK {
             OperationResult::None
         } else {
+            state.addr_data = AddrModeData::Izy(state.tmp as Byte, addr, state.addr);
             OperationResult::Skip(1)
         }
+    }
+
+    fn izy_04(
+        reg: &mut Registers,
+        _: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        let addr = state.addr - reg.y as Word;
+        state.addr_data = AddrModeData::Izy(state.tmp as Byte, addr, state.addr);
+        OperationResult::None
     }
 
     /// Indirect, Y-indexed - OPC ($LL),Y
@@ -541,7 +557,7 @@ pub mod addr {
     /// These instructions are useful, wherever we want to perform lookups
     /// on varying bases addresses or whenever we want to loop over tables,
     /// the base address of which we have stored in the zero-page.
-    pub const IZY: [Operation; 4] = [izy_00, izy_01, izy_02, spin];
+    pub const IZY: [Operation; 5] = [izy_00, izy_01, izy_02, izy_03, izy_04];
 
     fn imm(
         reg: &mut Registers,
@@ -867,6 +883,40 @@ pub mod act {
 
     use super::*;
 
+    fn rmw_m_00(
+        _: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        state.tmp = bus.read(state.addr) as Word;
+        OperationResult::None
+    }
+
+    fn rmw_m_01<Func>(
+        reg: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+        func: Func,
+    ) -> OperationResult
+    where
+        Func: Fn(&mut Registers, &mut dyn RwDevice, &mut InstructionState) -> Word,
+    {
+        bus.write(state.addr, state.tmp as Byte);
+        state.tmp = func(reg, bus, state);
+        OperationResult::None
+    }
+
+    fn rmw_m_02(
+        _: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        let tmp = bus.write(state.addr, state.tmp as Byte);
+
+        state.oper = OperData::Byte(tmp);
+        OperationResult::None
+    }
+
     fn adc(
         reg: &mut Registers,
         bus: &mut dyn RwDevice,
@@ -931,44 +981,25 @@ pub mod act {
 
     steps! {ASL_A [asl_a]}
 
-    fn asl_00(
-        _: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        state.tmp = bus.read(state.addr) as Word;
-        OperationResult::None
-    }
-
-    fn asl_01(
+    fn asl_rmw(
         reg: &mut Registers,
         bus: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
-        bus.write(state.addr, state.tmp as Byte);
-        let tmp = state.tmp << 1;
+        let func = |reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState| {
+            let tmp = state.tmp << 1;
+            reg.p
+                .set(Status::C, tmp & HI_MASK != 0)
+                .set(Status::Z, is_zero!(tmp))
+                .set(Status::N, is_neg!(tmp));
 
-        reg.p
-            .set(Status::C, tmp & HI_MASK != 0)
-            .set(Status::Z, is_zero!(tmp))
-            .set(Status::N, is_neg!(tmp));
+            tmp
+        };
 
-        state.tmp = tmp;
-        OperationResult::None
+        rmw_m_01(reg, bus, state, func)
     }
 
-    fn asl_02(
-        _: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let tmp = bus.write(state.addr, state.tmp as Byte);
-
-        state.oper = OperData::Byte(tmp);
-        OperationResult::None
-    }
-
-    steps! {ASL_M [asl_00, asl_01, asl_02]}
+    steps! {ASL_M [rmw_m_00, asl_rmw, rmw_m_02]}
 
     fn branch_page_check(
         reg: &mut Registers,
@@ -1348,19 +1379,19 @@ pub mod act {
         bus: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
-        let data = bus.read(state.addr) as Word;
-        let tmp = data.wrapping_sub(1);
+        let func = |reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState| {
+            let tmp = state.tmp.wrapping_sub(1);
+            reg.p
+                .set(Status::Z, is_zero!(tmp))
+                .set(Status::N, is_neg!(tmp));
 
-        bus.write(state.addr, tmp as Byte);
-        reg.p
-            .set(Status::Z, is_zero!(tmp))
-            .set(Status::N, is_neg!(tmp));
+            tmp
+        };
 
-        state.oper = OperData::None;
-        OperationResult::None
+        rmw_m_01(reg, bus, state, func)
     }
 
-    steps! {DEC [dec]}
+    steps! {DEC [rmw_m_00, dec, rmw_m_02]}
 
     fn dex(
         reg: &mut Registers,
@@ -1421,19 +1452,19 @@ pub mod act {
         bus: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
-        let data = bus.read(state.addr) as Word;
-        let tmp = data.wrapping_add(1);
+        let func = |reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState| {
+            let tmp = state.tmp.wrapping_add(1);
+            reg.p
+                .set(Status::Z, is_zero!(tmp))
+                .set(Status::N, is_neg!(tmp));
 
-        bus.write(state.addr, tmp as Byte);
-        reg.p
-            .set(Status::Z, is_zero!(tmp))
-            .set(Status::N, is_neg!(tmp));
+            tmp
+        };
 
-        state.oper = OperData::None;
-        OperationResult::None
+        rmw_m_01(reg, bus, state, func)
     }
 
-    steps! {INC [inc]}
+    steps! {INC [rmw_m_00, inc, rmw_m_02]}
 
     fn inx(
         reg: &mut Registers,
@@ -1766,34 +1797,26 @@ pub mod act {
 
     steps! {ROL_A [rol_a]}
 
-    fn rol_m(
+    fn rol_rmw(
         reg: &mut Registers,
         bus: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
-        let addr = state.addr;
-        let data = bus.read(addr) as Word;
-        let c = Word::from(reg.p & Status::C);
-        let tmp = c | data << 1;
-        reg.p
-            .set(Status::C, is_set!(data, 0x80))
-            .set(Status::Z, is_zero!(tmp))
-            .set(Status::N, is_neg!(tmp));
+        let func = |reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState| {
+            let c = Word::from(reg.p & Status::C);
+            let tmp = c | state.tmp << 1;
+            reg.p
+                .set(Status::C, is_set!(state.tmp, 0x80))
+                .set(Status::Z, is_zero!(tmp))
+                .set(Status::N, is_neg!(tmp));
 
-        match &state.addr_data {
-            AddrModeData::A | AddrModeData::Imp => {
-                reg.ac = tmp as Byte;
-            }
-            _ => {
-                bus.write(addr, tmp as Byte);
-            }
-        }
+            tmp
+        };
 
-        state.oper = OperData::None;
-        OperationResult::None
+        rmw_m_01(reg, bus, state, func)
     }
 
-    steps! {ROL_M [rol_m]}
+    steps! {ROL_M [rmw_m_00, rol_rmw, rmw_m_02]}
 
     fn ror_a(
         reg: &mut Registers,
@@ -1816,34 +1839,26 @@ pub mod act {
 
     steps! {ROR_A [ror_a]}
 
-    fn ror_m(
+    fn ror_rmw(
         reg: &mut Registers,
         bus: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
-        let addr = state.addr;
-        let data = bus.read(addr) as Word;
-        let c = Word::from(reg.p & Status::C) << 7;
-        let tmp = c | data >> 1;
-        reg.p
-            .set(Status::C, is_set!(data, 0x1))
-            .set(Status::Z, is_zero!(tmp))
-            .set(Status::N, is_neg!(tmp));
+        let func = |reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState| {
+            let c = Word::from(reg.p & Status::C) << 7;
+            let tmp = c | state.tmp >> 1;
+            reg.p
+                .set(Status::C, is_set!(state.tmp, 0x1))
+                .set(Status::Z, is_zero!(tmp))
+                .set(Status::N, is_neg!(tmp));
 
-        match &state.addr_data {
-            AddrModeData::A | AddrModeData::Imp => {
-                reg.ac = tmp as Byte;
-            }
-            _ => {
-                bus.write(addr, tmp as Byte);
-            }
-        }
+            tmp
+        };
 
-        state.oper = OperData::None;
-        OperationResult::None
+        rmw_m_01(reg, bus, state, func)
     }
 
-    steps! {ROR_M [ror_m]}
+    steps! {ROR_M [rmw_m_00, ror_rmw, rmw_m_02]}
 
     fn rti_00(
         reg: &mut Registers,

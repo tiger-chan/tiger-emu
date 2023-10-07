@@ -293,7 +293,7 @@ make_instruction![[op_8e, AM_8E, IN_8E] STX &LLHH  ];
 
 make_instruction![[op_84, AM_84, IN_84] STY &LL    ];
 make_instruction![[op_94, AM_94, IN_94] STY &LL,X  ];
-make_instruction![[op_8c, AM_8C, IN_8C] STY &LLHH,X];
+make_instruction![[op_8c, AM_8C, IN_8C] STY &LLHH  ];
 
 make_instruction![[op_aa, AM_AA, IN_AA] TAX        ];
 

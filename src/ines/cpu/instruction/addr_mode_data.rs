@@ -10,7 +10,7 @@ pub enum AddrModeData {
     Imp,
     Ind(Byte, Byte, Word),
     Izx(Byte, Byte, Word),
-    Izy(Byte, Word),
+    Izy(Byte, Word, Word),
     Rel(Byte, Word),
     Zpg(Byte),
     Zpx(Byte, Byte),
@@ -34,7 +34,7 @@ impl AddrModeData {
                 format!("{:>02X} {:>02X}  ", lo, hi)
             }
             AddrModeData::Izx(lo, _, _)
-            | AddrModeData::Izy(lo, _)
+            | AddrModeData::Izy(lo, _, _)
             | AddrModeData::Rel(lo, _)
             | AddrModeData::Zpx(lo, _)
             | AddrModeData::Zpy(lo, _) => {
@@ -63,10 +63,12 @@ impl AddrModeData {
             AddrModeData::Izx(ll, ptr, addr) => {
                 format!("(${:>02X},X) @ {:>02X} = {:>04X}", ll, ptr, addr)
             }
+            AddrModeData::Izy(ll, ptr, addr) => {
+                format!("(${:>02X}),Y = {:>04X} @ {:>04X}", ll, ptr, addr)
+            }
             AddrModeData::Abx(_, _)
             | AddrModeData::Aby(_, _)
             | AddrModeData::Ind(_, _, _)
-            | AddrModeData::Izy(_, _)
             | AddrModeData::Rel(_, _)
             | AddrModeData::Zpx(_, _)
             | AddrModeData::Zpy(_, _) => String::from(""),
