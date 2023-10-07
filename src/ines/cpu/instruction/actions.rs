@@ -1225,1280 +1225,1285 @@ pub mod act {
         OperationResult::None
     }
 
-    fn adc(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let data = bus.read(state.addr) as Word;
-        let ac = reg.ac as Word;
+    mod legal {
+        use super::*;
 
-        let tmp = data + ac + reg.p.get(Status::C);
-        reg.p
-            .set(Status::C, tmp > 255)
-            .set(Status::Z, is_zero!(tmp))
-            .set(Status::V, is_overflow!(ac, data, tmp))
-            .set(Status::N, is_neg!(tmp));
+        fn adc(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let data = bus.read(state.addr) as Word;
+            let ac = reg.ac as Word;
 
-        reg.ac = tmp as Byte;
-        state.oper = OperData::Byte(data as Byte);
-        OperationResult::None
-    }
+            let tmp = data + ac + reg.p.get(Status::C);
+            reg.p
+                .set(Status::C, tmp > 255)
+                .set(Status::Z, is_zero!(tmp))
+                .set(Status::V, is_overflow!(ac, data, tmp))
+                .set(Status::N, is_neg!(tmp));
 
-    steps! {ADC [adc]}
+            reg.ac = tmp as Byte;
+            state.oper = OperData::Byte(data as Byte);
+            OperationResult::None
+        }
 
-    fn and(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let addr = state.addr;
-        let data = bus.read(addr);
-        let ac = reg.ac;
-        let tmp = data & ac;
+        steps! {ADC [adc]}
 
-        reg.p
-            .set(Status::Z, is_zero!(tmp))
-            .set(Status::N, is_neg!(tmp));
+        fn and(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let addr = state.addr;
+            let data = bus.read(addr);
+            let ac = reg.ac;
+            let tmp = data & ac;
 
-        reg.ac = tmp;
+            reg.p
+                .set(Status::Z, is_zero!(tmp))
+                .set(Status::N, is_neg!(tmp));
 
-        state.oper = OperData::Byte(data);
-        OperationResult::None
-    }
+            reg.ac = tmp;
 
-    steps! {AND [and]}
+            state.oper = OperData::Byte(data);
+            OperationResult::None
+        }
 
-    fn asl_a(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let data = reg.ac as Word;
-        let tmp = data << 1;
+        steps! {AND [and]}
 
-        reg.ac = tmp as Byte;
-        reg.p
-            .set(Status::C, tmp & HI_MASK != 0)
-            .set(Status::Z, is_zero!(tmp))
-            .set(Status::N, is_neg!(tmp));
+        fn asl_a(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let data = reg.ac as Word;
+            let tmp = data << 1;
 
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {ASL_A [asl_a]}
-
-    fn asl_rmw(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let func = |reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState| {
-            let tmp = state.tmp << 1;
+            reg.ac = tmp as Byte;
             reg.p
                 .set(Status::C, tmp & HI_MASK != 0)
                 .set(Status::Z, is_zero!(tmp))
                 .set(Status::N, is_neg!(tmp));
 
-            tmp
-        };
-
-        rmw_m_01(reg, bus, state, func)
-    }
-
-    steps! {ASL_M [rmw_m_00, asl_rmw, rmw_m_02]}
-
-    fn branch_page_check(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        if state.addr & HI_MASK != reg.pc & HI_MASK {
+            state.oper = OperData::None;
             OperationResult::None
-        } else {
+        }
+
+        steps! {ASL_A [asl_a]}
+
+        fn asl_rmw(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let func = |reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState| {
+                let tmp = state.tmp << 1;
+                reg.p
+                    .set(Status::C, tmp & HI_MASK != 0)
+                    .set(Status::Z, is_zero!(tmp))
+                    .set(Status::N, is_neg!(tmp));
+
+                tmp
+            };
+
+            rmw_m_01(reg, bus, state, func)
+        }
+
+        steps! {ASL_M [rmw_m_00, asl_rmw, rmw_m_02]}
+
+        fn branch_page_check(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            if state.addr & HI_MASK != reg.pc & HI_MASK {
+                OperationResult::None
+            } else {
+                reg.pc = state.addr;
+                OperationResult::Skip(1)
+            }
+        }
+
+        fn branch_final(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
             reg.pc = state.addr;
-            OperationResult::Skip(1)
-        }
-    }
-
-    fn branch_final(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.pc = state.addr;
-        OperationResult::None
-    }
-
-    fn bcc_00(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let pc = reg.pc;
-        state.addr = pc.wrapping_add(state.addr);
-        state.oper = OperData::Word(state.addr);
-        if reg.p.get(Status::C) == 0 {
             OperationResult::None
-        } else {
-            OperationResult::Skip(2)
         }
-    }
 
-    steps! {BCC [bcc_00, branch_page_check, branch_final]}
+        fn bcc_00(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let pc = reg.pc;
+            state.addr = pc.wrapping_add(state.addr);
+            state.oper = OperData::Word(state.addr);
+            if reg.p.get(Status::C) == 0 {
+                OperationResult::None
+            } else {
+                OperationResult::Skip(2)
+            }
+        }
 
-    fn bcs_00(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        state.addr = reg.pc.wrapping_add(state.addr);
-        state.oper = OperData::Word(state.addr);
-        if reg.p.get(Status::C) == 1 {
+        steps! {BCC [bcc_00, branch_page_check, branch_final]}
+
+        fn bcs_00(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            state.addr = reg.pc.wrapping_add(state.addr);
+            state.oper = OperData::Word(state.addr);
+            if reg.p.get(Status::C) == 1 {
+                OperationResult::None
+            } else {
+                OperationResult::Skip(2)
+            }
+        }
+
+        steps! {BCS [bcs_00, branch_page_check, branch_final]}
+
+        fn beq_00(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let pc = reg.pc;
+            state.addr = pc.wrapping_add(state.addr);
+            state.oper = OperData::Word(state.addr);
+            if reg.p.get(Status::Z) == 1 {
+                OperationResult::None
+            } else {
+                OperationResult::Skip(2)
+            }
+        }
+
+        steps! {BEQ [beq_00, branch_page_check, branch_final]}
+
+        fn bit(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let addr = state.addr;
+            let data = bus.read(addr);
+            let tmp = data & reg.ac;
+
+            reg.p
+                .set(Status::Z, is_zero!(tmp))
+                .set(Status::N, is_neg!(data))
+                .set(Status::V, data & 0x40 == 0x40);
+
+            state.oper = OperData::Byte(data);
             OperationResult::None
-        } else {
-            OperationResult::Skip(2)
         }
-    }
 
-    steps! {BCS [bcs_00, branch_page_check, branch_final]}
+        steps! {BIT [bit]}
 
-    fn beq_00(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let pc = reg.pc;
-        state.addr = pc.wrapping_add(state.addr);
-        state.oper = OperData::Word(state.addr);
-        if reg.p.get(Status::Z) == 1 {
+        fn bmi_00(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let pc = reg.pc;
+            state.addr = pc.wrapping_add(state.addr);
+            state.oper = OperData::Word(state.addr);
+            if reg.p.get(Status::N) == 1 {
+                OperationResult::None
+            } else {
+                OperationResult::Skip(2)
+            }
+        }
+
+        steps! {BMI [bmi_00, branch_page_check, branch_final]}
+
+        fn bne_00(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            state.addr = reg.pc.wrapping_add(state.addr);
+            state.oper = OperData::Word(state.addr);
+            if reg.p.get(Status::Z) == 0 {
+                OperationResult::None
+            } else {
+                OperationResult::Skip(2)
+            }
+        }
+
+        steps! {BNE [bne_00, branch_page_check, branch_final]}
+
+        fn bpl_00(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let pc = reg.pc;
+            state.addr = pc.wrapping_add(state.addr);
+            state.oper = OperData::Word(state.addr);
+            if reg.p.get(Status::N) == 0 {
+                OperationResult::None
+            } else {
+                OperationResult::Skip(2)
+            }
+        }
+
+        steps! {BPL [bpl_00, branch_page_check, branch_final]}
+
+        /// #  address R/W description
+        /// ```text
+        /// --- ------- --- -----------------------------------------------
+        /// 1    PC     R  fetch opcode (and discard it - $00 (BRK) is forced into the opcode register instead)
+        /// 2    PC     R  read next instruction byte (actually the same as above, since PC increment is suppressed. Also discarded.)
+        /// 3  $0100,S  W  push PCH on stack, decrement S
+        /// 4  $0100,S  W  push PCL on stack, decrement S
+        /// *** At this point, the signal status determines which interrupt vector is used ***
+        /// 5  $0100,S  W  push P on stack (with B flag *clear*), decrement S
+        /// 6   A       R  fetch PCL (A = FFFE for IRQ, A = FFFA for NMI), set I flag
+        /// 7   A       R  fetch PCH (A = FFFF for IRQ, A = FFFB for NMI)
+        /// ```
+        fn brk_01(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            _: &mut InstructionState,
+        ) -> OperationResult {
+            bus.read(reg.pc);
             OperationResult::None
-        } else {
-            OperationResult::Skip(2)
         }
-    }
 
-    steps! {BEQ [beq_00, branch_page_check, branch_final]}
-
-    fn bit(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let addr = state.addr;
-        let data = bus.read(addr);
-        let tmp = data & reg.ac;
-
-        reg.p
-            .set(Status::Z, is_zero!(tmp))
-            .set(Status::N, is_neg!(data))
-            .set(Status::V, data & 0x40 == 0x40);
-
-        state.oper = OperData::Byte(data);
-        OperationResult::None
-    }
-
-    steps! {BIT [bit]}
-
-    fn bmi_00(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let pc = reg.pc;
-        state.addr = pc.wrapping_add(state.addr);
-        state.oper = OperData::Word(state.addr);
-        if reg.p.get(Status::N) == 1 {
+        fn brk_02(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            _: &mut InstructionState,
+        ) -> OperationResult {
+            bus.read(reg.pc);
             OperationResult::None
-        } else {
-            OperationResult::Skip(2)
         }
-    }
 
-    steps! {BMI [bmi_00, branch_page_check, branch_final]}
-
-    fn bne_00(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        state.addr = reg.pc.wrapping_add(state.addr);
-        state.oper = OperData::Word(state.addr);
-        if reg.p.get(Status::Z) == 0 {
+        fn brk_03(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            _: &mut InstructionState,
+        ) -> OperationResult {
+            bus.write(PS.wrapping_add(reg.sp as Word), (reg.pc >> 8) as Byte);
+            reg.sp = reg.sp.wrapping_sub(1);
             OperationResult::None
-        } else {
-            OperationResult::Skip(2)
         }
-    }
 
-    steps! {BNE [bne_00, branch_page_check, branch_final]}
-
-    fn bpl_00(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let pc = reg.pc;
-        state.addr = pc.wrapping_add(state.addr);
-        state.oper = OperData::Word(state.addr);
-        if reg.p.get(Status::N) == 0 {
+        fn brk_04(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            bus.write(PS.wrapping_add(reg.sp as Word), reg.pc as Byte);
+            reg.sp = reg.sp.wrapping_sub(1);
+            state.tmp = if reg.p & Status::I == Status::I {
+                IRQ_LO
+            } else {
+                NMI_LO
+            };
             OperationResult::None
-        } else {
-            OperationResult::Skip(2)
         }
-    }
 
-    steps! {BPL [bpl_00, branch_page_check, branch_final]}
-
-    /// #  address R/W description
-    /// ```text
-    /// --- ------- --- -----------------------------------------------
-    /// 1    PC     R  fetch opcode (and discard it - $00 (BRK) is forced into the opcode register instead)
-    /// 2    PC     R  read next instruction byte (actually the same as above, since PC increment is suppressed. Also discarded.)
-    /// 3  $0100,S  W  push PCH on stack, decrement S
-    /// 4  $0100,S  W  push PCL on stack, decrement S
-    /// *** At this point, the signal status determines which interrupt vector is used ***
-    /// 5  $0100,S  W  push P on stack (with B flag *clear*), decrement S
-    /// 6   A       R  fetch PCL (A = FFFE for IRQ, A = FFFA for NMI), set I flag
-    /// 7   A       R  fetch PCH (A = FFFF for IRQ, A = FFFB for NMI)
-    /// ```
-    fn brk_01(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        _: &mut InstructionState,
-    ) -> OperationResult {
-        bus.read(reg.pc);
-        OperationResult::None
-    }
-
-    fn brk_02(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        _: &mut InstructionState,
-    ) -> OperationResult {
-        bus.read(reg.pc);
-        OperationResult::None
-    }
-
-    fn brk_03(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        _: &mut InstructionState,
-    ) -> OperationResult {
-        bus.write(PS.wrapping_add(reg.sp as Word), (reg.pc >> 8) as Byte);
-        reg.sp = reg.sp.wrapping_sub(1);
-        OperationResult::None
-    }
-
-    fn brk_04(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        bus.write(PS.wrapping_add(reg.sp as Word), reg.pc as Byte);
-        reg.sp = reg.sp.wrapping_sub(1);
-        state.tmp = if reg.p & Status::I == Status::I {
-            IRQ_LO
-        } else {
-            NMI_LO
-        };
-        OperationResult::None
-    }
-
-    fn brk_05(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        _: &mut InstructionState,
-    ) -> OperationResult {
-        let p = reg.p | Status::B;
-        bus.write(PS.wrapping_add(reg.sp as Word), p.into());
-        reg.sp = reg.sp.wrapping_sub(1);
-        OperationResult::None
-    }
-
-    fn brk_06(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        state.addr = bus.read(state.tmp) as Word;
-        reg.p.set(Status::I, true);
-        OperationResult::None
-    }
-
-    fn brk_07(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        state.addr |= (bus.read(state.tmp + 1) as Word) << 8;
-        reg.p.set(Status::I, true);
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {BRK [brk_01, brk_02, brk_03, brk_04, brk_05, brk_06, brk_07]}
-
-    fn bvc_00(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let pc = reg.pc;
-        state.addr = pc.wrapping_add(state.addr);
-        state.oper = OperData::Word(state.addr);
-        if reg.p.get(Status::V) == 0 {
+        fn brk_05(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            _: &mut InstructionState,
+        ) -> OperationResult {
+            let p = reg.p | Status::B;
+            bus.write(PS.wrapping_add(reg.sp as Word), p.into());
+            reg.sp = reg.sp.wrapping_sub(1);
             OperationResult::None
-        } else {
-            OperationResult::Skip(2)
         }
-    }
 
-    steps! {BVC [bvc_00, branch_page_check, branch_final]}
-
-    fn bvs_00(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let pc = reg.pc;
-        state.addr = pc.wrapping_add(state.addr);
-        state.oper = OperData::Word(state.addr);
-        if reg.p.get(Status::V) == 1 {
+        fn brk_06(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            state.addr = bus.read(state.tmp) as Word;
+            reg.p.set(Status::I, true);
             OperationResult::None
-        } else {
-            OperationResult::Skip(2)
         }
-    }
 
-    steps! {BVS [bvs_00, branch_page_check, branch_final]}
+        fn brk_07(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            state.addr |= (bus.read(state.tmp + 1) as Word) << 8;
+            reg.p.set(Status::I, true);
+            state.oper = OperData::None;
+            OperationResult::None
+        }
 
-    fn clc(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.p.set(Status::C, false);
-        state.oper = OperData::None;
-        OperationResult::None
-    }
+        steps! {BRK [brk_01, brk_02, brk_03, brk_04, brk_05, brk_06, brk_07]}
 
-    steps! {CLC [clc]}
+        fn bvc_00(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let pc = reg.pc;
+            state.addr = pc.wrapping_add(state.addr);
+            state.oper = OperData::Word(state.addr);
+            if reg.p.get(Status::V) == 0 {
+                OperationResult::None
+            } else {
+                OperationResult::Skip(2)
+            }
+        }
 
-    fn cld(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.p.set(Status::D, false);
-        state.oper = OperData::None;
-        OperationResult::None
-    }
+        steps! {BVC [bvc_00, branch_page_check, branch_final]}
 
-    steps! {CLD [cld]}
+        fn bvs_00(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let pc = reg.pc;
+            state.addr = pc.wrapping_add(state.addr);
+            state.oper = OperData::Word(state.addr);
+            if reg.p.get(Status::V) == 1 {
+                OperationResult::None
+            } else {
+                OperationResult::Skip(2)
+            }
+        }
 
-    fn cli(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.p.set(Status::I, false);
-        state.oper = OperData::None;
-        OperationResult::None
-    }
+        steps! {BVS [bvs_00, branch_page_check, branch_final]}
 
-    steps! {CLI [cli]}
+        fn clc(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.p.set(Status::C, false);
+            state.oper = OperData::None;
+            OperationResult::None
+        }
 
-    fn clv(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.p.set(Status::V, false);
-        state.oper = OperData::None;
-        OperationResult::None
-    }
+        steps! {CLC [clc]}
 
-    steps! {CLV [clv]}
+        fn cld(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.p.set(Status::D, false);
+            state.oper = OperData::None;
+            OperationResult::None
+        }
 
-    fn cmp(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let data = bus.read(state.addr) as Word;
-        let ac = reg.ac as Word;
-        let tmp = ac.wrapping_sub(data);
+        steps! {CLD [cld]}
 
-        reg.p
-            .set(Status::C, ac >= data)
-            .set(Status::Z, is_zero!(tmp))
-            .set(Status::N, is_neg!(tmp));
+        fn cli(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.p.set(Status::I, false);
+            state.oper = OperData::None;
+            OperationResult::None
+        }
 
-        state.oper = OperData::Byte(data as Byte);
-        OperationResult::None
-    }
+        steps! {CLI [cli]}
 
-    steps! {CMP [cmp]}
+        fn clv(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.p.set(Status::V, false);
+            state.oper = OperData::None;
+            OperationResult::None
+        }
 
-    fn cpx(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let data = bus.read(state.addr) as Word;
-        let x = reg.x as Word;
-        let tmp = x.wrapping_sub(data);
+        steps! {CLV [clv]}
 
-        reg.p
-            .set(Status::C, x >= data)
-            .set(Status::Z, is_zero!(tmp))
-            .set(Status::N, is_neg!(tmp));
+        fn cmp(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let data = bus.read(state.addr) as Word;
+            let ac = reg.ac as Word;
+            let tmp = ac.wrapping_sub(data);
 
-        state.oper = OperData::Byte(data as Byte);
-        OperationResult::None
-    }
+            reg.p
+                .set(Status::C, ac >= data)
+                .set(Status::Z, is_zero!(tmp))
+                .set(Status::N, is_neg!(tmp));
 
-    steps! {CPX [cpx]}
+            state.oper = OperData::Byte(data as Byte);
+            OperationResult::None
+        }
 
-    fn cpy(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let data = bus.read(state.addr) as Word;
-        let y = reg.y as Word;
-        let tmp = y.wrapping_sub(data);
+        steps! {CMP [cmp]}
 
-        reg.p
-            .set(Status::C, y >= data)
-            .set(Status::Z, is_zero!(tmp))
-            .set(Status::N, is_neg!(tmp));
+        fn cpx(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let data = bus.read(state.addr) as Word;
+            let x = reg.x as Word;
+            let tmp = x.wrapping_sub(data);
 
-        state.oper = OperData::Byte(data as Byte);
-        OperationResult::None
-    }
+            reg.p
+                .set(Status::C, x >= data)
+                .set(Status::Z, is_zero!(tmp))
+                .set(Status::N, is_neg!(tmp));
 
-    steps! {CPY [cpy]}
+            state.oper = OperData::Byte(data as Byte);
+            OperationResult::None
+        }
 
-    fn dec(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let func = |reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState| {
-            let tmp = state.tmp.wrapping_sub(1);
+        steps! {CPX [cpx]}
+
+        fn cpy(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let data = bus.read(state.addr) as Word;
+            let y = reg.y as Word;
+            let tmp = y.wrapping_sub(data);
+
+            reg.p
+                .set(Status::C, y >= data)
+                .set(Status::Z, is_zero!(tmp))
+                .set(Status::N, is_neg!(tmp));
+
+            state.oper = OperData::Byte(data as Byte);
+            OperationResult::None
+        }
+
+        steps! {CPY [cpy]}
+
+        fn dec(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let func = |reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState| {
+                let tmp = state.tmp.wrapping_sub(1);
+                reg.p
+                    .set(Status::Z, is_zero!(tmp))
+                    .set(Status::N, is_neg!(tmp));
+
+                tmp
+            };
+
+            rmw_m_01(reg, bus, state, func)
+        }
+
+        steps! {DEC [rmw_m_00, dec, rmw_m_02]}
+
+        fn dex(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.x = reg.x.wrapping_sub(1);
+
+            reg.p
+                .set(Status::Z, is_zero!(reg.x))
+                .set(Status::N, is_neg!(reg.x));
+
+            state.oper = OperData::None;
+            OperationResult::None
+        }
+
+        steps! {DEX [dex]}
+
+        fn dey(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.y = reg.y.wrapping_sub(1);
+
+            reg.p
+                .set(Status::Z, is_zero!(reg.y))
+                .set(Status::N, is_neg!(reg.y));
+
+            state.oper = OperData::None;
+            OperationResult::None
+        }
+
+        steps! {DEY [dey]}
+
+        fn eor(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let addr = state.addr;
+            let data = bus.read(addr) as Word;
+            let tmp = reg.ac as Word ^ data;
+            reg.ac = tmp as Byte;
+
             reg.p
                 .set(Status::Z, is_zero!(tmp))
                 .set(Status::N, is_neg!(tmp));
 
-            tmp
-        };
+            state.oper = OperData::Byte(data as Byte);
+            OperationResult::None
+        }
 
-        rmw_m_01(reg, bus, state, func)
-    }
+        steps! {EOR [eor]}
 
-    steps! {DEC [rmw_m_00, dec, rmw_m_02]}
+        fn inc(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let func = |reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState| {
+                let tmp = state.tmp.wrapping_add(1);
+                reg.p
+                    .set(Status::Z, is_zero!(tmp))
+                    .set(Status::N, is_neg!(tmp));
 
-    fn dex(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.x = reg.x.wrapping_sub(1);
+                tmp
+            };
 
-        reg.p
-            .set(Status::Z, is_zero!(reg.x))
-            .set(Status::N, is_neg!(reg.x));
+            rmw_m_01(reg, bus, state, func)
+        }
 
-        state.oper = OperData::None;
-        OperationResult::None
-    }
+        steps! {INC [rmw_m_00, inc, rmw_m_02]}
 
-    steps! {DEX [dex]}
+        fn inx(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.x = reg.x.wrapping_add(1);
 
-    fn dey(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.y = reg.y.wrapping_sub(1);
-
-        reg.p
-            .set(Status::Z, is_zero!(reg.y))
-            .set(Status::N, is_neg!(reg.y));
-
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {DEY [dey]}
-
-    fn eor(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let addr = state.addr;
-        let data = bus.read(addr) as Word;
-        let tmp = reg.ac as Word ^ data;
-        reg.ac = tmp as Byte;
-
-        reg.p
-            .set(Status::Z, is_zero!(tmp))
-            .set(Status::N, is_neg!(tmp));
-
-        state.oper = OperData::Byte(data as Byte);
-        OperationResult::None
-    }
-
-    steps! {EOR [eor]}
-
-    fn inc(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let func = |reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState| {
-            let tmp = state.tmp.wrapping_add(1);
             reg.p
+                .set(Status::Z, is_zero!(reg.x))
+                .set(Status::N, is_neg!(reg.x));
+
+            state.oper = OperData::None;
+            OperationResult::None
+        }
+
+        steps! {INX [inx]}
+
+        fn iny(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.y = reg.y.wrapping_add(1);
+
+            reg.p
+                .set(Status::Z, is_zero!(reg.y))
+                .set(Status::N, is_neg!(reg.y));
+
+            state.oper = OperData::None;
+            OperationResult::None
+        }
+
+        steps! {INY [iny]}
+
+        fn jmp(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.pc = state.addr;
+
+            state.oper = OperData::None;
+            OperationResult::None
+        }
+
+        steps! {JMP [jmp]}
+
+        fn jsr_00(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            _: &mut InstructionState,
+        ) -> OperationResult {
+            reg.pc = reg.pc.wrapping_sub(1);
+            OperationResult::None
+        }
+
+        fn jsr_01(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            _: &mut InstructionState,
+        ) -> OperationResult {
+            bus.write(PS.wrapping_add(reg.sp as Word), (reg.pc >> 8) as Byte);
+            reg.sp = reg.sp.wrapping_sub(1);
+            OperationResult::None
+        }
+
+        fn jsr_02(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            bus.write(PS.wrapping_add(reg.sp as Word), reg.pc as Byte);
+            reg.sp = reg.sp.wrapping_sub(1);
+            reg.pc = state.addr;
+
+            state.oper = OperData::None;
+            OperationResult::None
+        }
+
+        steps! {JSR [jsr_00, jsr_01, jsr_02]}
+
+        fn lda(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let addr = state.addr;
+            let data = bus.read(addr);
+            reg.ac = data;
+            reg.p
+                .set(Status::Z, is_zero!(data))
+                .set(Status::N, is_neg!(data as Word));
+
+            state.oper = OperData::Byte(data);
+            OperationResult::None
+        }
+
+        steps! {LDA [lda]}
+
+        fn ldx(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let addr = state.addr;
+            let data = bus.read(addr);
+            reg.x = data;
+            reg.p
+                .set(Status::Z, is_zero!(data))
+                .set(Status::N, is_neg!(data));
+
+            state.oper = OperData::Byte(data);
+            OperationResult::None
+        }
+
+        steps! {LDX [ldx]}
+
+        fn ldy(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let addr = state.addr;
+            let data = bus.read(addr);
+            reg.y = data;
+            reg.p
+                .set(Status::Z, is_zero!(data))
+                .set(Status::N, is_neg!(data));
+
+            state.oper = OperData::Byte(data);
+            OperationResult::None
+        }
+
+        steps! {LDY [ldy]}
+
+        fn lsr_m_00(
+            _: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            state.tmp = bus.read(state.addr) as Word;
+            OperationResult::None
+        }
+
+        fn lsr_m_01(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            bus.write(state.addr, state.tmp as Byte);
+
+            let data = state.tmp as Byte;
+            state.tmp = (data >> 1).into();
+            reg.p
+                .set(Status::C, is_set!(data, 0x01))
+                .set(Status::Z, is_zero!(state.tmp))
+                .set(Status::N, is_neg!(state.tmp));
+            OperationResult::None
+        }
+
+        fn lsr_m_02(
+            _: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let tmp = bus.write(state.addr, state.tmp as Byte);
+
+            state.oper = OperData::Byte(tmp);
+            OperationResult::None
+        }
+
+        steps! {LSR_M [lsr_m_00, lsr_m_01, lsr_m_02]}
+
+        fn lsr_a(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let data = reg.ac;
+            let tmp = data >> 1;
+            reg.p
+                .set(Status::C, is_set!(data, 0x0001))
                 .set(Status::Z, is_zero!(tmp))
                 .set(Status::N, is_neg!(tmp));
 
-            tmp
-        };
-
-        rmw_m_01(reg, bus, state, func)
-    }
-
-    steps! {INC [rmw_m_00, inc, rmw_m_02]}
-
-    fn inx(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.x = reg.x.wrapping_add(1);
-
-        reg.p
-            .set(Status::Z, is_zero!(reg.x))
-            .set(Status::N, is_neg!(reg.x));
-
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {INX [inx]}
-
-    fn iny(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.y = reg.y.wrapping_add(1);
-
-        reg.p
-            .set(Status::Z, is_zero!(reg.y))
-            .set(Status::N, is_neg!(reg.y));
-
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {INY [iny]}
-
-    fn jmp(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.pc = state.addr;
-
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {JMP [jmp]}
-
-    fn jsr_00(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        _: &mut InstructionState,
-    ) -> OperationResult {
-        reg.pc = reg.pc.wrapping_sub(1);
-        OperationResult::None
-    }
-
-    fn jsr_01(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        _: &mut InstructionState,
-    ) -> OperationResult {
-        bus.write(PS.wrapping_add(reg.sp as Word), (reg.pc >> 8) as Byte);
-        reg.sp = reg.sp.wrapping_sub(1);
-        OperationResult::None
-    }
-
-    fn jsr_02(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        bus.write(PS.wrapping_add(reg.sp as Word), reg.pc as Byte);
-        reg.sp = reg.sp.wrapping_sub(1);
-        reg.pc = state.addr;
-
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {JSR [jsr_00, jsr_01, jsr_02]}
-
-    fn lda(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let addr = state.addr;
-        let data = bus.read(addr);
-        reg.ac = data;
-        reg.p
-            .set(Status::Z, is_zero!(data))
-            .set(Status::N, is_neg!(data as Word));
-
-        state.oper = OperData::Byte(data);
-        OperationResult::None
-    }
-
-    steps! {LDA [lda]}
-
-    fn ldx(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let addr = state.addr;
-        let data = bus.read(addr);
-        reg.x = data;
-        reg.p
-            .set(Status::Z, is_zero!(data))
-            .set(Status::N, is_neg!(data));
-
-        state.oper = OperData::Byte(data);
-        OperationResult::None
-    }
-
-    steps! {LDX [ldx]}
-
-    fn ldy(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let addr = state.addr;
-        let data = bus.read(addr);
-        reg.y = data;
-        reg.p
-            .set(Status::Z, is_zero!(data))
-            .set(Status::N, is_neg!(data));
-
-        state.oper = OperData::Byte(data);
-        OperationResult::None
-    }
-
-    steps! {LDY [ldy]}
-
-    fn lsr_m_00(
-        _: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        state.tmp = bus.read(state.addr) as Word;
-        OperationResult::None
-    }
-
-    fn lsr_m_01(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        bus.write(state.addr, state.tmp as Byte);
-
-        let data = state.tmp as Byte;
-        state.tmp = (data >> 1).into();
-        reg.p
-            .set(Status::C, is_set!(data, 0x01))
-            .set(Status::Z, is_zero!(state.tmp))
-            .set(Status::N, is_neg!(state.tmp));
-        OperationResult::None
-    }
-
-    fn lsr_m_02(
-        _: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let tmp = bus.write(state.addr, state.tmp as Byte);
-
-        state.oper = OperData::Byte(tmp);
-        OperationResult::None
-    }
-
-    steps! {LSR_M [lsr_m_00, lsr_m_01, lsr_m_02]}
-
-    fn lsr_a(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let data = reg.ac;
-        let tmp = data >> 1;
-        reg.p
-            .set(Status::C, is_set!(data, 0x0001))
-            .set(Status::Z, is_zero!(tmp))
-            .set(Status::N, is_neg!(tmp));
-
-        reg.ac = tmp;
-
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {LSR_A [lsr_a]}
-
-    fn nop(
-        _: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {NOP [nop]}
-
-    fn ora(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let addr = state.addr;
-        let data = bus.read(addr);
-        let ac = reg.ac | data;
-
-        reg.ac = ac;
-        reg.p
-            .set(Status::Z, is_zero!(ac))
-            .set(Status::N, is_neg!(ac));
-
-        state.oper = OperData::Byte(data);
-        OperationResult::None
-    }
-
-    steps! {ORA [ora]}
-
-    fn pha_00(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        _: &mut InstructionState,
-    ) -> OperationResult {
-        bus.write(PS.wrapping_add(reg.sp as Word), reg.ac);
-
-        OperationResult::None
-    }
-
-    fn pha_01(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.sp = reg.sp.wrapping_sub(1);
-
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {PHA [pha_00, pha_01]}
-
-    fn php_00(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let p = reg.p | Status::B | Status::U;
-        bus.write(PS.wrapping_add(reg.sp as Word), p.into());
-        reg.sp = reg.sp.wrapping_sub(1);
-
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {PHP [spin, php_00]}
-
-    fn pla_00(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        _: &mut InstructionState,
-    ) -> OperationResult {
-        reg.sp = reg.sp.wrapping_add(1);
-
-        OperationResult::None
-    }
-
-    fn pla_01(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.ac = bus.read(PS.wrapping_add(reg.sp as Word));
-        reg.p
-            .set(Status::Z, is_zero!(reg.ac))
-            .set(Status::N, is_neg!(reg.ac));
-
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {PLA [spin, pla_00, pla_01]}
-
-    fn plp_00(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        _: &mut InstructionState,
-    ) -> OperationResult {
-        reg.sp = reg.sp.wrapping_add(1);
-        OperationResult::None
-    }
-
-    fn plp_01(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let tmp = bus.read(PS.wrapping_add(reg.sp as Word));
-        reg.p = Status::from(tmp) & !(Status::U | Status::B);
-
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {PLP [spin, plp_00, plp_01]}
-
-    fn rol_a(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let data = reg.ac as Word;
-        let c = Word::from(reg.p & Status::C);
-        let tmp = c | data << 1;
-        reg.p
-            .set(Status::C, is_set!(data, 0x80))
-            .set(Status::Z, is_zero!(tmp))
-            .set(Status::N, is_neg!(tmp));
-        reg.ac = tmp as Byte;
-
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {ROL_A [rol_a]}
-
-    fn rol_rmw(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let func = |reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState| {
+            reg.ac = tmp;
+
+            state.oper = OperData::None;
+            OperationResult::None
+        }
+
+        steps! {LSR_A [lsr_a]}
+
+        fn nop(
+            _: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            state.oper = OperData::None;
+            OperationResult::None
+        }
+
+        steps! {NOP [nop]}
+
+        fn ora(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let addr = state.addr;
+            let data = bus.read(addr);
+            let ac = reg.ac | data;
+
+            reg.ac = ac;
+            reg.p
+                .set(Status::Z, is_zero!(ac))
+                .set(Status::N, is_neg!(ac));
+
+            state.oper = OperData::Byte(data);
+            OperationResult::None
+        }
+
+        steps! {ORA [ora]}
+
+        fn pha_00(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            _: &mut InstructionState,
+        ) -> OperationResult {
+            bus.write(PS.wrapping_add(reg.sp as Word), reg.ac);
+
+            OperationResult::None
+        }
+
+        fn pha_01(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.sp = reg.sp.wrapping_sub(1);
+
+            state.oper = OperData::None;
+            OperationResult::None
+        }
+
+        steps! {PHA [pha_00, pha_01]}
+
+        fn php_00(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let p = reg.p | Status::B | Status::U;
+            bus.write(PS.wrapping_add(reg.sp as Word), p.into());
+            reg.sp = reg.sp.wrapping_sub(1);
+
+            state.oper = OperData::None;
+            OperationResult::None
+        }
+
+        steps! {PHP [spin, php_00]}
+
+        fn pla_00(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            _: &mut InstructionState,
+        ) -> OperationResult {
+            reg.sp = reg.sp.wrapping_add(1);
+
+            OperationResult::None
+        }
+
+        fn pla_01(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.ac = bus.read(PS.wrapping_add(reg.sp as Word));
+            reg.p
+                .set(Status::Z, is_zero!(reg.ac))
+                .set(Status::N, is_neg!(reg.ac));
+
+            state.oper = OperData::None;
+            OperationResult::None
+        }
+
+        steps! {PLA [spin, pla_00, pla_01]}
+
+        fn plp_00(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            _: &mut InstructionState,
+        ) -> OperationResult {
+            reg.sp = reg.sp.wrapping_add(1);
+            OperationResult::None
+        }
+
+        fn plp_01(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let tmp = bus.read(PS.wrapping_add(reg.sp as Word));
+            reg.p = Status::from(tmp) & !(Status::U | Status::B);
+
+            state.oper = OperData::None;
+            OperationResult::None
+        }
+
+        steps! {PLP [spin, plp_00, plp_01]}
+
+        fn rol_a(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let data = reg.ac as Word;
             let c = Word::from(reg.p & Status::C);
-            let tmp = c | state.tmp << 1;
+            let tmp = c | data << 1;
             reg.p
-                .set(Status::C, is_set!(state.tmp, 0x80))
+                .set(Status::C, is_set!(data, 0x80))
                 .set(Status::Z, is_zero!(tmp))
                 .set(Status::N, is_neg!(tmp));
+            reg.ac = tmp as Byte;
 
-            tmp
-        };
+            state.oper = OperData::None;
+            OperationResult::None
+        }
 
-        rmw_m_01(reg, bus, state, func)
-    }
+        steps! {ROL_A [rol_a]}
 
-    steps! {ROL_M [rmw_m_00, rol_rmw, rmw_m_02]}
+        fn rol_rmw(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let func = |reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState| {
+                let c = Word::from(reg.p & Status::C);
+                let tmp = c | state.tmp << 1;
+                reg.p
+                    .set(Status::C, is_set!(state.tmp, 0x80))
+                    .set(Status::Z, is_zero!(tmp))
+                    .set(Status::N, is_neg!(tmp));
 
-    fn ror_a(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let data = reg.ac as Word;
-        let c = Word::from(reg.p & Status::C) << 7;
-        let tmp = c | data >> 1;
-        reg.p
-            .set(Status::C, is_set!(data, 0x1))
-            .set(Status::Z, is_zero!(tmp))
-            .set(Status::N, is_neg!(tmp));
+                tmp
+            };
 
-        reg.ac = tmp as Byte;
+            rmw_m_01(reg, bus, state, func)
+        }
 
-        state.oper = OperData::None;
-        OperationResult::None
-    }
+        steps! {ROL_M [rmw_m_00, rol_rmw, rmw_m_02]}
 
-    steps! {ROR_A [ror_a]}
-
-    fn ror_rmw(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let func = |reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState| {
+        fn ror_a(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let data = reg.ac as Word;
             let c = Word::from(reg.p & Status::C) << 7;
-            let tmp = c | state.tmp >> 1;
+            let tmp = c | data >> 1;
             reg.p
-                .set(Status::C, is_set!(state.tmp, 0x1))
+                .set(Status::C, is_set!(data, 0x1))
                 .set(Status::Z, is_zero!(tmp))
                 .set(Status::N, is_neg!(tmp));
 
-            tmp
-        };
+            reg.ac = tmp as Byte;
 
-        rmw_m_01(reg, bus, state, func)
+            state.oper = OperData::None;
+            OperationResult::None
+        }
+
+        steps! {ROR_A [ror_a]}
+
+        fn ror_rmw(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let func = |reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState| {
+                let c = Word::from(reg.p & Status::C) << 7;
+                let tmp = c | state.tmp >> 1;
+                reg.p
+                    .set(Status::C, is_set!(state.tmp, 0x1))
+                    .set(Status::Z, is_zero!(tmp))
+                    .set(Status::N, is_neg!(tmp));
+
+                tmp
+            };
+
+            rmw_m_01(reg, bus, state, func)
+        }
+
+        steps! {ROR_M [rmw_m_00, ror_rmw, rmw_m_02]}
+
+        fn rti_00(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            _: &mut InstructionState,
+        ) -> OperationResult {
+            reg.sp = reg.sp.wrapping_add(1);
+            OperationResult::None
+        }
+
+        fn rti_01(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            _: &mut InstructionState,
+        ) -> OperationResult {
+            let status = bus.read(PS.wrapping_add(reg.sp as Word));
+            reg.sp = reg.sp.wrapping_add(1);
+            reg.p = Status::from(status) & !(Status::B | Status::U);
+
+            OperationResult::None
+        }
+
+        fn rti_02(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            state.tmp = bus.read(PS.wrapping_add(reg.sp as Word)) as Word;
+            reg.sp = reg.sp.wrapping_add(1);
+            OperationResult::None
+        }
+
+        fn rti_03(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let hi_pc = (bus.read(PS.wrapping_add(reg.sp as Word)) as Word) << 8;
+            reg.pc = state.tmp | hi_pc;
+
+            state.oper = OperData::None;
+            OperationResult::None
+        }
+
+        steps! {RTI [rti_00, rti_01, rti_02, rti_03]}
+
+        fn rts_00(
+            _: &mut Registers,
+            _: &mut dyn RwDevice,
+            _: &mut InstructionState,
+        ) -> OperationResult {
+            OperationResult::None
+        }
+
+        fn rts_01(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.sp = reg.sp.wrapping_add(1);
+            state.tmp = bus.read(PS.wrapping_add(reg.sp as Word)) as Word;
+
+            OperationResult::None
+        }
+
+        fn rts_02(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.sp = reg.sp.wrapping_add(1);
+            let hi_pc = (bus.read(PS.wrapping_add(reg.sp as Word)) as Word) << 8;
+            state.tmp |= hi_pc;
+
+            OperationResult::None
+        }
+
+        fn rts_03(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.pc = state.tmp;
+
+            state.oper = OperData::None;
+            OperationResult::None
+        }
+
+        steps! {RTS [spin, rts_00, rts_01, rts_02, rts_03]}
+
+        fn sbc(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let addr = state.addr;
+            // Operating in 16-bit domain to capture carry out
+            let data = bus.read(addr) as Word;
+            let ac = reg.ac as Word;
+            let val = data ^ LO_MASK;
+
+            let tmp = ac + val + reg.p.get(Status::C);
+
+            reg.p
+                .set(Status::C, tmp > 255)
+                .set(Status::Z, is_zero!(tmp))
+                .set(Status::V, is_overflow!(ac, val, tmp))
+                .set(Status::N, is_neg!(tmp));
+
+            reg.ac = tmp as Byte;
+
+            state.oper = OperData::Byte(data as Byte);
+            OperationResult::None
+        }
+
+        steps! {SBC [sbc]}
+
+        fn sec(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.p.set(Status::C, true);
+            state.oper = OperData::None;
+            OperationResult::None
+        }
+
+        steps! {SEC [sec]}
+
+        fn sed(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.p.set(Status::D, true);
+            state.oper = OperData::None;
+            OperationResult::None
+        }
+
+        steps! {SED [sed]}
+
+        fn sei(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.p.set(Status::I, true);
+            state.oper = OperData::None;
+            OperationResult::None
+        }
+
+        steps! {SEI [sei]}
+
+        fn sta(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let tmp = bus.write(state.addr, reg.ac);
+            state.oper = OperData::Byte(tmp);
+            OperationResult::None
+        }
+
+        steps! {STA [sta]}
+
+        fn stx(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let tmp = bus.write(state.addr, reg.x);
+            state.oper = OperData::Byte(tmp);
+            OperationResult::None
+        }
+
+        steps! {STX [stx]}
+
+        fn sty(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let tmp = bus.write(state.addr, reg.y);
+            state.oper = OperData::Byte(tmp);
+            OperationResult::None
+        }
+
+        steps! {STY [sty]}
+
+        fn tax(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.x = reg.ac;
+            reg.p
+                .set(Status::Z, is_zero!(reg.x))
+                .set(Status::N, is_neg!(reg.x));
+            state.oper = OperData::None;
+            OperationResult::None
+        }
+
+        steps! {TAX [tax]}
+
+        fn tay(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.y = reg.ac;
+            reg.p
+                .set(Status::Z, is_zero!(reg.y))
+                .set(Status::N, is_neg!(reg.y));
+            state.oper = OperData::None;
+            OperationResult::None
+        }
+
+        steps! {TAY [tay]}
+
+        fn tsx(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.x = reg.sp;
+            reg.p
+                .set(Status::Z, is_zero!(reg.x))
+                .set(Status::N, is_neg!(reg.x));
+            state.oper = OperData::None;
+            OperationResult::None
+        }
+
+        steps! {TSX [tsx]}
+
+        fn txa(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.ac = reg.x;
+            reg.p
+                .set(Status::Z, is_zero!(reg.ac))
+                .set(Status::N, is_neg!(reg.ac));
+            state.oper = OperData::None;
+            OperationResult::None
+        }
+
+        steps! {TXA [txa]}
+
+        fn txs(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.sp = reg.x;
+            state.oper = OperData::None;
+            OperationResult::None
+        }
+
+        steps! {TXS [txs]}
+
+        fn tya(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.ac = reg.y;
+            reg.p
+                .set(Status::Z, is_zero!(reg.ac))
+                .set(Status::N, is_neg!(reg.ac));
+            state.oper = OperData::None;
+            OperationResult::None
+        }
+
+        steps! {TYA [tya]}
+
+        /// https://www.nesdev.org/wiki/CPU_interrupts#IRQ_and_NMI_tick-by-tick_execution
+        ///
+        /// IRQ and NMI tick-by-tick execution
+        /// For exposition and to emphasize similarity with BRK, here's the
+        /// tick-by-tick breakdown of IRQ and NMI (derived from Visual 6502). A
+        /// reset also goes through the same sequence, but suppresses writes,
+        /// decrementing the stack pointer thrice without modifying memory. This is
+        /// why the I flag is always set on reset.
+        ///
+        /// #  address R/W description
+        /// ```text
+        /// --- ------- --- -----------------------------------------------
+        /// 1    PC     R  fetch opcode (and discard it - $00 (BRK) is forced into the opcode register instead)
+        /// 2    PC     R  read next instruction byte (actually the same as above, since PC increment is suppressed. Also discarded.)
+        /// 3  $0100,S  W  push PCH on stack, decrement S
+        /// 4  $0100,S  W  push PCL on stack, decrement S
+        /// *** At this point, the signal status determines which interrupt vector is used ***
+        /// 5  $0100,S  W  push P on stack (with B flag *clear*), decrement S
+        /// 6   A       R  fetch PCL (A = FFFE for IRQ, A = FFFA for NMI), set I flag
+        /// 7   A       R  fetch PCH (A = FFFF for IRQ, A = FFFB for NMI)
+        /// ```
+        fn rest_03(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            _: &mut InstructionState,
+        ) -> OperationResult {
+            reg.sp = reg.sp.wrapping_sub(1);
+            OperationResult::None
+        }
+
+        fn reset_04(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.sp = reg.sp.wrapping_sub(1);
+            state.tmp = RESET_LO;
+            OperationResult::None
+        }
+
+        fn reset_05(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            _: &mut InstructionState,
+        ) -> OperationResult {
+            reg.sp = reg.sp.wrapping_sub(1);
+            OperationResult::None
+        }
+
+        steps! {RESET [brk_01, brk_02, rest_03, reset_04, reset_05, brk_06, brk_07]}
     }
-
-    steps! {ROR_M [rmw_m_00, ror_rmw, rmw_m_02]}
-
-    fn rti_00(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        _: &mut InstructionState,
-    ) -> OperationResult {
-        reg.sp = reg.sp.wrapping_add(1);
-        OperationResult::None
-    }
-
-    fn rti_01(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        _: &mut InstructionState,
-    ) -> OperationResult {
-        let status = bus.read(PS.wrapping_add(reg.sp as Word));
-        reg.sp = reg.sp.wrapping_add(1);
-        reg.p = Status::from(status) & !(Status::B | Status::U);
-
-        OperationResult::None
-    }
-
-    fn rti_02(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        state.tmp = bus.read(PS.wrapping_add(reg.sp as Word)) as Word;
-        reg.sp = reg.sp.wrapping_add(1);
-        OperationResult::None
-    }
-
-    fn rti_03(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let hi_pc = (bus.read(PS.wrapping_add(reg.sp as Word)) as Word) << 8;
-        reg.pc = state.tmp | hi_pc;
-
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {RTI [rti_00, rti_01, rti_02, rti_03]}
-
-    fn rts_00(
-        _: &mut Registers,
-        _: &mut dyn RwDevice,
-        _: &mut InstructionState,
-    ) -> OperationResult {
-        OperationResult::None
-    }
-
-    fn rts_01(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.sp = reg.sp.wrapping_add(1);
-        state.tmp = bus.read(PS.wrapping_add(reg.sp as Word)) as Word;
-
-        OperationResult::None
-    }
-
-    fn rts_02(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.sp = reg.sp.wrapping_add(1);
-        let hi_pc = (bus.read(PS.wrapping_add(reg.sp as Word)) as Word) << 8;
-        state.tmp |= hi_pc;
-
-        OperationResult::None
-    }
-
-    fn rts_03(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.pc = state.tmp;
-
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {RTS [spin, rts_00, rts_01, rts_02, rts_03]}
-
-    fn sbc(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let addr = state.addr;
-        // Operating in 16-bit domain to capture carry out
-        let data = bus.read(addr) as Word;
-        let ac = reg.ac as Word;
-        let val = data ^ LO_MASK;
-
-        let tmp = ac + val + reg.p.get(Status::C);
-
-        reg.p
-            .set(Status::C, tmp > 255)
-            .set(Status::Z, is_zero!(tmp))
-            .set(Status::V, is_overflow!(ac, val, tmp))
-            .set(Status::N, is_neg!(tmp));
-
-        reg.ac = tmp as Byte;
-
-        state.oper = OperData::Byte(data as Byte);
-        OperationResult::None
-    }
-
-    steps! {SBC [sbc]}
-
-    fn sec(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.p.set(Status::C, true);
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {SEC [sec]}
-
-    fn sed(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.p.set(Status::D, true);
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {SED [sed]}
-
-    fn sei(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.p.set(Status::I, true);
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {SEI [sei]}
-
-    fn sta(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let tmp = bus.write(state.addr, reg.ac);
-        state.oper = OperData::Byte(tmp);
-        OperationResult::None
-    }
-
-    steps! {STA [sta]}
-
-    fn stx(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let tmp = bus.write(state.addr, reg.x);
-        state.oper = OperData::Byte(tmp);
-        OperationResult::None
-    }
-
-    steps! {STX [stx]}
-
-    fn sty(
-        reg: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let tmp = bus.write(state.addr, reg.y);
-        state.oper = OperData::Byte(tmp);
-        OperationResult::None
-    }
-
-    steps! {STY [sty]}
-
-    fn tax(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.x = reg.ac;
-        reg.p
-            .set(Status::Z, is_zero!(reg.x))
-            .set(Status::N, is_neg!(reg.x));
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {TAX [tax]}
-
-    fn tay(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.y = reg.ac;
-        reg.p
-            .set(Status::Z, is_zero!(reg.y))
-            .set(Status::N, is_neg!(reg.y));
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {TAY [tay]}
-
-    fn tsx(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.x = reg.sp;
-        reg.p
-            .set(Status::Z, is_zero!(reg.x))
-            .set(Status::N, is_neg!(reg.x));
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {TSX [tsx]}
-
-    fn txa(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.ac = reg.x;
-        reg.p
-            .set(Status::Z, is_zero!(reg.ac))
-            .set(Status::N, is_neg!(reg.ac));
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {TXA [txa]}
-
-    fn txs(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.sp = reg.x;
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {TXS [txs]}
-
-    fn tya(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.ac = reg.y;
-        reg.p
-            .set(Status::Z, is_zero!(reg.ac))
-            .set(Status::N, is_neg!(reg.ac));
-        state.oper = OperData::None;
-        OperationResult::None
-    }
-
-    steps! {TYA [tya]}
-
-    /// https://www.nesdev.org/wiki/CPU_interrupts#IRQ_and_NMI_tick-by-tick_execution
-    ///
-    /// IRQ and NMI tick-by-tick execution
-    /// For exposition and to emphasize similarity with BRK, here's the
-    /// tick-by-tick breakdown of IRQ and NMI (derived from Visual 6502). A
-    /// reset also goes through the same sequence, but suppresses writes,
-    /// decrementing the stack pointer thrice without modifying memory. This is
-    /// why the I flag is always set on reset.
-    ///
-    /// #  address R/W description
-    /// ```text
-    /// --- ------- --- -----------------------------------------------
-    /// 1    PC     R  fetch opcode (and discard it - $00 (BRK) is forced into the opcode register instead)
-    /// 2    PC     R  read next instruction byte (actually the same as above, since PC increment is suppressed. Also discarded.)
-    /// 3  $0100,S  W  push PCH on stack, decrement S
-    /// 4  $0100,S  W  push PCL on stack, decrement S
-    /// *** At this point, the signal status determines which interrupt vector is used ***
-    /// 5  $0100,S  W  push P on stack (with B flag *clear*), decrement S
-    /// 6   A       R  fetch PCL (A = FFFE for IRQ, A = FFFA for NMI), set I flag
-    /// 7   A       R  fetch PCH (A = FFFF for IRQ, A = FFFB for NMI)
-    /// ```
-    fn rest_03(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        _: &mut InstructionState,
-    ) -> OperationResult {
-        reg.sp = reg.sp.wrapping_sub(1);
-        OperationResult::None
-    }
-
-    fn reset_04(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        reg.sp = reg.sp.wrapping_sub(1);
-        state.tmp = RESET_LO;
-        OperationResult::None
-    }
-
-    fn reset_05(
-        reg: &mut Registers,
-        _: &mut dyn RwDevice,
-        _: &mut InstructionState,
-    ) -> OperationResult {
-        reg.sp = reg.sp.wrapping_sub(1);
-        OperationResult::None
-    }
-
-    steps! {RESET [brk_01, brk_02, rest_03, reset_04, reset_05, brk_06, brk_07]}
 
     // =================
     // Illegal op codes
     // =================
     mod illegal {
         use super::*;
+
         fn dcp(
             reg: &mut Registers,
             bus: &mut dyn RwDevice,
@@ -2522,6 +2527,38 @@ pub mod act {
         }
 
         steps! {DCP [rmw_m_00, dcp, rmw_m_02]}
+
+        fn isb(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let func = |reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState| {
+                let data = state.tmp as Byte;
+                let m = data.wrapping_add(1);
+
+                // Operating in 16-bit domain to capture carry out
+                let ac = reg.ac as Word;
+                let data = m as Word;
+                let val = data ^ LO_MASK;
+
+                let tmp = ac + val + reg.p.get(Status::C);
+
+                reg.p
+                    .set(Status::C, tmp > 255)
+                    .set(Status::Z, is_zero!(tmp))
+                    .set(Status::V, is_overflow!(ac, val, tmp))
+                    .set(Status::N, is_neg!(tmp));
+
+                reg.ac = tmp as Byte;
+
+                m as Word
+            };
+
+            rmw_m_01(reg, bus, state, func)
+        }
+
+        steps! {ISB [rmw_m_00, isb, rmw_m_02]}
 
         fn lax(
             reg: &mut Registers,
@@ -2582,6 +2619,7 @@ pub mod act {
     }
 
     pub use illegal::*;
+    pub use legal::*;
 }
 
 macro_rules! a_vs_m {
@@ -4419,6 +4457,45 @@ macro_rules! make_instruction {
         /// (indirect),Y DCP (oper),Y    D3     2        8
         /// ```
         pub const $inst: OperType = OperType::DCP;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] ~ISC $($am:tt)*) => {
+
+        /// # ISC (ISB, INS)
+        /// INC oper + SBC oper
+        ///
+        ///```text
+        /// M + 1 -> M, A - M - C¯ -> A       N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  +
+        /// addressing   assembler       opc    bytes    cycles
+        /// zeropage     ISC oper        E7     2        5
+        /// zeropage,X   ISC oper,X      F7     2        6
+        /// absolute     ISC oper        EF     3        6
+        /// absolut,X    ISC oper,X      FF     3        7
+        /// absolut,Y    ISC oper,Y      FB     3        7
+        /// (indirect,X) ISC (oper,X)    E3     2        8
+        /// (indirect),Y ISC (oper),Y    F3     2        8
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![RMW $($am)*];
+            let work = &act::ISB;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+
+        /// # USBC (SBC)
+        /// SBC oper + NOP
+        ///
+        /// effectively same as normal SBC immediate, instr. E9.
+        ///
+        ///```text
+        /// A - M - C¯ -> A                   N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  +
+        /// addressing   assembler       opc    bytes    cycles
+        /// immediate    USBC #oper      EB     2        2
+        /// ```
+        pub const $inst: OperType = OperType::ISB;
     };
 
     ([$opc:tt, $ami:tt, $inst:tt] ~LAX $($am:tt)*) => {

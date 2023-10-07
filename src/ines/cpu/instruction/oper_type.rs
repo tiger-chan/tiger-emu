@@ -123,6 +123,8 @@ pub enum OperType {
     /// ILLEGAL
     DCP,
     /// ILLEGAL
+    ISB,
+    /// ILLEGAL
     LAX,
     /// ILLEGAL
     XNOP,

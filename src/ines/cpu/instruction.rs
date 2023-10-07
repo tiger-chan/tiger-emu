@@ -52,8 +52,8 @@ pub const OPER: [Instruc; 256] = [
     op_b0, op_b1, op_b2, op_b3, op_b4, op_b5, op_b6, op_b7, op_b8, op_b9, op_ba, INOOP, op_bc, op_bd, op_be, op_bf,
     op_c0, op_c1, op_c2, op_c3, op_c4, op_c5, op_c6, op_c7, op_c8, op_c9, op_ca, INOOP, op_cc, op_cd, op_ce, op_cf,
     op_d0, op_d1, op_d2, op_d3, op_d4, op_d5, op_d6, op_d7, op_d8, op_d9, op_da, op_db, op_dc, op_dd, op_de, op_df,
-    op_e0, op_e1, op_e2, INOOP, op_e4, op_e5, op_e6, INOOP, op_e8, op_e9, op_ea, op_eb, op_ec, op_ed, op_ee, INOOP,
-    op_f0, op_f1, op_f2, INOOP, op_f4, op_f5, op_f6, INOOP, op_f8, op_f9, op_fa, INOOP, op_fc, op_fd, op_fe, INOOP,
+    op_e0, op_e1, op_e2, op_e3, op_e4, op_e5, op_e6, op_e7, op_e8, op_e9, op_ea, op_eb, op_ec, op_ed, op_ee, op_ef,
+    op_f0, op_f1, op_f2, op_f3, op_f4, op_f5, op_f6, op_f7, op_f8, op_f9, op_fa, op_fb, op_fc, op_fd, op_fe, op_ff,
 ];
 
 const INOAM: AddrMode = AddrMode::IMP;
@@ -76,8 +76,8 @@ pub const ADDR_MODE: [AddrMode; 256] = [
     AM_B0, AM_B1, AM_B2, AM_B3, AM_B4, AM_B5, AM_B6, AM_B7, AM_B8, AM_B9, AM_BA, INOAM, AM_BC, AM_BD, AM_BE, AM_BF,
     AM_C0, AM_C1, AM_C2, AM_C3, AM_C4, AM_C5, AM_C6, AM_C7, AM_C8, AM_C9, AM_CA, INOAM, AM_CC, AM_CD, AM_CE, AM_CF,
     AM_D0, AM_D1, AM_D2, AM_D3, AM_D4, AM_D5, AM_D6, AM_D7, AM_D8, AM_D9, AM_DA, AM_DB, AM_DC, AM_DD, AM_DE, AM_DF,
-    AM_E0, AM_E1, AM_E2, INOAM, AM_E4, AM_E5, AM_E6, INOAM, AM_E8, AM_E9, AM_EA, AM_EB, AM_EC, AM_ED, AM_EE, INOAM,
-    AM_F0, AM_F1, AM_F2, INOAM, AM_F4, AM_F5, AM_F6, INOAM, AM_F8, AM_F9, AM_FA, INOAM, AM_FC, AM_FD, AM_FE, INOAM,
+    AM_E0, AM_E1, AM_E2, AM_E3, AM_E4, AM_E5, AM_E6, AM_E7, AM_E8, AM_E9, AM_EA, AM_EB, AM_EC, AM_ED, AM_EE, AM_EF,
+    AM_F0, AM_F1, AM_F2, AM_F3, AM_F4, AM_F5, AM_F6, AM_F7, AM_F8, AM_F9, AM_FA, AM_FB, AM_FC, AM_FD, AM_FE, AM_FF,
 ];
 
 const INOIN: OperType = OperType::XXX;
@@ -100,8 +100,8 @@ pub const INSTRUCTION_TYPE: [OperType; 256] = [
     IN_B0, IN_B1, IN_B2, IN_B3, IN_B4, IN_B5, IN_B6, IN_B7, IN_B8, IN_B9, IN_BA, INOIN, IN_BC, IN_BD, IN_BE, IN_BF,
     IN_C0, IN_C1, IN_C2, IN_C3, IN_C4, IN_C5, IN_C6, IN_C7, IN_C8, IN_C9, IN_CA, INOIN, IN_CC, IN_CD, IN_CE, IN_CF,
     IN_D0, IN_D1, IN_D2, IN_D3, IN_D4, IN_D5, IN_D6, IN_D7, IN_D8, IN_D9, IN_DA, IN_DB, IN_DC, IN_DD, IN_DE, IN_DF,
-    IN_E0, IN_E1, IN_E2, INOIN, IN_E4, IN_E5, IN_E6, INOIN, IN_E8, IN_E9, IN_EA, IN_EB, IN_EC, IN_ED, IN_EE, INOIN,
-    IN_F0, IN_F1, IN_F2, INOIN, IN_F4, IN_F5, IN_F6, INOIN, IN_F8, IN_F9, IN_FA, INOIN, IN_FC, IN_FD, IN_FE, INOIN,
+    IN_E0, IN_E1, IN_E2, IN_E3, IN_E4, IN_E5, IN_E6, IN_E7, IN_E8, IN_E9, IN_EA, IN_EB, IN_EC, IN_ED, IN_EE, IN_EF,
+    IN_F0, IN_F1, IN_F2, IN_F3, IN_F4, IN_F5, IN_F6, IN_F7, IN_F8, IN_F9, IN_FA, IN_FB, IN_FC, IN_FD, IN_FE, IN_FF,
 ];
 
 make_instruction![[op_69, AM_69, IN_69] ADC #&BB    ];
@@ -322,6 +322,14 @@ make_instruction![[op_df, AM_DF, IN_DF] ~DCP &LLHH,X];
 make_instruction![[op_db, AM_DB, IN_DB] ~DCP &LLHH,Y];
 make_instruction![[op_c3, AM_C3, IN_C3] ~DCP (&LL,X)];
 make_instruction![[op_d3, AM_D3, IN_D3] ~DCP (&LL),Y];
+
+make_instruction![[op_e7, AM_E7, IN_E7] ~ISC &LL    ];
+make_instruction![[op_f7, AM_F7, IN_F7] ~ISC &LL,X  ];
+make_instruction![[op_ef, AM_EF, IN_EF] ~ISC &LLHH  ];
+make_instruction![[op_ff, AM_FF, IN_FF] ~ISC &LLHH,X];
+make_instruction![[op_fb, AM_FB, IN_FB] ~ISC &LLHH,Y];
+make_instruction![[op_e3, AM_E3, IN_E3] ~ISC (&LL,X)];
+make_instruction![[op_f3, AM_F3, IN_F3] ~ISC (&LL),Y];
 
 make_instruction![[op_a7, AM_A7, IN_A7] ~LAX &LL    ];
 make_instruction![[op_b7, AM_B7, IN_B7] ~LAX &LL,Y  ];
