@@ -52,7 +52,7 @@ pub const OPER: [Instruc; 256] = [
     op_b0, op_b1, op_b2, op_b3, op_b4, op_b5, op_b6, op_b7, op_b8, op_b9, op_ba, INOOP, op_bc, op_bd, op_be, op_bf,
     op_c0, op_c1, op_c2, INOOP, op_c4, op_c5, op_c6, INOOP, op_c8, op_c9, op_ca, INOOP, op_cc, op_cd, op_ce, INOOP,
     op_d0, op_d1, op_d2, INOOP, op_d4, op_d5, op_d6, INOOP, op_d8, op_d9, op_da, INOOP, op_dc, op_dd, op_de, INOOP,
-    op_e0, op_e1, op_e2, INOOP, op_e4, op_e5, op_e6, INOOP, op_e8, op_e9, op_ea, INOOP, op_ec, op_ed, op_ee, INOOP,
+    op_e0, op_e1, op_e2, INOOP, op_e4, op_e5, op_e6, INOOP, op_e8, op_e9, op_ea, op_eb, op_ec, op_ed, op_ee, INOOP,
     op_f0, op_f1, op_f2, INOOP, op_f4, op_f5, op_f6, INOOP, op_f8, op_f9, op_fa, INOOP, op_fc, op_fd, op_fe, INOOP,
 ];
 
@@ -76,7 +76,7 @@ pub const ADDR_MODE: [AddrMode; 256] = [
     AM_B0, AM_B1, AM_B2, AM_B3, AM_B4, AM_B5, AM_B6, AM_B7, AM_B8, AM_B9, AM_BA, INOAM, AM_BC, AM_BD, AM_BE, AM_BF,
     AM_C0, AM_C1, AM_C2, INOAM, AM_C4, AM_C5, AM_C6, INOAM, AM_C8, AM_C9, AM_CA, INOAM, AM_CC, AM_CD, AM_CE, INOAM,
     AM_D0, AM_D1, AM_D2, INOAM, AM_D4, AM_D5, AM_D6, INOAM, AM_D8, AM_D9, AM_DA, INOAM, AM_DC, AM_DD, AM_DE, INOAM,
-    AM_E0, AM_E1, AM_E2, INOAM, AM_E4, AM_E5, AM_E6, INOAM, AM_E8, AM_E9, AM_EA, INOAM, AM_EC, AM_ED, AM_EE, INOAM,
+    AM_E0, AM_E1, AM_E2, INOAM, AM_E4, AM_E5, AM_E6, INOAM, AM_E8, AM_E9, AM_EA, AM_EB, AM_EC, AM_ED, AM_EE, INOAM,
     AM_F0, AM_F1, AM_F2, INOAM, AM_F4, AM_F5, AM_F6, INOAM, AM_F8, AM_F9, AM_FA, INOAM, AM_FC, AM_FD, AM_FE, INOAM,
 ];
 
@@ -100,7 +100,7 @@ pub const INSTRUCTION_TYPE: [OperType; 256] = [
     IN_B0, IN_B1, IN_B2, IN_B3, IN_B4, IN_B5, IN_B6, IN_B7, IN_B8, IN_B9, IN_BA, INOIN, IN_BC, IN_BD, IN_BE, IN_BF,
     IN_C0, IN_C1, IN_C2, INOIN, IN_C4, IN_C5, IN_C6, INOIN, IN_C8, IN_C9, IN_CA, INOIN, IN_CC, IN_CD, IN_CE, INOIN,
     IN_D0, IN_D1, IN_D2, INOIN, IN_D4, IN_D5, IN_D6, INOIN, IN_D8, IN_D9, IN_DA, INOIN, IN_DC, IN_DD, IN_DE, INOIN,
-    IN_E0, IN_E1, IN_E2, INOIN, IN_E4, IN_E5, IN_E6, INOIN, IN_E8, IN_E9, IN_EA, INOIN, IN_EC, IN_ED, IN_EE, INOIN,
+    IN_E0, IN_E1, IN_E2, INOIN, IN_E4, IN_E5, IN_E6, INOIN, IN_E8, IN_E9, IN_EA, IN_EB, IN_EC, IN_ED, IN_EE, INOIN,
     IN_F0, IN_F1, IN_F2, INOIN, IN_F4, IN_F5, IN_F6, INOIN, IN_F8, IN_F9, IN_FA, INOIN, IN_FC, IN_FD, IN_FE, INOIN,
 ];
 
@@ -354,6 +354,8 @@ make_instruction![[op_87, AM_87, IN_87] ~SAX &LL    ];
 make_instruction![[op_97, AM_97, IN_97] ~SAX &LL,Y  ];
 make_instruction![[op_8f, AM_8F, IN_8F] ~SAX &LLHH  ];
 make_instruction![[op_83, AM_83, IN_83] ~SAX (&LL,X)];
+
+make_instruction![[op_eb, AM_EB, IN_EB] ~SBC #&BB   ];
 
 make_instruction![[op_02, AM_02, IN_02] ~JAM        ];
 make_instruction![[op_12, AM_12, IN_12] ~JAM        ];

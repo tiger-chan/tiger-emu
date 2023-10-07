@@ -3882,8 +3882,9 @@ macro_rules! make_instruction {
     ([$opc:tt, $ami:tt, $inst:tt] SBC $($am:tt)*) => {
         /// SBC
         /// Subtract Memory from Accumulator with Borrow
+        ///
         ///```text
-        /// A - M - C̅ -> A                   N  Z  C  I  D  V
+        /// A - M - C¯ -> A                   N  Z  C  I  D  V
         ///                                   +  +  +  -  -  +
         /// addressing   assembler       opc    bytes    cycles
         /// immediate    SBC #oper       E9     2        2
@@ -3905,7 +3906,7 @@ macro_rules! make_instruction {
         /// SBC
         /// Subtract Memory from Accumulator with Borrow
         ///```text
-        /// A - M - C̅ -> A                   N  Z  C  I  D  V
+        /// A - M - C¯ -> A                   N  Z  C  I  D  V
         ///                                   +  +  +  -  -  +
         /// addressing   assembler       opc    bytes    cycles
         /// immediate    SBC #oper       E9     2        2
@@ -4427,6 +4428,41 @@ macro_rules! make_instruction {
         /// (indirect,X) SAX (oper,X)    83     2        6
         /// ```
         pub const $inst: OperType = OperType::SAX;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] ~SBC $($am:tt)*) => {
+
+        /// # USBC (SBC)
+        /// SBC oper + NOP
+        ///
+        /// effectively same as normal SBC immediate, instr. E9.
+        ///
+        ///```text
+        /// A - M - C¯ -> A                   N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  +
+        /// addressing   assembler       opc    bytes    cycles
+        /// immediate    USBC #oper      EB     2        2
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![R $($am)*];
+            let work = &act::SBC;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+
+        /// # USBC (SBC)
+        /// SBC oper + NOP
+        ///
+        /// effectively same as normal SBC immediate, instr. E9.
+        ///
+        ///```text
+        /// A - M - C¯ -> A                   N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  +
+        /// addressing   assembler       opc    bytes    cycles
+        /// immediate    USBC #oper      EB     2        2
+        /// ```
+        pub const $inst: OperType = OperType::USBC;
     };
 
     ([$opc:tt, $ami:tt, $inst:tt] ~JAM $($am:tt)*) => {

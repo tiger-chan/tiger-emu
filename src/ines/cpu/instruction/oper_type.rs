@@ -127,12 +127,17 @@ pub enum OperType {
     /// ILLEGAL
     SAX,
     /// ILLEGAL
+    USBC,
+    /// ILLEGAL
     JAM,
 }
 
 impl fmt::Display for OperType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::USBC => {
+                write!(f, "*SBC")
+            }
             Self::XNOP => {
                 write!(f, "*NOP")
             }
