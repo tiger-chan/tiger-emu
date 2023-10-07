@@ -2362,7 +2362,39 @@ pub mod act {
 
     steps! {TYA [tya]}
 
+    // =================
     // Illegal op codes
+    // =================
+
+    fn lax(
+        reg: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        let data = bus.read(state.addr);
+        reg.ac = data;
+        reg.x = data;
+        reg.p
+            .set(Status::Z, is_zero!(data))
+            .set(Status::N, is_neg!(data as Word));
+
+        state.oper = OperData::Byte(data);
+        OperationResult::None
+    }
+
+    steps! {LAX [lax]}
+
+    fn illegal_nop(
+        _: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        let data = bus.read(state.addr);
+        state.oper = OperData::Byte(data);
+        OperationResult::None
+    }
+
+    steps! {XNOP [illegal_nop]}
 
     fn jam(
         _: &mut Registers,
@@ -2376,18 +2408,6 @@ pub mod act {
     }
 
     steps! {JAM [jam]}
-
-    fn illegal_nop(
-        _: &mut Registers,
-        bus: &mut dyn RwDevice,
-        state: &mut InstructionState,
-    ) -> OperationResult {
-        let data = bus.read(state.addr);
-        state.oper = OperData::Byte(data);
-        OperationResult::None
-    }
-
-    steps! {XNOP [illegal_nop]}
 
     /// https://www.nesdev.org/wiki/CPU_interrupts#IRQ_and_NMI_tick-by-tick_execution
     ///
@@ -4234,27 +4254,43 @@ macro_rules! make_instruction {
     // ILLEGAL CODES BELLOW LINE
     // ==========================
 
-    ([$opc:tt, $ami:tt, $inst:tt] ~JAM $($am:tt)*) => {
-        /// # JAM (KIL, HLT)
+    ([$opc:tt, $ami:tt, $inst:tt] ~LAX $($am:tt)*) => {
+        /// # LAX
+        /// LDA oper + LDX oper
+        /// 
         ///```text
-        /// These instructions freeze the CPU.
-        /// The processor will be trapped infinitely in T1 phase with $FF on the data bus. — Reset required.
-        /// Instruction codes: 02, 12, 22, 32, 42, 52, 62, 72, 92, B2, D2, F2
+        /// M -> A -> X                       N  Z  C  I  D  V
+        ///                                   +  -  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// zeropage     LAX oper        A7     2        3
+        /// zeropage,Y   LAX oper,Y      B7     2        4
+        /// absolute     LAX oper        AF     3        4
+        /// absolut,Y    LAX oper,Y      BF     3        4*
+        /// (indirect,X) LAX (oper,X)    A3     2        6
+        /// (indirect),Y LAX (oper),Y    B3     2        5*
         /// ```
         fn $opc() -> InstructionIterator {
-            let addr = addr_mode![$($am)*];
-            let work = &act::JAM;
+            let addr = addr_mode![R $($am)*];
+            let work = &act::LAX;
             InstructionIterator::new(&addr, work)
         }
 
         am_const!([$ami] $($am)*);
-        /// # JAM (KIL, HLT)
+        /// # LAX
+        /// LDA oper + LDX oper
+        /// 
         ///```text
-        /// These instructions freeze the CPU.
-        /// The processor will be trapped infinitely in T1 phase with $FF on the data bus. — Reset required.
-        /// Instruction codes: 02, 12, 22, 32, 42, 52, 62, 72, 92, B2, D2, F2
+        /// M -> A -> X                       N  Z  C  I  D  V
+        ///                                   +  -  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// zeropage     LAX oper        A7     2        3
+        /// zeropage,Y   LAX oper,Y      B7     2        4
+        /// absolute     LAX oper        AF     3        4
+        /// absolut,Y    LAX oper,Y      BF     3        4*
+        /// (indirect,X) LAX (oper,X)    A3     2        6
+        /// (indirect),Y LAX (oper),Y    B3     2        5*
         /// ```
-        pub const $inst: OperType = OperType::JAM;
+        pub const $inst: OperType = OperType::LAX;
     };
 
     ([$opc:tt, $ami:tt, $inst:tt] ~NOP $($am:tt)*) => {
@@ -4338,6 +4374,29 @@ macro_rules! make_instruction {
         /// absolut,X    ---             FC     3        4*
         /// ```
         pub const $inst: OperType = OperType::XNOP;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] ~JAM $($am:tt)*) => {
+        /// # JAM (KIL, HLT)
+        ///```text
+        /// These instructions freeze the CPU.
+        /// The processor will be trapped infinitely in T1 phase with $FF on the data bus. — Reset required.
+        /// Instruction codes: 02, 12, 22, 32, 42, 52, 62, 72, 92, B2, D2, F2
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![$($am)*];
+            let work = &act::JAM;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// # JAM (KIL, HLT)
+        ///```text
+        /// These instructions freeze the CPU.
+        /// The processor will be trapped infinitely in T1 phase with $FF on the data bus. — Reset required.
+        /// Instruction codes: 02, 12, 22, 32, 42, 52, 62, 72, 92, B2, D2, F2
+        /// ```
+        pub const $inst: OperType = OperType::JAM;
     };
 }
 

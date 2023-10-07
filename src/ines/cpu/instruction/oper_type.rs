@@ -120,6 +120,7 @@ pub enum OperType {
 
     /// ILLEGAL
     XXX,
+    LAX,
     /// ILLEGAL
     XNOP,
     /// ILLEGAL
@@ -129,11 +130,11 @@ pub enum OperType {
 impl fmt::Display for OperType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::XXX => {
-                write!(f, "*{:?}", self)
-            }
             Self::XNOP => {
                 write!(f, "*NOP")
+            }
+            x if x >= &Self::XXX => {
+                write!(f, "*{:?}", self)
             }
             _ => {
                 write!(f, " {:?}", self)
