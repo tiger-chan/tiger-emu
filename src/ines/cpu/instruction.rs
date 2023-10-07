@@ -24,6 +24,7 @@ pub enum OperationResult {
     None,
     Instant,
     Skip(i8),
+    SkipInstant(i8),
 }
 
 pub type Operation =

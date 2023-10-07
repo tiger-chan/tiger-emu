@@ -4,8 +4,8 @@ use crate::ines::{Byte, Word};
 pub enum AddrModeData {
     A,
     Abs(Byte, Byte),
-    Abx(Byte, Byte),
-    Aby(Byte, Byte),
+    Abx(Byte, Byte, Word),
+    Aby(Byte, Byte, Word),
     Imm(Byte),
     Imp,
     Ind(Byte, Byte, Word),
@@ -24,14 +24,14 @@ impl AddrModeData {
             AddrModeData::A | AddrModeData::Imp => {
                 format!("{:<6}", "")
             }
-            AddrModeData::Abs(lo, hi) | AddrModeData::Abx(lo, hi) | AddrModeData::Aby(lo, hi) => {
+            AddrModeData::Abs(lo, hi)
+            | AddrModeData::Abx(lo, hi, _)
+            | AddrModeData::Aby(lo, hi, _)
+            | AddrModeData::Ind(lo, hi, _) => {
                 format!("{:>02X} {:>02X} ", lo, hi)
             }
             AddrModeData::Imm(val) => {
                 format!("{:>02X}    ", val)
-            }
-            AddrModeData::Ind(lo, hi, _) => {
-                format!("{:>02X} {:>02X} ", lo, hi)
             }
             AddrModeData::Izx(lo, _, _)
             | AddrModeData::Izy(lo, _, _)
@@ -54,6 +54,12 @@ impl AddrModeData {
             AddrModeData::Abs(lo, hi) => {
                 format!("${:>04X}", *lo as Word | (*hi as Word) << 8)
             }
+            AddrModeData::Aby(lo, hi, addr) => {
+                format!("${:>02X}{:>02X},Y @ {:>04X}", hi, lo, addr)
+            }
+            AddrModeData::Abx(lo, hi, addr) => {
+                format!("${:>02X}{:>02X},X @ {:>04X}", hi, lo, addr)
+            }
             AddrModeData::Imm(bb) => {
                 format!("#${:>02X}", bb)
             }
@@ -69,11 +75,13 @@ impl AddrModeData {
             AddrModeData::Ind(lo, hi, addr) => {
                 format!("(${:>02X}{:>02X}) = {:>04X}", hi, lo, addr)
             }
-            AddrModeData::Abx(_, _)
-            | AddrModeData::Aby(_, _)
-            | AddrModeData::Rel(_, _)
-            | AddrModeData::Zpx(_, _)
-            | AddrModeData::Zpy(_, _) => String::from(""),
+            AddrModeData::Zpx(lo, addr) => {
+                format!("${:>02X},X @ {:>02X}", lo, addr)
+            }
+            AddrModeData::Zpy(lo, addr) => {
+                format!("${:>02X},Y @ {:>02X}", lo, addr)
+            }
+            AddrModeData::Rel(_, _) => String::from(""),
         }
     }
 }

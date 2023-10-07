@@ -167,6 +167,30 @@ pub mod addr {
     /// in the control flow.
     pub const ABS_JMP: [Operation; 2] = [abs_jmp_00, abs_jmp_01];
 
+    fn r_abi_02(
+        _: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        let addr = state.tmp;
+        let hi = addr & HI_MASK;
+        bus.read(state.addr);
+
+        if state.addr & HI_MASK != hi {
+            OperationResult::None
+        } else {
+            OperationResult::SkipInstant(1)
+        }
+    }
+
+    fn r_abi_03(
+        _: &mut Registers,
+        _: &mut dyn RwDevice,
+        _: &mut InstructionState,
+    ) -> OperationResult {
+        OperationResult::Instant
+    }
+
     fn abx_00(
         reg: &mut Registers,
         bus: &mut dyn RwDevice,
@@ -176,7 +200,7 @@ pub mod addr {
         reg.pc = reg.pc.wrapping_add(1);
 
         state.addr = lo;
-        OperationResult::Instant
+        OperationResult::None
     }
 
     fn abx_01(
@@ -189,13 +213,19 @@ pub mod addr {
         reg.pc = reg.pc.wrapping_add(1);
 
         let addr = lo | hi << 8;
-        state.addr = addr + reg.x as Word;
-        state.addr_data = AddrModeData::Abx(lo as Byte, hi as Byte);
-        if addr >> 8 != hi {
-            OperationResult::None
-        } else {
-            OperationResult::Skip(1)
-        }
+        state.tmp = addr;
+        state.addr = addr.wrapping_add(reg.x as Word);
+        state.addr_data = AddrModeData::Abx(lo as Byte, hi as Byte, state.addr);
+        OperationResult::None
+    }
+
+    fn abx_02(
+        _: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        bus.read(state.addr);
+        OperationResult::None
     }
 
     /// Absolute, X-indexed - OPC $LLHH,X
@@ -220,7 +250,31 @@ pub mod addr {
     /// effective address is on the next memory page, the additional
     /// operation to increment the high-byte takes another CPU cycle. This
     /// is also known as a crossing of page boundaries.
-    pub const ABX: [Operation; 3] = [abx_00, abx_01, spin];
+    pub const ABX: [Operation; 3] = [abx_00, abx_01, abx_02];
+
+    /// Absolute, X-indexed - OPC $LLHH,X
+    ///
+    /// operand is address; effective address is address incremented by X with carry **
+    ///
+    /// Indexed addressing adds the contents of either the X-register or the
+    /// Y-register to the provided address to give the effective address,
+    /// which provides the operand.
+    ///
+    /// These instructions are usefull to e.g., load values from tables or
+    /// to write to a continuous segment of memory in a loop. The most basic
+    /// forms are "absolute,X" and "absolute,X", where either the X- or the
+    /// Y-register, respectively, is added to a given base address. As the
+    /// base address is a 16-bit value, these are generally 3-byte
+    /// instructions. Since there is an additional operation to perform to
+    /// determine the effective address, these instructions are one cycle
+    /// slower than those using absolute addressing mode.*
+    ///
+    /// *) If the addition of the contents of the index register effects in
+    /// a change of the high-byte given by the base address so that the
+    /// effective address is on the next memory page, the additional
+    /// operation to increment the high-byte takes another CPU cycle. This
+    /// is also known as a crossing of page boundaries.
+    pub const ABX_R: [Operation; 4] = [abx_00, abx_01, r_abi_02, r_abi_03];
 
     fn aby_00(
         reg: &mut Registers,
@@ -231,7 +285,7 @@ pub mod addr {
         reg.pc = reg.pc.wrapping_add(1);
 
         state.addr = lo;
-        OperationResult::Instant
+        OperationResult::None
     }
 
     fn aby_01(
@@ -244,13 +298,19 @@ pub mod addr {
         reg.pc = reg.pc.wrapping_add(1);
 
         let addr = lo | hi << 8;
-        state.addr = addr + reg.y as Word;
-        state.addr_data = AddrModeData::Aby(lo as Byte, hi as Byte);
-        if addr >> 8 != hi {
-            OperationResult::None
-        } else {
-            OperationResult::Skip(1)
-        }
+        state.tmp = addr;
+        state.addr = addr.wrapping_add(reg.y as Word);
+        state.addr_data = AddrModeData::Aby(lo as Byte, hi as Byte, state.addr);
+        OperationResult::None
+    }
+
+    fn aby_02(
+        _: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        bus.read(state.addr);
+        OperationResult::None
     }
 
     /// Absolute, Y-indexed - OPC $LLHH,Y
@@ -275,7 +335,31 @@ pub mod addr {
     /// effective address is on the next memory page, the additional
     /// operation to increment the high-byte takes another CPU cycle. This
     /// is also known as a crossing of page boundaries.
-    pub const ABY: [Operation; 3] = [aby_00, aby_01, spin];
+    pub const ABY: [Operation; 3] = [aby_00, aby_01, aby_02];
+
+    /// Absolute, Y-indexed - OPC $LLHH,Y
+    ///
+    /// operand is address; effective address is address incremented by Y with carry **
+    ///
+    /// Indexed addressing adds the contents of either the X-register or the
+    /// Y-register to the provided address to give the effective address,
+    /// which provides the operand.
+    ///
+    /// These instructions are usefull to e.g., load values from tables or
+    /// to write to a continuous segment of memory in a loop. The most basic
+    /// forms are "absolute,X" and "absolute,X", where either the X- or the
+    /// Y-register, respectively, is added to a given base address. As the
+    /// base address is a 16-bit value, these are generally 3-byte
+    /// instructions. Since there is an additional operation to perform to
+    /// determine the effective address, these instructions are one cycle
+    /// slower than those using absolute addressing mode.*
+    ///
+    /// *) If the addition of the contents of the index register effects in
+    /// a change of the high-byte given by the base address so that the
+    /// effective address is on the next memory page, the additional
+    /// operation to increment the high-byte takes another CPU cycle. This
+    /// is also known as a crossing of page boundaries.
+    pub const ABY_R: [Operation; 4] = [aby_00, aby_01, r_abi_02, r_abi_03];
 
     fn imp(
         _: &mut Registers,
@@ -842,7 +926,7 @@ macro_rules! addr_mode {
     };
 
     (R &LLHH,X) => {
-        addr::ABX
+        addr::ABX_R
     };
 
     (W &LLHH,X) => {
@@ -854,7 +938,7 @@ macro_rules! addr_mode {
     };
 
     (R &LLHH,Y) => {
-        addr::ABY
+        addr::ABY_R
     };
 
     (W &LLHH,Y) => {
