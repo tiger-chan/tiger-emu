@@ -34,6 +34,7 @@ pub type Instruc = fn() -> InstructionIterator;
 
 const INOOP: Instruc = op_ea;
 
+/// https://www.masswerk.at/6502/6502_instruction_set.html
 #[allow(dead_code)]
 #[rustfmt::skip]
 pub const OPER: [Instruc; 256] = [
@@ -57,6 +58,7 @@ pub const OPER: [Instruc; 256] = [
 
 const INOAM: AddrMode = AddrMode::IMP;
 
+/// https://www.masswerk.at/6502/6502_instruction_set.html
 #[allow(dead_code)]
 #[rustfmt::skip]
 pub const ADDR_MODE: [AddrMode; 256] = [
@@ -80,6 +82,7 @@ pub const ADDR_MODE: [AddrMode; 256] = [
 
 const INOIN: OperType = OperType::XXX;
 
+/// https://www.masswerk.at/6502/6502_instruction_set.html
 #[allow(dead_code)]
 #[rustfmt::skip]
 pub const INSTRUCTION_TYPE: [OperType; 256] = [
@@ -483,8 +486,7 @@ mod test {
         // According to nestest logs the test ends at $C66E
         let mut nes = Nes::default().with_cart(cart).with_entry(0xC000);
 
-        nes.run_until(0xCE37); // 873
-        nes.run_until(0xCE3D); // 874
+        nes.run_until(0xC66E);
 
         // Fetch error codes
         let official_opcode_result = nes.read(0x02);
