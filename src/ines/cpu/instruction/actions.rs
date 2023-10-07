@@ -489,7 +489,7 @@ pub mod addr {
     ) -> OperationResult {
         state.tmp = bus.read(reg.pc) as Word;
         reg.pc = reg.pc.wrapping_add(1);
-        OperationResult::Instant
+        OperationResult::None
     }
 
     fn izy_01(
@@ -507,33 +507,34 @@ pub mod addr {
         state: &mut InstructionState,
     ) -> OperationResult {
         let tmp = bus.read((state.tmp + 1) & LO_MASK) as Word;
-        state.addr |= (tmp << 8) + reg.y as Word;
+        state.addr |= tmp << 8;
+        state.addr = state.addr.wrapping_add(reg.y as Word);
         OperationResult::None
     }
 
-    fn izy_03(
+    fn izy_r_03(
         reg: &mut Registers,
         bus: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
-        let addr = state.addr - reg.y as Word;
+        let addr = state.addr.wrapping_sub(reg.y as Word);
         bus.read(state.addr);
         if state.addr & HI_MASK != addr & HI_MASK {
             OperationResult::None
         } else {
             state.addr_data = AddrModeData::Izy(state.tmp as Byte, addr, state.addr);
-            OperationResult::Skip(1)
+            OperationResult::SkipInstant(1)
         }
     }
 
-    fn izy_04(
+    fn izy_r_04(
         reg: &mut Registers,
         _: &mut dyn RwDevice,
         state: &mut InstructionState,
     ) -> OperationResult {
-        let addr = state.addr - reg.y as Word;
+        let addr = state.addr.wrapping_sub(reg.y as Word);
         state.addr_data = AddrModeData::Izy(state.tmp as Byte, addr, state.addr);
-        OperationResult::None
+        OperationResult::Instant
     }
 
     /// Indirect, Y-indexed - OPC ($LL),Y
@@ -557,7 +558,49 @@ pub mod addr {
     /// These instructions are useful, wherever we want to perform lookups
     /// on varying bases addresses or whenever we want to loop over tables,
     /// the base address of which we have stored in the zero-page.
-    pub const IZY: [Operation; 5] = [izy_00, izy_01, izy_02, izy_03, izy_04];
+    pub const IZY_R: [Operation; 5] = [izy_00, izy_01, izy_02, izy_r_03, izy_r_04];
+
+    fn izy_w_03(
+        _: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        bus.read(state.addr);
+        OperationResult::None
+    }
+
+    fn izy_w_04(
+        reg: &mut Registers,
+        _: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        let addr = state.addr.wrapping_sub(reg.y as Word);
+        state.addr_data = AddrModeData::Izy(state.tmp as Byte, addr, state.addr);
+        OperationResult::Instant
+    }
+
+    /// Indirect, Y-indexed - OPC ($LL),Y
+    ///
+    /// operand is zeropage address; effective address is word in (LL, LL + 1)
+    /// incremented by Y with carry: C.w($00LL) + Y
+    ///
+    /// Post-indexed indirect addressing is only available in combination
+    /// with the Y-register. As indicated by the indexing term ",Y" being
+    /// appended to the outside of the parenthesis indicating the indirect
+    /// lookup, here, a pointer is first read (from the given zero-page
+    /// address) and resolved and only then the contents of the Y-register
+    /// is added to this to give the effective address.
+    ///
+    /// Like with "zero-page,Y" mode, the total instruction length is 2
+    /// bytes, but there it takes an additional CPU cycles to resolve and
+    /// index the 16-bit pointer. As with "absolute,X" mode, the effective
+    /// address may overflow into the next page, in the case of which the
+    /// execution uses an extra CPU cycle.
+    ///
+    /// These instructions are useful, wherever we want to perform lookups
+    /// on varying bases addresses or whenever we want to loop over tables,
+    /// the base address of which we have stored in the zero-page.
+    pub const IZY_W: [Operation; 5] = [izy_00, izy_01, izy_02, izy_w_03, izy_w_04];
 
     fn imm(
         reg: &mut Registers,
@@ -746,11 +789,31 @@ pub mod addr {
 }
 
 macro_rules! addr_mode {
-    (A) => {
+    (R A) => {
+        addr::A
+    };
+
+    (W A) => {
+        addr::A
+    };
+
+    (RMW A) => {
         addr::A
     };
 
     () => {
+        addr::IMP
+    };
+
+    (R) => {
+        addr::IMP
+    };
+
+    (W) => {
+        addr::IMP
+    };
+
+    (RMW) => {
         addr::IMP
     };
 
@@ -766,15 +829,55 @@ macro_rules! addr_mode {
         addr::ABS
     };
 
-    (&LLHH,X) => {
+    (R &LLHH) => {
+        addr::ABS
+    };
+
+    (W &LLHH) => {
+        addr::ABS
+    };
+
+    (RMW &LLHH) => {
+        addr::ABS
+    };
+
+    (R &LLHH,X) => {
         addr::ABX
     };
 
-    (&LLHH,Y) => {
+    (W &LLHH,X) => {
+        addr::ABX
+    };
+
+    (RMW &LLHH,X) => {
+        addr::ABX
+    };
+
+    (R &LLHH,Y) => {
+        addr::ABY
+    };
+
+    (W &LLHH,Y) => {
+        addr::ABY
+    };
+
+    (RMW &LLHH,Y) => {
         addr::ABY
     };
 
     (#&BB) => {
+        addr::IMM
+    };
+
+    (R #&BB) => {
+        addr::IMM
+    };
+
+    (W #&BB) => {
+        addr::IMM
+    };
+
+    (RMW #&BB) => {
         addr::IMM
     };
 
@@ -786,12 +889,24 @@ macro_rules! addr_mode {
         addr::IND
     };
 
-    ((&LL,X)) => {
+    (R (&LL,X)) => {
         addr::IZX
     };
 
-    ((&LL),Y) => {
-        addr::IZY
+    (W (&LL,X)) => {
+        addr::IZX
+    };
+
+    (RMW (&LL,X)) => {
+        addr::IZX
+    };
+
+    (R (&LL),Y) => {
+        addr::IZY_R
+    };
+
+    (W (&LL),Y) => {
+        addr::IZY_W
     };
 
     (&BB) => {
@@ -802,11 +917,39 @@ macro_rules! addr_mode {
         addr::ZPG
     };
 
-    (&LL,X) => {
+    (R &LL) => {
+        addr::ZPG
+    };
+
+    (W &LL) => {
+        addr::ZPG
+    };
+
+    (RMW &LL) => {
+        addr::ZPG
+    };
+
+    (R &LL,X) => {
         addr::ZPX
     };
 
-    (&LL,Y) => {
+    (W &LL,X) => {
+        addr::ZPX
+    };
+
+    (RMW &LL,X) => {
+        addr::ZPX
+    };
+
+    (R &LL,Y) => {
+        addr::ZPY
+    };
+
+    (W &LL,Y) => {
+        addr::ZPY
+    };
+
+    (RMW &LL,Y) => {
         addr::ZPY
     };
 }
@@ -2254,7 +2397,7 @@ macro_rules! make_instruction {
 		/// (indirect),Y ADC (oper),Y    71     2        5*
 		/// ```
         fn $opc() -> InstructionIterator {
-            let addr = addr_mode![$($am)*];
+            let addr = addr_mode![R $($am)*];
             let work = &act::ADC;
             InstructionIterator::new(&addr, work)
         }
@@ -2295,7 +2438,7 @@ macro_rules! make_instruction {
 		/// (indirect),Y AND (oper),Y    31      2       5*
 		/// ```
         fn $opc() -> InstructionIterator {
-            let addr = addr_mode![$($am)*];
+            let addr = addr_mode![R $($am)*];
             let work = &act::AND;
             InstructionIterator::new(&addr, work)
         }
@@ -2333,7 +2476,7 @@ macro_rules! make_instruction {
         /// absolute,X   ASL oper,X      1E      3       7
         /// ```
         fn $opc() -> InstructionIterator {
-            let addr = addr_mode![$($am)*];
+            let addr = addr_mode![RMW $($am)*];
             let work = a_vs_m!(ASL $($am)*);
             InstructionIterator::new(&addr, &work)
         }
@@ -2452,7 +2595,7 @@ macro_rules! make_instruction {
         /// absolute     BIT oper        2C      3       4
         /// ```
         fn $opc() -> InstructionIterator {
-            let addr = addr_mode![$($am)*];
+            let addr = addr_mode![R $($am)*];
             let work = &act::BIT;
             InstructionIterator::new(&addr, work)
         }
@@ -2781,7 +2924,7 @@ macro_rules! make_instruction {
         /// (indirect),Y CMP (oper),Y    D1      2       5*
         /// ```
         fn $opc() -> InstructionIterator {
-            let addr = addr_mode![$($am)*];
+            let addr = addr_mode![R $($am)*];
             let work = &act::CMP;
             InstructionIterator::new(&addr, work)
         }
@@ -2880,7 +3023,7 @@ macro_rules! make_instruction {
         /// absolute,X   DEC oper,X      DE      3       7
         /// ```
         fn $opc() -> InstructionIterator {
-            let addr = addr_mode![$($am)*];
+            let addr = addr_mode![RMW $($am)*];
             let work = &act::DEC;
             InstructionIterator::new(&addr, work)
         }
@@ -2971,7 +3114,7 @@ macro_rules! make_instruction {
         /// (indirect),Y EOR (oper),Y    51     2        5*
         /// ```
         fn $opc() -> InstructionIterator {
-            let addr = addr_mode![$($am)*];
+            let addr = addr_mode![R $($am)*];
             let work = &act::EOR;
             InstructionIterator::new(&addr, work)
         }
@@ -3008,7 +3151,7 @@ macro_rules! make_instruction {
         /// absolute,X   INC oper,X      FE     3        7
         /// ```
         fn $opc() -> InstructionIterator {
-            let addr = addr_mode![$($am)*];
+            let addr = addr_mode![RMW $($am)*];
             let work = &act::INC;
             InstructionIterator::new(&addr, work)
         }
@@ -3159,7 +3302,7 @@ macro_rules! make_instruction {
         /// (indirect),Y LDA (oper),Y    B1     2        5*
         /// ```
         fn $opc() -> InstructionIterator {
-            let addr = addr_mode![$($am)*];
+            let addr = addr_mode![R $($am)*];
             let work = &act::LDA;
             InstructionIterator::new(&addr, work)
         }
@@ -3197,7 +3340,7 @@ macro_rules! make_instruction {
         /// absolute,Y   LDX oper,Y      BE     3        4*
         /// ```
         fn $opc() -> InstructionIterator {
-            let addr = addr_mode![$($am)*];
+            let addr = addr_mode![R $($am)*];
             let work = &act::LDX;
             InstructionIterator::new(&addr, work)
         }
@@ -3232,7 +3375,7 @@ macro_rules! make_instruction {
         /// absolute,X   LDY oper,X      BC     3        4*
         /// ```
         fn $opc() -> InstructionIterator {
-            let addr = addr_mode![$($am)*];
+            let addr = addr_mode![R $($am)*];
             let work = &act::LDY;
             InstructionIterator::new(&addr, work)
         }
@@ -3267,7 +3410,7 @@ macro_rules! make_instruction {
         /// absolute,X   LSR oper,X      5E     3        7
         /// ```
         fn $opc() -> InstructionIterator {
-            let addr = addr_mode![$($am)*];
+            let addr = addr_mode![RMW $($am)*];
             let work = a_vs_m!(LSR $($am)*);
             InstructionIterator::new(&addr, &work)
         }
@@ -3298,7 +3441,7 @@ macro_rules! make_instruction {
         /// implied      NOP             EA     1        2
         /// ```
         fn $opc() -> InstructionIterator {
-            let addr = addr_mode![$($am)*];
+            let addr = addr_mode![R $($am)*];
             let work = &act::NOP;
             InstructionIterator::new(&addr, work)
         }
@@ -3332,7 +3475,7 @@ macro_rules! make_instruction {
         /// (indirect),Y ORA (oper),Y    11     2        5*
         /// ```
         fn $opc() -> InstructionIterator {
-            let addr = addr_mode![$($am)*];
+            let addr = addr_mode![R $($am)*];
             let work = &act::ORA;
             InstructionIterator::new(&addr, work)
         }
@@ -3490,7 +3633,7 @@ macro_rules! make_instruction {
         /// absolute,X   ROL oper,X      3E     3        7
         /// ```
         fn $opc() -> InstructionIterator {
-            let addr = addr_mode![$($am)*];
+            let addr = addr_mode![RMW $($am)*];
             let work = a_vs_m!(ROL $($am)*);
             InstructionIterator::new(&addr, &work)
         }
@@ -3525,7 +3668,7 @@ macro_rules! make_instruction {
         /// absolute,X   ROR oper,X      7E     3        7
         /// ```
         fn $opc() -> InstructionIterator {
-            let addr = addr_mode![$($am)*];
+            let addr = addr_mode![RMW $($am)*];
             let work = a_vs_m!(ROR $($am)*);
             InstructionIterator::new(&addr, &work)
         }
@@ -3623,7 +3766,7 @@ macro_rules! make_instruction {
         /// (indirect),Y SBC (oper),Y    F1     2        5*
         /// ```
         fn $opc() -> InstructionIterator {
-            let addr = addr_mode![$($am)*];
+            let addr = addr_mode![R $($am)*];
             let work = &act::SBC;
             InstructionIterator::new(&addr, work)
         }
@@ -3744,7 +3887,7 @@ macro_rules! make_instruction {
         /// (indirect),Y STA (oper),Y    91     2        6
         /// ```
         fn $opc() -> InstructionIterator {
-            let addr = addr_mode![$($am)*];
+            let addr = addr_mode![W $($am)*];
             let work = &act::STA;
             InstructionIterator::new(&addr, work)
         }
@@ -3779,7 +3922,7 @@ macro_rules! make_instruction {
         /// absolute     STX oper        8E     3        4
         /// ```
         fn $opc() -> InstructionIterator {
-            let addr = addr_mode![$($am)*];
+            let addr = addr_mode![W $($am)*];
             let work = &act::STX;
             InstructionIterator::new(&addr, work)
         }
@@ -3810,7 +3953,7 @@ macro_rules! make_instruction {
         /// absolute     STY oper        8C     3        4
         /// ```
         fn $opc() -> InstructionIterator {
-            let addr = addr_mode![$($am)*];
+            let addr = addr_mode![W $($am)*];
             let work = &act::STY;
             InstructionIterator::new(&addr, work)
         }

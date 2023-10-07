@@ -31,7 +31,7 @@ impl AddrModeData {
                 format!("{:>02X}    ", val)
             }
             AddrModeData::Ind(lo, hi, _) => {
-                format!("{:>02X} {:>02X}  ", lo, hi)
+                format!("{:>02X} {:>02X} ", lo, hi)
             }
             AddrModeData::Izx(lo, _, _)
             | AddrModeData::Izy(lo, _, _)
@@ -66,9 +66,11 @@ impl AddrModeData {
             AddrModeData::Izy(ll, ptr, addr) => {
                 format!("(${:>02X}),Y = {:>04X} @ {:>04X}", ll, ptr, addr)
             }
+            AddrModeData::Ind(lo, hi, addr) => {
+                format!("(${:>02X}{:>02X}) = {:>04X}", hi, lo, addr)
+            }
             AddrModeData::Abx(_, _)
             | AddrModeData::Aby(_, _)
-            | AddrModeData::Ind(_, _, _)
             | AddrModeData::Rel(_, _)
             | AddrModeData::Zpx(_, _)
             | AddrModeData::Zpy(_, _) => String::from(""),
