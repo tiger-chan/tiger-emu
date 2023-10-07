@@ -2396,6 +2396,20 @@ pub mod act {
 
     steps! {XNOP [illegal_nop]}
 
+    fn sax(
+        reg: &mut Registers,
+        bus: &mut dyn RwDevice,
+        state: &mut InstructionState,
+    ) -> OperationResult {
+        let data = reg.ac & reg.x;
+        let tmp = bus.write(state.addr, data);
+
+        state.oper = OperData::Byte(tmp);
+        OperationResult::None
+    }
+
+    steps! {SAX [sax]}
+
     fn jam(
         _: &mut Registers,
         _: &mut dyn RwDevice,
@@ -4257,10 +4271,10 @@ macro_rules! make_instruction {
     ([$opc:tt, $ami:tt, $inst:tt] ~LAX $($am:tt)*) => {
         /// # LAX
         /// LDA oper + LDX oper
-        /// 
+        ///
         ///```text
         /// M -> A -> X                       N  Z  C  I  D  V
-        ///                                   +  -  -  -  -  -
+        ///                                   +  +  -  -  -  -
         /// addressing   assembler       opc    bytes    cycles
         /// zeropage     LAX oper        A7     2        3
         /// zeropage,Y   LAX oper,Y      B7     2        4
@@ -4278,10 +4292,10 @@ macro_rules! make_instruction {
         am_const!([$ami] $($am)*);
         /// # LAX
         /// LDA oper + LDX oper
-        /// 
+        ///
         ///```text
         /// M -> A -> X                       N  Z  C  I  D  V
-        ///                                   +  -  -  -  -  -
+        ///                                   +  +  -  -  -  -
         /// addressing   assembler       opc    bytes    cycles
         /// zeropage     LAX oper        A7     2        3
         /// zeropage,Y   LAX oper,Y      B7     2        4
@@ -4374,6 +4388,45 @@ macro_rules! make_instruction {
         /// absolut,X    ---             FC     3        4*
         /// ```
         pub const $inst: OperType = OperType::XNOP;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] ~SAX $($am:tt)*) => {
+
+        /// # SAX (AXS, AAX)
+        /// `A` and `X` are put on the bus at the same time (resulting effectively
+        /// in an AND operation) and stored in `M`
+        ///
+        ///```text
+        /// A AND X -> M                      N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// zeropage     SAX oper        87     2        3
+        /// zeropage,Y   SAX oper,Y      97     2        4
+        /// absolute     SAX oper        8F     3        4
+        /// (indirect,X) SAX (oper,X)    83     2        6
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![W $($am)*];
+            let work = &act::SAX;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+
+        /// # SAX (AXS, AAX)
+        /// `A` and `X` are put on the bus at the same time (resulting effectively
+        /// in an AND operation) and stored in `M`
+        ///
+        ///```text
+        /// A AND X -> M                      N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// zeropage     SAX oper        87     2        3
+        /// zeropage,Y   SAX oper,Y      97     2        4
+        /// absolute     SAX oper        8F     3        4
+        /// (indirect,X) SAX (oper,X)    83     2        6
+        /// ```
+        pub const $inst: OperType = OperType::SAX;
     };
 
     ([$opc:tt, $ami:tt, $inst:tt] ~JAM $($am:tt)*) => {

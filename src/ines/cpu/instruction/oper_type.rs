@@ -120,9 +120,12 @@ pub enum OperType {
 
     /// ILLEGAL
     XXX,
+    /// ILLEGAL
     LAX,
     /// ILLEGAL
     XNOP,
+    /// ILLEGAL
+    SAX,
     /// ILLEGAL
     JAM,
 }
