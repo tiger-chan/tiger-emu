@@ -22,26 +22,26 @@ impl AddrModeData {
     pub fn nestest_log_addr1(&self) -> String {
         match &self {
             AddrModeData::A | AddrModeData::Imp => {
-                format!("{:<6}", "")
+                String::from("")
             }
             AddrModeData::Abs(lo, hi)
             | AddrModeData::Abx(lo, hi, _)
             | AddrModeData::Aby(lo, hi, _)
             | AddrModeData::Ind(lo, hi, _) => {
-                format!("{:>02X} {:>02X} ", lo, hi)
+                format!("{:>02X} {:>02X}", lo, hi)
             }
             AddrModeData::Imm(val) => {
-                format!("{:>02X}    ", val)
+                format!("{:>02X}", val)
             }
             AddrModeData::Izx(lo, _, _)
             | AddrModeData::Izy(lo, _, _)
             | AddrModeData::Rel(lo, _)
             | AddrModeData::Zpx(lo, _)
             | AddrModeData::Zpy(lo, _) => {
-                format!("{:>02X}    ", lo)
+                format!("{:>02X}", lo)
             }
             AddrModeData::Zpg(lo) => {
-                format!("{:>02X}    ", lo)
+                format!("{:>02X}", lo)
             }
         }
     }

@@ -4218,7 +4218,11 @@ macro_rules! make_instruction {
         pub const $inst: OperType = OperType::TYA;
     };
 
-    ([$opc:tt, $ami:tt, $inst:tt] JAM $($am:tt)*) => {
+    // ==========================
+    // ILLEGAL CODES BELLOW LINE
+    // ==========================
+
+    ([$opc:tt, $ami:tt, $inst:tt] ~JAM $($am:tt)*) => {
         /// # JAM (KIL, HLT)
         ///```text
         /// These instructions freeze the CPU.
@@ -4239,6 +4243,89 @@ macro_rules! make_instruction {
         /// Instruction codes: 02, 12, 22, 32, 42, 52, 62, 72, 92, B2, D2, F2
         /// ```
         pub const $inst: OperType = OperType::JAM;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] ~NOP $($am:tt)*) => {
+        /// NOPs (including DOP, TOP)
+        /// Instructions effecting in 'no operations' in various address modes.
+        /// Operands are ignored.
+        ///
+        ///```text
+        /// ---                               N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      ---             1A     1        2
+        /// implied      ---             3A     1        2
+        /// implied      ---             5A     1        2
+        /// implied      ---             7A     1        2
+        /// implied      ---             DA     1        2
+        /// implied      ---             FA     1        2
+        /// immediate    ---             80     2        2
+        /// immediate    ---             82     2        2
+        /// immediate    ---             89     2        2
+        /// immediate    ---             C2     2        2
+        /// immediate    ---             E2     2        2
+        /// zeropage     ---             04     2        3
+        /// zeropage     ---             44     2        3
+        /// zeropage     ---             64     2        3
+        /// zeropage,X   ---             14     2        4
+        /// zeropage,X   ---             34     2        4
+        /// zeropage,X   ---             54     2        4
+        /// zeropage,X   ---             74     2        4
+        /// zeropage,X   ---             D4     2        4
+        /// zeropage,X   ---             F4     2        4
+        /// absolute     ---             0C     3        4
+        /// absolut,X    ---             1C     3        4*
+        /// absolut,X    ---             3C     3        4*
+        /// absolut,X    ---             5C     3        4*
+        /// absolut,X    ---             7C     3        4*
+        /// absolut,X    ---             DC     3        4*
+        /// absolut,X    ---             FC     3        4*
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![R $($am)*];
+            let work = &act::NOP;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+        /// NOPs (including DOP, TOP)
+        /// Instructions effecting in 'no operations' in various address modes.
+        /// Operands are ignored.
+        ///
+        ///```text
+        /// ---                               N  Z  C  I  D  V
+        ///                                   -  -  -  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// implied      ---             1A     1        2
+        /// implied      ---             3A     1        2
+        /// implied      ---             5A     1        2
+        /// implied      ---             7A     1        2
+        /// implied      ---             DA     1        2
+        /// implied      ---             FA     1        2
+        /// immediate    ---             80     2        2
+        /// immediate    ---             82     2        2
+        /// immediate    ---             89     2        2
+        /// immediate    ---             C2     2        2
+        /// immediate    ---             E2     2        2
+        /// zeropage     ---             04     2        3
+        /// zeropage     ---             44     2        3
+        /// zeropage     ---             64     2        3
+        /// zeropage,X   ---             14     2        4
+        /// zeropage,X   ---             34     2        4
+        /// zeropage,X   ---             54     2        4
+        /// zeropage,X   ---             74     2        4
+        /// zeropage,X   ---             D4     2        4
+        /// zeropage,X   ---             F4     2        4
+        /// absolute     ---             0C     3        4
+        /// absolut,X    ---             1C     3        4*
+        /// absolut,X    ---             3C     3        4*
+        /// absolut,X    ---             5C     3        4*
+        /// absolut,X    ---             7C     3        4*
+        /// absolut,X    ---             DC     3        4*
+        /// absolut,X    ---             FC     3        4*
+        /// ```
+        pub const $inst: OperType = OperType::XNOP;
     };
 }
 
