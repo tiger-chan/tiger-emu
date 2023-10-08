@@ -73,6 +73,9 @@ const APU_IO_LO: Word = 0x4000;
 #[allow(unused)]
 const APU_IO_HI: Word = 0x401F;
 
+#[allow(unused)]
+const APU_IO_MASK: Word = 0x001F;
+
 /// ```text
 /// Address range    Size      Device
 /// $4020–$FFFF     $BFE0      Cartridge space: PRG ROM, PRG RAM, and mapper registers
@@ -86,6 +89,8 @@ const MPR_IO_LO: Word = 0x4020;
 /// ```
 #[allow(unused)]
 const MPR_IO_HI: Word = 0xFFFF;
+
+const APU_MEM_SIZE: usize = (APU_IO_HI - APU_IO_LO) as usize + 1;
 
 /// # CPU memory map
 ///```text
@@ -105,6 +110,7 @@ pub struct Bus {
     ram: [Byte; CPU_RAM],
     ppu: RwDeviceRef,
     mpr: MapperRef,
+    apu: [Byte; APU_MEM_SIZE],
 }
 
 impl Bus {
@@ -114,6 +120,7 @@ impl Bus {
             ram: [0; CPU_RAM],
             ppu,
             mpr,
+            apu: [0xFF; APU_MEM_SIZE],
         }
     }
 }
@@ -124,9 +131,9 @@ impl ReadDevice for Bus {
             CPU_RAM_LO..=CPU_RAM_HI => self.ram[(addr & CPU_MIRROR_MASK) as usize],
             MPR_IO_LO..=MPR_IO_HI => self.mpr.borrow().read_prg(addr),
             PPU_REGISTER_LO..=PPU_REGISTER_HI => self.ppu.borrow().read(addr),
-            _ => {
+            APU_IO_LO..=APU_IO_HI => {
                 println!("Unimplemented region @ {addr:<04X}");
-                0
+                self.apu[(addr & APU_IO_MASK) as usize]
             }
         }
     }
@@ -146,9 +153,12 @@ impl WriteDevice for Bus {
                 let masked = addr | PPU_REGISTER_MASK;
                 self.ppu.borrow_mut().write(masked, data)
             }
-            _ => {
+            APU_IO_LO..=APU_IO_HI => {
                 println!("Unimplemented region @ {addr:<04X}");
-                0
+                let masked = (addr & APU_IO_MASK) as usize;
+                let tmp = self.apu[masked];
+                self.apu[masked] = data;
+                tmp
             }
         }
     }
