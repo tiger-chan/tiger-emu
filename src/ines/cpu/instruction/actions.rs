@@ -2619,24 +2619,23 @@ pub mod act {
             bus: &mut dyn RwDevice,
             state: &mut InstructionState,
         ) -> OperationResult {
-            let func =
-                |reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState| {
-                    let c = Word::from(reg.p & Status::C) << 7;
-                    let m = c | state.tmp >> 1;
+            let func = |reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState| {
+                let c = Word::from(reg.p & Status::C) << 7;
+                let m = c | state.tmp >> 1;
 
-                    let c = state.tmp & 0x01;
-                    let ac = reg.ac as Word;
-                    let tmp = ac + m + c;
-                    reg.p
-                        .set(Status::C, tmp > 255)
-                        .set(Status::Z, is_zero!(tmp))
-                        .set(Status::V, is_overflow!(tmp, ac, m))
-                        .set(Status::N, is_neg!(tmp));
+                let c = state.tmp & 0x01;
+                let ac = reg.ac as Word;
+                let tmp = ac + m + c;
+                reg.p
+                    .set(Status::C, tmp > 255)
+                    .set(Status::Z, is_zero!(tmp))
+                    .set(Status::V, is_overflow!(tmp, ac, m))
+                    .set(Status::N, is_neg!(tmp));
 
-                    reg.ac = tmp as Byte;
+                reg.ac = tmp as Byte;
 
-                    m as Word
-                };
+                m as Word
+            };
 
             rmw_m_01(reg, bus, state, func)
         }
@@ -2706,10 +2705,8 @@ pub mod act {
             _: &mut dyn RwDevice,
             state: &mut InstructionState,
         ) -> OperationResult {
-            // repeatedly perform this action, effectively halt the cpu until a
-            // hardware reset is performed
             state.oper = OperData::None;
-            OperationResult::Skip(-1)
+            OperationResult::None
         }
 
         steps! {JAM [jam]}
@@ -2770,7 +2767,7 @@ macro_rules! make_instruction {
 		/// (indirect,X) ADC (oper,X)    61     2        6
 		/// (indirect),Y ADC (oper),Y    71     2        5*
 		/// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![R $($am)*];
             let work = &act::ADC;
             InstructionIterator::new(&addr, work)
@@ -2811,7 +2808,7 @@ macro_rules! make_instruction {
 		/// (indirect,X) AND (oper,X)    21      2       6
 		/// (indirect),Y AND (oper),Y    31      2       5*
 		/// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![R $($am)*];
             let work = &act::AND;
             InstructionIterator::new(&addr, work)
@@ -2849,7 +2846,7 @@ macro_rules! make_instruction {
         /// absolute     ASL oper        0E      3       6
         /// absolute,X   ASL oper,X      1E      3       7
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![RMW $($am)*];
             let work = a_vs_m!(ASL $($am)*);
             InstructionIterator::new(&addr, &work)
@@ -2880,7 +2877,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc     bytes   cycles
         /// relative     BCC oper        90      2       2**
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::BCC;
             InstructionIterator::new(&addr, work)
@@ -2907,7 +2904,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc     bytes   cycles
         /// relative     BCS oper        B0      2       2**
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::BCS;
             InstructionIterator::new(&addr, work)
@@ -2934,7 +2931,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc     bytes   cycles
         /// relative     BEQ oper        F0      2       2**
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::BEQ;
             InstructionIterator::new(&addr, work)
@@ -2968,7 +2965,7 @@ macro_rules! make_instruction {
         /// zeropage     BIT oper        24      2       3
         /// absolute     BIT oper        2C      3       4
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![R $($am)*];
             let work = &act::BIT;
             InstructionIterator::new(&addr, work)
@@ -3002,7 +2999,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc     bytes   cycles
         /// relative     BMI oper        30      2       2**
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::BMI;
             InstructionIterator::new(&addr, work)
@@ -3029,7 +3026,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc     bytes   cycles
         /// relative     BNE oper        D0      2       2**
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::BNE;
             InstructionIterator::new(&addr, work)
@@ -3056,7 +3053,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc    bytes    cycles
         /// relative     BPL oper        10      2       2**
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::BPL;
             InstructionIterator::new(&addr, work)
@@ -3092,7 +3089,7 @@ macro_rules! make_instruction {
 		/// addressing   assembler       opc     bytes   cycles
 		/// implied      BRK             00      1       7
 		/// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::BRK;
             InstructionIterator::new(&addr, work)
@@ -3128,7 +3125,7 @@ macro_rules! make_instruction {
 		/// addressing   assembler       opc     bytes   cycles
 		/// relative     BVC oper        50      2       2**
 		/// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::BVC;
             InstructionIterator::new(&addr, work)
@@ -3155,7 +3152,7 @@ macro_rules! make_instruction {
 		/// addressing   assembler       opc     bytes   cycles
 		/// relative     BVS oper        70      2       2**
 		/// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::BVS;
             InstructionIterator::new(&addr, work)
@@ -3182,7 +3179,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc     bytes   cycles
         /// implied      CLC             18      1       2
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::CLC;
             InstructionIterator::new(&addr, work)
@@ -3209,7 +3206,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc     bytes   cycles
         /// implied      CLD             D8      1       2
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::CLD;
             InstructionIterator::new(&addr, work)
@@ -3236,7 +3233,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc     bytes   cycles
         /// implied      CLI             58      1       2
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::CLI;
             InstructionIterator::new(&addr, work)
@@ -3263,7 +3260,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc     bytes   cycles
         /// implied      CLV             B8      1       2
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::CLV;
             InstructionIterator::new(&addr, work)
@@ -3297,7 +3294,7 @@ macro_rules! make_instruction {
         /// (indirect,X) CMP (oper,X)    C1      2       6
         /// (indirect),Y CMP (oper),Y    D1      2       5*
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![R $($am)*];
             let work = &act::CMP;
             InstructionIterator::new(&addr, work)
@@ -3333,7 +3330,7 @@ macro_rules! make_instruction {
         /// zeropage     CPX oper        E4      2       3
         /// absolute     CPX oper        EC      3       4
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::CPX;
             InstructionIterator::new(&addr, work)
@@ -3364,7 +3361,7 @@ macro_rules! make_instruction {
         /// zeropage     CPY oper        C4      2       3
         /// absolute     CPY oper        CC      3       4
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::CPY;
             InstructionIterator::new(&addr, work)
@@ -3396,7 +3393,7 @@ macro_rules! make_instruction {
         /// absolute     DEC oper        CE      3       6
         /// absolute,X   DEC oper,X      DE      3       7
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![RMW $($am)*];
             let work = &act::DEC;
             InstructionIterator::new(&addr, work)
@@ -3426,7 +3423,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc     bytes   cycles
         /// implied      DEX             CA      1       2
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::DEX;
             InstructionIterator::new(&addr, work)
@@ -3453,7 +3450,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc     bytes   cycles
         /// implied      DEY             88      1       2
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::DEY;
             InstructionIterator::new(&addr, work)
@@ -3487,7 +3484,7 @@ macro_rules! make_instruction {
         /// (indirect,X) EOR (oper,X)    41     2        6
         /// (indirect),Y EOR (oper),Y    51     2        5*
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![R $($am)*];
             let work = &act::EOR;
             InstructionIterator::new(&addr, work)
@@ -3524,7 +3521,7 @@ macro_rules! make_instruction {
         /// absolute     INC oper        EE     3        6
         /// absolute,X   INC oper,X      FE     3        7
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![RMW $($am)*];
             let work = &act::INC;
             InstructionIterator::new(&addr, work)
@@ -3554,7 +3551,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc    bytes    cycles
         /// implied      INX             E8     1        2
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::INX;
             InstructionIterator::new(&addr, work)
@@ -3581,7 +3578,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc    bytes    cycles
         /// implied      INY             C8     1        2
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::INY;
             InstructionIterator::new(&addr, work)
@@ -3610,7 +3607,7 @@ macro_rules! make_instruction {
         /// absolute     JMP oper        4C     3        3
         /// indirect     JMP (oper)      6C     3        5
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![JMP $($am)*];
             let work = &act::JMP;
             InstructionIterator::new(&addr, work)
@@ -3640,7 +3637,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc    bytes    cycles
         /// absolute     JSR oper        20     3        6
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::JSR;
             InstructionIterator::new(&addr, work)
@@ -3675,7 +3672,7 @@ macro_rules! make_instruction {
         /// (indirect,X) LDA (oper,X)    A1     2        6
         /// (indirect),Y LDA (oper),Y    B1     2        5*
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![R $($am)*];
             let work = &act::LDA;
             InstructionIterator::new(&addr, work)
@@ -3713,7 +3710,7 @@ macro_rules! make_instruction {
         /// absolute     LDX oper        AE     3        4
         /// absolute,Y   LDX oper,Y      BE     3        4*
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![R $($am)*];
             let work = &act::LDX;
             InstructionIterator::new(&addr, work)
@@ -3748,7 +3745,7 @@ macro_rules! make_instruction {
         /// absolute     LDY oper        AC     3        4
         /// absolute,X   LDY oper,X      BC     3        4*
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![R $($am)*];
             let work = &act::LDY;
             InstructionIterator::new(&addr, work)
@@ -3783,7 +3780,7 @@ macro_rules! make_instruction {
         /// absolute     LSR oper        4E     3        6
         /// absolute,X   LSR oper,X      5E     3        7
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![RMW $($am)*];
             let work = a_vs_m!(LSR $($am)*);
             InstructionIterator::new(&addr, &work)
@@ -3814,7 +3811,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc    bytes    cycles
         /// implied      NOP             EA     1        2
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![R $($am)*];
             let work = &act::NOP;
             InstructionIterator::new(&addr, work)
@@ -3848,7 +3845,7 @@ macro_rules! make_instruction {
         /// (indirect,X) ORA (oper,X)    01     2        6
         /// (indirect),Y ORA (oper),Y    11     2        5*
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![R $($am)*];
             let work = &act::ORA;
             InstructionIterator::new(&addr, work)
@@ -3882,7 +3879,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc    bytes    cycles
         /// implied      PHA             48     1        3
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::PHA;
             InstructionIterator::new(&addr, work)
@@ -3912,7 +3909,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc    bytes    cycles
         /// implied      PHP             08     1        3
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::PHP;
             InstructionIterator::new(&addr, work)
@@ -3942,7 +3939,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc    bytes    cycles
         /// implied      PLA             68     1        4
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::PLA;
             InstructionIterator::new(&addr, work)
@@ -3972,7 +3969,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc    bytes    cycles
         /// implied      PLP             28     1        4
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::PLP;
             InstructionIterator::new(&addr, work)
@@ -4006,7 +4003,7 @@ macro_rules! make_instruction {
         /// absolute     ROL oper        2E     3        6
         /// absolute,X   ROL oper,X      3E     3        7
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![RMW $($am)*];
             let work = a_vs_m!(ROL $($am)*);
             InstructionIterator::new(&addr, &work)
@@ -4041,7 +4038,7 @@ macro_rules! make_instruction {
         /// absolute     ROR oper        6E     3        6
         /// absolute,X   ROR oper,X      7E     3        7
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![RMW $($am)*];
             let work = a_vs_m!(ROR $($am)*);
             InstructionIterator::new(&addr, &work)
@@ -4075,7 +4072,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc    bytes    cycles
         /// implied      RTI             40     1        6
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![RTI $($am)*];
             let work = &act::RTI;
             InstructionIterator::new(&addr, work)
@@ -4105,7 +4102,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc    bytes    cycles
         /// implied      RTS             60     1        6
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::RTS;
             InstructionIterator::new(&addr, work)
@@ -4140,7 +4137,7 @@ macro_rules! make_instruction {
         /// (indirect,X) SBC (oper,X)    E1     2        6
         /// (indirect),Y SBC (oper),Y    F1     2        5*
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![R $($am)*];
             let work = &act::SBC;
             InstructionIterator::new(&addr, work)
@@ -4174,7 +4171,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc    bytes    cycles
         /// implied      SEC             38     1        2
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::SEC;
             InstructionIterator::new(&addr, work)
@@ -4201,7 +4198,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc    bytes    cycles
         /// implied      SED             F8     1        2
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::SED;
             InstructionIterator::new(&addr, work)
@@ -4228,7 +4225,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc    bytes    cycles
         /// implied      SEI             78     1        2
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::SEI;
             InstructionIterator::new(&addr, work)
@@ -4261,7 +4258,7 @@ macro_rules! make_instruction {
         /// (indirect,X) STA (oper,X)    81     2        6
         /// (indirect),Y STA (oper),Y    91     2        6
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![W $($am)*];
             let work = &act::STA;
             InstructionIterator::new(&addr, work)
@@ -4296,7 +4293,7 @@ macro_rules! make_instruction {
         /// zeropage,Y   STX oper,Y      96     2        4
         /// absolute     STX oper        8E     3        4
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![W $($am)*];
             let work = &act::STX;
             InstructionIterator::new(&addr, work)
@@ -4327,7 +4324,7 @@ macro_rules! make_instruction {
         /// zeropage,X   STY oper,X      94     2        4
         /// absolute     STY oper        8C     3        4
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![W $($am)*];
             let work = &act::STY;
             InstructionIterator::new(&addr, work)
@@ -4356,7 +4353,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc    bytes    cycles
         /// implied      TAX             AA     1        2
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::TAX;
             InstructionIterator::new(&addr, work)
@@ -4383,7 +4380,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc    bytes    cycles
         /// implied      TAY             A8     1        2
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::TAY;
             InstructionIterator::new(&addr, work)
@@ -4410,7 +4407,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc    bytes    cycles
         /// implied      TSX             BA     1        2
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::TSX;
             InstructionIterator::new(&addr, work)
@@ -4437,7 +4434,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc    bytes    cycles
         /// implied      TXA             8A     1        2
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::TXA;
             InstructionIterator::new(&addr, work)
@@ -4464,7 +4461,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc    bytes    cycles
         /// implied      TXS             9A     1        2
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::TXS;
             InstructionIterator::new(&addr, work)
@@ -4491,7 +4488,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc    bytes    cycles
         /// implied      TYA             98     1        2
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::TYA;
             InstructionIterator::new(&addr, work)
@@ -4530,7 +4527,7 @@ macro_rules! make_instruction {
         /// (indirect,X) DCP (oper,X)    C3     2        8
         /// (indirect),Y DCP (oper),Y    D3     2        8
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![RMW $($am)*];
             let work = &act::DCP;
             InstructionIterator::new(&addr, work)
@@ -4573,7 +4570,7 @@ macro_rules! make_instruction {
         /// (indirect,X) ISC (oper,X)    E3     2        8
         /// (indirect),Y ISC (oper),Y    F3     2        8
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![RMW $($am)*];
             let work = &act::ISB;
             InstructionIterator::new(&addr, work)
@@ -4610,7 +4607,7 @@ macro_rules! make_instruction {
         /// (indirect,X) LAX (oper,X)    A3     2        6
         /// (indirect),Y LAX (oper),Y    B3     2        5*
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![R $($am)*];
             let work = &act::LAX;
             InstructionIterator::new(&addr, work)
@@ -4652,7 +4649,7 @@ macro_rules! make_instruction {
         /// (indirect,X) RLA (oper,X)    23     2        8
         /// (indirect),Y RLA (oper),Y    33     2        8
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![RMW $($am)*];
             let work = &act::RLA;
             InstructionIterator::new(&addr, work)
@@ -4697,7 +4694,7 @@ macro_rules! make_instruction {
         /// (indirect,X) RRA (oper,X)    63     2        8
         /// (indirect),Y RRA (oper),Y    73     2        8
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![RMW $($am)*];
             let work = &act::RRA;
             InstructionIterator::new(&addr, work)
@@ -4742,7 +4739,7 @@ macro_rules! make_instruction {
         /// (indirect,X) SRE (oper,X)    43     2        8
         /// (indirect),Y SRE (oper),Y    53     2        8
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![RMW $($am)*];
             let work = &act::SRE;
             InstructionIterator::new(&addr, work)
@@ -4806,7 +4803,7 @@ macro_rules! make_instruction {
         /// absolut,X    ---             DC     3        4*
         /// absolut,X    ---             FC     3        4*
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![R $($am)*];
             let work = &act::XNOP;
             InstructionIterator::new(&addr, work)
@@ -4867,7 +4864,7 @@ macro_rules! make_instruction {
         /// absolute     SAX oper        8F     3        4
         /// (indirect,X) SAX (oper,X)    83     2        6
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![W $($am)*];
             let work = &act::SAX;
             InstructionIterator::new(&addr, work)
@@ -4904,7 +4901,7 @@ macro_rules! make_instruction {
         /// addressing   assembler       opc    bytes    cycles
         /// immediate    USBC #oper      EB     2        2
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![R $($am)*];
             let work = &act::SBC;
             InstructionIterator::new(&addr, work)
@@ -4944,7 +4941,7 @@ macro_rules! make_instruction {
         /// (indirect,X) SLO (oper,X)    03     2        8
         /// (indirect),Y SLO (oper),Y    13     2        8
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![RMW $($am)*];
             let work = &act::SLO;
             InstructionIterator::new(&addr, work)
@@ -4978,7 +4975,7 @@ macro_rules! make_instruction {
         /// The processor will be trapped infinitely in T1 phase with $FF on the data bus. — Reset required.
         /// Instruction codes: 02, 12, 22, 32, 42, 52, 62, 72, 92, B2, D2, F2
         /// ```
-        fn $opc() -> InstructionIterator {
+        pub fn $opc() -> InstructionIterator {
             let addr = addr_mode![$($am)*];
             let work = &act::JAM;
             InstructionIterator::new(&addr, work)

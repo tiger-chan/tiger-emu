@@ -11,7 +11,7 @@ pub use status_reg::Status;
 
 use instruction::{AddrModeData, InstructionIterator, OperData, OperType, INSTRUCTION_TYPE};
 
-use self::instruction::OPER;
+use self::{instruction::OPER, bus::CpuCtrl};
 
 use super::{io::RwDevice, Byte, Word};
 
@@ -55,7 +55,7 @@ pub struct Cpu<CpuBus: RwDevice> {
     queued_pc: Option<Word>,
 }
 
-impl<CpuBus: RwDevice> Cpu<CpuBus> {
+impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
     pub fn configure_bus(&mut self, bus: CpuBus) {
         self.bus = Some(bus);
     }
@@ -74,6 +74,9 @@ impl<CpuBus: RwDevice> Cpu<CpuBus> {
 
     #[allow(unused)]
     pub fn reset(&mut self) {
+        if let Some(bus) = self.bus.as_mut() {
+            bus.reset();
+        }
         self.prev = InstructionState {
             reg: self.reg,
             tcc: self.tcc,
@@ -90,7 +93,7 @@ impl<CpuBus: RwDevice> Cpu<CpuBus> {
     }
 }
 
-impl<CpuBus: RwDevice> Default for Cpu<CpuBus> {
+impl<CpuBus: RwDevice + CpuCtrl> Default for Cpu<CpuBus> {
     fn default() -> Self {
         let state = InstructionState {
             reg: Registers::default(),
@@ -111,17 +114,18 @@ impl<CpuBus: RwDevice> Default for Cpu<CpuBus> {
     }
 }
 
-impl<CpuBus: RwDevice> Iterator for Cpu<CpuBus> {
+impl<CpuBus: RwDevice + CpuCtrl> Iterator for Cpu<CpuBus> {
     type Item = CpuState;
     fn next(&mut self) -> Option<Self::Item> {
         self.tcc = self.tcc.wrapping_add(1);
 
         match self.instruction.next() {
             Some(_) => {
+                use instruction::InstructionResult::*;
                 let bus = self.bus.as_mut().expect("Bus is set");
                 match self.instruction.clock(&mut self.reg, bus) {
-                    instruction::InstructionResult::Clock => Some(CpuState::OperExecuting),
-                    instruction::InstructionResult::Result(addr, oper) => {
+                    Clock => Some(CpuState::OperExecuting),
+                    Result(addr, oper) => {
                         self.prev.addr = addr;
                         self.prev.oper = oper;
                         Some(CpuState::OperComplete(self.prev))

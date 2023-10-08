@@ -37,9 +37,9 @@ pub struct Nrom {
 impl Default for Nrom {
     fn default() -> Self {
         Self {
-            ram: Vec::with_capacity(RAM_SIZE),
+            ram: vec![0; RAM_SIZE],
             prg: vec![],
-            chr: Vec::with_capacity(CHR_SIZE),
+            chr: vec![0; CHR_SIZE],
             prg_bnk: 0,
             chr_bnk: 0,
         }
@@ -103,7 +103,7 @@ impl From<Cartridge> for Nrom {
             chr_bnk: value.chr_bnk,
             prg: value.prg,
             prg_bnk: value.prg_bnk,
-            ..Default::default()
+            ram: vec![0; RAM_SIZE],
         }
     }
 }

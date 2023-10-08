@@ -57,7 +57,7 @@ impl InstructionIterator {
             OperationResult::Instant => {
                 self.cc = self.cc.wrapping_sub(1);
                 self.cur += 1;
-                self.clock(reg, bus);
+                return self.clock(reg, bus);
             }
             OperationResult::Skip(count) => {
                 self.cur += count;
@@ -65,7 +65,7 @@ impl InstructionIterator {
             OperationResult::SkipInstant(count) => {
                 self.cc = self.cc.wrapping_sub(1);
                 self.cur += 1 + count;
-                self.clock(reg, bus);
+                return self.clock(reg, bus);
             }
             OperationResult::None => {}
         }

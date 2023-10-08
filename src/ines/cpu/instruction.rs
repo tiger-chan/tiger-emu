@@ -104,319 +104,326 @@ pub const INSTRUCTION_TYPE: [OperType; 256] = [
     IN_F0, IN_F1, IN_F2, IN_F3, IN_F4, IN_F5, IN_F6, IN_F7, IN_F8, IN_F9, IN_FA, IN_FB, IN_FC, IN_FD, IN_FE, IN_FF,
 ];
 
-make_instruction![[op_69, AM_69, IN_69] ADC #&BB    ];
-make_instruction![[op_65, AM_65, IN_65] ADC &LL     ];
-make_instruction![[op_75, AM_75, IN_75] ADC &LL,X   ];
-make_instruction![[op_6d, AM_6D, IN_6D] ADC &LLHH   ];
-make_instruction![[op_7d, AM_7D, IN_7D] ADC &LLHH,X ];
-make_instruction![[op_79, AM_79, IN_79] ADC &LLHH,Y ];
-make_instruction![[op_61, AM_61, IN_61] ADC (&LL,X) ];
-make_instruction![[op_71, AM_71, IN_71] ADC (&LL),Y ];
+mod legal {
+    use super::*;
 
-make_instruction![[op_29, AM_29, IN_29] AND #&BB    ];
-make_instruction![[op_25, AM_25, IN_25] AND &LL     ];
-make_instruction![[op_35, AM_35, IN_35] AND &LL,X   ];
-make_instruction![[op_2d, AM_2D, IN_2D] AND &LLHH   ];
-make_instruction![[op_3d, AM_3D, IN_3D] AND &LLHH,X ];
-make_instruction![[op_39, AM_39, IN_39] AND &LLHH,Y ];
-make_instruction![[op_21, AM_21, IN_21] AND (&LL,X) ];
-make_instruction![[op_31, AM_31, IN_31] AND (&LL),Y ];
+    make_instruction![[op_69, AM_69, IN_69] ADC #&BB    ];
+    make_instruction![[op_65, AM_65, IN_65] ADC &LL     ];
+    make_instruction![[op_75, AM_75, IN_75] ADC &LL,X   ];
+    make_instruction![[op_6d, AM_6D, IN_6D] ADC &LLHH   ];
+    make_instruction![[op_7d, AM_7D, IN_7D] ADC &LLHH,X ];
+    make_instruction![[op_79, AM_79, IN_79] ADC &LLHH,Y ];
+    make_instruction![[op_61, AM_61, IN_61] ADC (&LL,X) ];
+    make_instruction![[op_71, AM_71, IN_71] ADC (&LL),Y ];
 
-make_instruction![[op_0a, AM_0A, IN_0A] ASL A       ];
-make_instruction![[op_06, AM_06, IN_06] ASL &LL     ];
-make_instruction![[op_16, AM_16, IN_16] ASL &LL,X   ];
-make_instruction![[op_0e, AM_0E, IN_0E] ASL &LLHH   ];
-make_instruction![[op_1e, AM_1E, IN_1E] ASL &LLHH,X ];
+    make_instruction![[op_29, AM_29, IN_29] AND #&BB    ];
+    make_instruction![[op_25, AM_25, IN_25] AND &LL     ];
+    make_instruction![[op_35, AM_35, IN_35] AND &LL,X   ];
+    make_instruction![[op_2d, AM_2D, IN_2D] AND &LLHH   ];
+    make_instruction![[op_3d, AM_3D, IN_3D] AND &LLHH,X ];
+    make_instruction![[op_39, AM_39, IN_39] AND &LLHH,Y ];
+    make_instruction![[op_21, AM_21, IN_21] AND (&LL,X) ];
+    make_instruction![[op_31, AM_31, IN_31] AND (&LL),Y ];
 
-make_instruction![[op_90, AM_90, IN_90] BCC &BB     ];
+    make_instruction![[op_0a, AM_0A, IN_0A] ASL A       ];
+    make_instruction![[op_06, AM_06, IN_06] ASL &LL     ];
+    make_instruction![[op_16, AM_16, IN_16] ASL &LL,X   ];
+    make_instruction![[op_0e, AM_0E, IN_0E] ASL &LLHH   ];
+    make_instruction![[op_1e, AM_1E, IN_1E] ASL &LLHH,X ];
 
-make_instruction![[op_b0, AM_B0, IN_B0] BCS &BB     ];
+    make_instruction![[op_90, AM_90, IN_90] BCC &BB     ];
 
-make_instruction![[op_f0, AM_F0, IN_F0] BEQ &BB     ];
+    make_instruction![[op_b0, AM_B0, IN_B0] BCS &BB     ];
 
-make_instruction![[op_24, AM_24, IN_24] BIT &LL     ];
-make_instruction![[op_2c, AM_2C, IN_2C] BIT &LLHH   ];
+    make_instruction![[op_f0, AM_F0, IN_F0] BEQ &BB     ];
 
-make_instruction![[op_30, AM_30, IN_30] BMI &BB     ];
+    make_instruction![[op_24, AM_24, IN_24] BIT &LL     ];
+    make_instruction![[op_2c, AM_2C, IN_2C] BIT &LLHH   ];
 
-make_instruction![[op_d0, AM_D0, IN_D0] BNE &BB     ];
+    make_instruction![[op_30, AM_30, IN_30] BMI &BB     ];
 
-make_instruction![[op_10, AM_10, IN_10] BPL &BB     ];
-
-make_instruction![[op_00, AM_00, IN_00] BRK         ];
+    make_instruction![[op_d0, AM_D0, IN_D0] BNE &BB     ];
 
-make_instruction![[op_50, AM_50, IN_50] BVC &BB     ];
+    make_instruction![[op_10, AM_10, IN_10] BPL &BB     ];
+
+    make_instruction![[op_00, AM_00, IN_00] BRK         ];
 
-make_instruction![[op_70, AM_70, IN_70] BVS &BB     ];
+    make_instruction![[op_50, AM_50, IN_50] BVC &BB     ];
 
-make_instruction![[op_18, AM_18, IN_18] CLC         ];
+    make_instruction![[op_70, AM_70, IN_70] BVS &BB     ];
 
-make_instruction![[op_d8, AM_D8, IN_D8] CLD         ];
+    make_instruction![[op_18, AM_18, IN_18] CLC         ];
 
-make_instruction![[op_58, AM_58, IN_58] CLI         ];
+    make_instruction![[op_d8, AM_D8, IN_D8] CLD         ];
 
-make_instruction![[op_b8, AM_B8, IN_B8] CLV         ];
+    make_instruction![[op_58, AM_58, IN_58] CLI         ];
 
-make_instruction![[op_c9, AM_C9, IN_C9] CMP #&BB    ];
-make_instruction![[op_c5, AM_C5, IN_C5] CMP &LL     ];
-make_instruction![[op_d5, AM_D5, IN_D5] CMP &LL,X   ];
-make_instruction![[op_cd, AM_CD, IN_CD] CMP &LLHH   ];
-make_instruction![[op_dd, AM_DD, IN_DD] CMP &LLHH,X ];
-make_instruction![[op_d9, AM_D9, IN_D9] CMP &LLHH,Y ];
-make_instruction![[op_c1, AM_C1, IN_C1] CMP (&LL,X) ];
-make_instruction![[op_d1, AM_D1, IN_D1] CMP (&LL),Y ];
+    make_instruction![[op_b8, AM_B8, IN_B8] CLV         ];
 
-make_instruction![[op_e0, AM_E0, IN_E0] CPX #&BB    ];
-make_instruction![[op_e4, AM_E4, IN_E4] CPX &LL     ];
-make_instruction![[op_ec, AM_EC, IN_EC] CPX &LLHH   ];
+    make_instruction![[op_c9, AM_C9, IN_C9] CMP #&BB    ];
+    make_instruction![[op_c5, AM_C5, IN_C5] CMP &LL     ];
+    make_instruction![[op_d5, AM_D5, IN_D5] CMP &LL,X   ];
+    make_instruction![[op_cd, AM_CD, IN_CD] CMP &LLHH   ];
+    make_instruction![[op_dd, AM_DD, IN_DD] CMP &LLHH,X ];
+    make_instruction![[op_d9, AM_D9, IN_D9] CMP &LLHH,Y ];
+    make_instruction![[op_c1, AM_C1, IN_C1] CMP (&LL,X) ];
+    make_instruction![[op_d1, AM_D1, IN_D1] CMP (&LL),Y ];
 
-make_instruction![[op_c0, AM_C0, IN_C0] CPY #&BB    ];
-make_instruction![[op_c4, AM_C4, IN_C4] CPY &LL     ];
-make_instruction![[op_cc, AM_CC, IN_CC] CPY &LLHH   ];
+    make_instruction![[op_e0, AM_E0, IN_E0] CPX #&BB    ];
+    make_instruction![[op_e4, AM_E4, IN_E4] CPX &LL     ];
+    make_instruction![[op_ec, AM_EC, IN_EC] CPX &LLHH   ];
 
-make_instruction![[op_c6, AM_C6, IN_C6] DEC &LL     ];
-make_instruction![[op_d6, AM_D6, IN_D6] DEC &LL,X   ];
-make_instruction![[op_ce, AM_CE, IN_CE] DEC &LLHH   ];
-make_instruction![[op_de, AM_DE, IN_DE] DEC &LLHH,X ];
+    make_instruction![[op_c0, AM_C0, IN_C0] CPY #&BB    ];
+    make_instruction![[op_c4, AM_C4, IN_C4] CPY &LL     ];
+    make_instruction![[op_cc, AM_CC, IN_CC] CPY &LLHH   ];
 
-make_instruction![[op_ca, AM_CA, IN_CA] DEX         ];
+    make_instruction![[op_c6, AM_C6, IN_C6] DEC &LL     ];
+    make_instruction![[op_d6, AM_D6, IN_D6] DEC &LL,X   ];
+    make_instruction![[op_ce, AM_CE, IN_CE] DEC &LLHH   ];
+    make_instruction![[op_de, AM_DE, IN_DE] DEC &LLHH,X ];
 
-make_instruction![[op_88, AM_88, IN_88] DEY         ];
+    make_instruction![[op_ca, AM_CA, IN_CA] DEX         ];
 
-make_instruction![[op_49, AM_49, IN_49] EOR #&BB    ];
-make_instruction![[op_45, AM_45, IN_45] EOR &LL     ];
-make_instruction![[op_55, AM_55, IN_55] EOR &LL,X   ];
-make_instruction![[op_4d, AM_4D, IN_4D] EOR &LLHH   ];
-make_instruction![[op_5d, AM_5D, IN_5D] EOR &LLHH,X ];
-make_instruction![[op_59, AM_59, IN_59] EOR &LLHH,Y ];
-make_instruction![[op_41, AM_41, IN_41] EOR (&LL,X) ];
-make_instruction![[op_51, AM_51, IN_51] EOR (&LL),Y ];
+    make_instruction![[op_88, AM_88, IN_88] DEY         ];
 
-make_instruction![[op_e6, AM_E6, IN_E6] INC &LL     ];
-make_instruction![[op_f6, AM_F6, IN_F6] INC &LL,X   ];
-make_instruction![[op_ee, AM_EE, IN_EE] INC &LLHH   ];
-make_instruction![[op_fe, AM_FE, IN_FE] INC &LLHH,X ];
+    make_instruction![[op_49, AM_49, IN_49] EOR #&BB    ];
+    make_instruction![[op_45, AM_45, IN_45] EOR &LL     ];
+    make_instruction![[op_55, AM_55, IN_55] EOR &LL,X   ];
+    make_instruction![[op_4d, AM_4D, IN_4D] EOR &LLHH   ];
+    make_instruction![[op_5d, AM_5D, IN_5D] EOR &LLHH,X ];
+    make_instruction![[op_59, AM_59, IN_59] EOR &LLHH,Y ];
+    make_instruction![[op_41, AM_41, IN_41] EOR (&LL,X) ];
+    make_instruction![[op_51, AM_51, IN_51] EOR (&LL),Y ];
 
-make_instruction![[op_e8, AM_E8, IN_E8] INX         ];
+    make_instruction![[op_e6, AM_E6, IN_E6] INC &LL     ];
+    make_instruction![[op_f6, AM_F6, IN_F6] INC &LL,X   ];
+    make_instruction![[op_ee, AM_EE, IN_EE] INC &LLHH   ];
+    make_instruction![[op_fe, AM_FE, IN_FE] INC &LLHH,X ];
 
-make_instruction![[op_c8, AM_C8, IN_C8] INY         ];
+    make_instruction![[op_e8, AM_E8, IN_E8] INX         ];
 
-make_instruction![[op_4c, AM_4C, IN_4C] JMP &LLHH   ];
-make_instruction![[op_6c, AM_6C, IN_6C] JMP (&LLHH) ];
+    make_instruction![[op_c8, AM_C8, IN_C8] INY         ];
 
-make_instruction![[op_20, AM_20, IN_20] JSR &LLHH   ];
-
-make_instruction![[op_a9, AM_A9, IN_A9] LDA #&BB    ];
-make_instruction![[op_a5, AM_A5, IN_A5] LDA &LL     ];
-make_instruction![[op_b5, AM_B5, IN_B5] LDA &LL,X   ];
-make_instruction![[op_ad, AM_AD, IN_AD] LDA &LLHH   ];
-make_instruction![[op_bd, AM_BD, IN_BD] LDA &LLHH,X ];
-make_instruction![[op_b9, AM_B9, IN_B9] LDA &LLHH,Y ];
-make_instruction![[op_a1, AM_A1, IN_A1] LDA (&LL,X) ];
-make_instruction![[op_b1, AM_B1, IN_B1] LDA (&LL),Y ];
+    make_instruction![[op_4c, AM_4C, IN_4C] JMP &LLHH   ];
+    make_instruction![[op_6c, AM_6C, IN_6C] JMP (&LLHH) ];
+
+    make_instruction![[op_20, AM_20, IN_20] JSR &LLHH   ];
 
-make_instruction![[op_a2, AM_A2, IN_A2] LDX #&BB    ];
-make_instruction![[op_a6, AM_A6, IN_A6] LDX &LL     ];
-make_instruction![[op_b6, AM_B6, IN_B6] LDX &LL,Y   ];
-make_instruction![[op_ae, AM_AE, IN_AE] LDX &LLHH   ];
-make_instruction![[op_be, AM_BE, IN_BE] LDX &LLHH,Y ];
+    make_instruction![[op_a9, AM_A9, IN_A9] LDA #&BB    ];
+    make_instruction![[op_a5, AM_A5, IN_A5] LDA &LL     ];
+    make_instruction![[op_b5, AM_B5, IN_B5] LDA &LL,X   ];
+    make_instruction![[op_ad, AM_AD, IN_AD] LDA &LLHH   ];
+    make_instruction![[op_bd, AM_BD, IN_BD] LDA &LLHH,X ];
+    make_instruction![[op_b9, AM_B9, IN_B9] LDA &LLHH,Y ];
+    make_instruction![[op_a1, AM_A1, IN_A1] LDA (&LL,X) ];
+    make_instruction![[op_b1, AM_B1, IN_B1] LDA (&LL),Y ];
 
-make_instruction![[op_a0, AM_A0, IN_A0] LDY #&BB    ];
-make_instruction![[op_a4, AM_A4, IN_A4] LDY &LL     ];
-make_instruction![[op_b4, AM_B4, IN_B4] LDY &LL,X   ];
-make_instruction![[op_ac, AM_AC, IN_AC] LDY &LLHH   ];
-make_instruction![[op_bc, AM_BC, IN_BC] LDY &LLHH,X ];
-
-make_instruction![[op_4a, AM_4A, IN_4A] LSR A       ];
-make_instruction![[op_46, AM_46, IN_46] LSR &LL     ];
-make_instruction![[op_56, AM_56, IN_56] LSR &LL,X   ];
-make_instruction![[op_4e, AM_4E, IN_4E] LSR &LLHH   ];
-make_instruction![[op_5e, AM_5E, IN_5E] LSR &LLHH,X ];
-
-make_instruction![[op_ea, AM_EA, IN_EA] NOP         ];
-
-make_instruction![[op_09, AM_09, IN_09] ORA #&BB    ];
-make_instruction![[op_05, AM_05, IN_05] ORA &LL     ];
-make_instruction![[op_15, AM_15, IN_15] ORA &LL,X   ];
-make_instruction![[op_0d, AM_0D, IN_0D] ORA &LLHH   ];
-make_instruction![[op_1d, AM_1D, IN_1D] ORA &LLHH,X ];
-make_instruction![[op_19, AM_19, IN_19] ORA &LLHH,Y ];
-make_instruction![[op_01, AM_01, IN_01] ORA (&LL,X) ];
-make_instruction![[op_11, AM_11, IN_11] ORA (&LL),Y ];
-
-make_instruction![[op_48, AM_48, IN_48] PHA         ];
-
-make_instruction![[op_08, AM_08, IN_08] PHP         ];
-
-make_instruction![[op_68, AM_68, IN_68] PLA         ];
-
-make_instruction![[op_28, AM_28, IN_28] PLP         ];
-
-make_instruction![[op_2a, AM_2A, IN_2A] ROL A       ];
-make_instruction![[op_26, AM_26, IN_26] ROL &LL     ];
-make_instruction![[op_36, AM_36, IN_36] ROL &LL,X   ];
-make_instruction![[op_2e, AM_2E, IN_2E] ROL &LLHH   ];
-make_instruction![[op_3e, AM_3E, IN_3E] ROL &LLHH,X ];
-
-make_instruction![[op_6a, AM_6A, IN_6A] ROR A       ];
-make_instruction![[op_66, AM_66, IN_66] ROR &LL     ];
-make_instruction![[op_76, AM_76, IN_76] ROR &LL,X   ];
-make_instruction![[op_6e, AM_6E, IN_6E] ROR &LLHH   ];
-make_instruction![[op_7e, AM_7E, IN_7E] ROR &LLHH,X ];
-
-make_instruction![[op_40, AM_40, IN_40] RTI         ];
-
-make_instruction![[op_60, AM_60, IN_60] RTS         ];
-
-make_instruction![[op_e9, AM_E9, IN_E9] SBC #&BB    ];
-make_instruction![[op_e5, AM_E5, IN_E5] SBC &LL     ];
-make_instruction![[op_f5, AM_F5, IN_F5] SBC &LL,X   ];
-make_instruction![[op_ed, AM_ED, IN_ED] SBC &LLHH   ];
-make_instruction![[op_fd, AM_FD, IN_FD] SBC &LLHH,X ];
-make_instruction![[op_f9, AM_F9, IN_F9] SBC &LLHH,Y ];
-make_instruction![[op_e1, AM_E1, IN_E1] SBC (&LL,X) ];
-make_instruction![[op_f1, AM_F1, IN_F1] SBC (&LL),Y ];
-
-make_instruction![[op_38, AM_38, IN_38] SEC         ];
-
-make_instruction![[op_f8, AM_F8, IN_F8] SED         ];
-
-make_instruction![[op_78, AM_78, IN_78] SEI         ];
-
-make_instruction![[op_85, AM_85, IN_85] STA &LL     ];
-make_instruction![[op_95, AM_95, IN_95] STA &LL,X   ];
-make_instruction![[op_8d, AM_8D, IN_8D] STA &LLHH   ];
-make_instruction![[op_9d, AM_9D, IN_9D] STA &LLHH,X ];
-make_instruction![[op_99, AM_99, IN_99] STA &LLHH,Y ];
-make_instruction![[op_81, AM_81, IN_81] STA (&LL,X) ];
-make_instruction![[op_91, AM_91, IN_91] STA (&LL),Y ];
-
-make_instruction![[op_86, AM_86, IN_86] STX &LL     ];
-make_instruction![[op_96, AM_96, IN_96] STX &LL,Y   ];
-make_instruction![[op_8e, AM_8E, IN_8E] STX &LLHH   ];
-
-make_instruction![[op_84, AM_84, IN_84] STY &LL     ];
-make_instruction![[op_94, AM_94, IN_94] STY &LL,X   ];
-make_instruction![[op_8c, AM_8C, IN_8C] STY &LLHH   ];
-
-make_instruction![[op_aa, AM_AA, IN_AA] TAX         ];
-
-make_instruction![[op_a8, AM_A8, IN_A8] TAY         ];
-
-make_instruction![[op_ba, AM_BA, IN_BA] TSX         ];
-
-make_instruction![[op_8a, AM_8A, IN_8A] TXA         ];
-
-make_instruction![[op_9a, AM_9A, IN_9A] TXS         ];
-
-make_instruction![[op_98, AM_98, IN_98] TYA         ];
-
-// =================
-// Illegal op codes
-// =================
-
-make_instruction![[op_c7, AM_C7, IN_C7] ~DCP &LL    ];
-make_instruction![[op_d7, AM_D7, IN_D7] ~DCP &LL,X  ];
-make_instruction![[op_cf, AM_CF, IN_CF] ~DCP &LLHH  ];
-make_instruction![[op_df, AM_DF, IN_DF] ~DCP &LLHH,X];
-make_instruction![[op_db, AM_DB, IN_DB] ~DCP &LLHH,Y];
-make_instruction![[op_c3, AM_C3, IN_C3] ~DCP (&LL,X)];
-make_instruction![[op_d3, AM_D3, IN_D3] ~DCP (&LL),Y];
-
-make_instruction![[op_e7, AM_E7, IN_E7] ~ISC &LL    ];
-make_instruction![[op_f7, AM_F7, IN_F7] ~ISC &LL,X  ];
-make_instruction![[op_ef, AM_EF, IN_EF] ~ISC &LLHH  ];
-make_instruction![[op_ff, AM_FF, IN_FF] ~ISC &LLHH,X];
-make_instruction![[op_fb, AM_FB, IN_FB] ~ISC &LLHH,Y];
-make_instruction![[op_e3, AM_E3, IN_E3] ~ISC (&LL,X)];
-make_instruction![[op_f3, AM_F3, IN_F3] ~ISC (&LL),Y];
-
-make_instruction![[op_a7, AM_A7, IN_A7] ~LAX &LL    ];
-make_instruction![[op_b7, AM_B7, IN_B7] ~LAX &LL,Y  ];
-make_instruction![[op_af, AM_AF, IN_AF] ~LAX &LLHH  ];
-make_instruction![[op_bf, AM_BF, IN_BF] ~LAX &LLHH,Y];
-make_instruction![[op_a3, AM_A3, IN_A3] ~LAX (&LL,X)];
-make_instruction![[op_b3, AM_B3, IN_B3] ~LAX (&LL),Y];
-
-make_instruction![[op_1a, AM_1A, IN_1A] ~NOP        ];
-make_instruction![[op_3a, AM_3A, IN_3A] ~NOP        ];
-make_instruction![[op_5a, AM_5A, IN_5A] ~NOP        ];
-make_instruction![[op_7a, AM_7A, IN_7A] ~NOP        ];
-make_instruction![[op_da, AM_DA, IN_DA] ~NOP        ];
-make_instruction![[op_fa, AM_FA, IN_FA] ~NOP        ];
-make_instruction![[op_80, AM_80, IN_80] ~NOP #&BB   ];
-make_instruction![[op_82, AM_82, IN_82] ~NOP #&BB   ];
-make_instruction![[op_89, AM_89, IN_89] ~NOP #&BB   ];
-make_instruction![[op_c2, AM_C2, IN_C2] ~NOP #&BB   ];
-make_instruction![[op_e2, AM_E2, IN_E2] ~NOP #&BB   ];
-make_instruction![[op_04, AM_04, IN_04] ~NOP &LL    ];
-make_instruction![[op_44, AM_44, IN_44] ~NOP &LL    ];
-make_instruction![[op_64, AM_64, IN_64] ~NOP &LL    ];
-make_instruction![[op_14, AM_14, IN_14] ~NOP &LL,X  ];
-make_instruction![[op_34, AM_34, IN_34] ~NOP &LL,X  ];
-make_instruction![[op_54, AM_54, IN_54] ~NOP &LL,X  ];
-make_instruction![[op_74, AM_74, IN_74] ~NOP &LL,X  ];
-make_instruction![[op_d4, AM_D4, IN_D4] ~NOP &LL,X  ];
-make_instruction![[op_f4, AM_F4, IN_F4] ~NOP &LL,X  ];
-make_instruction![[op_0c, AM_0C, IN_0C] ~NOP &LLHH  ];
-make_instruction![[op_1c, AM_1C, IN_1C] ~NOP &LLHH,X];
-make_instruction![[op_3c, AM_3C, IN_3C] ~NOP &LLHH,X];
-make_instruction![[op_5c, AM_5C, IN_5C] ~NOP &LLHH,X];
-make_instruction![[op_7c, AM_7C, IN_7C] ~NOP &LLHH,X];
-make_instruction![[op_dc, AM_DC, IN_DC] ~NOP &LLHH,X];
-make_instruction![[op_fc, AM_FC, IN_FC] ~NOP &LLHH,X];
-
-make_instruction![[op_27, AM_27, IN_27] ~RLA &LL    ];
-make_instruction![[op_37, AM_37, IN_37] ~RLA &LL,X  ];
-make_instruction![[op_2f, AM_2F, IN_2F] ~RLA &LLHH  ];
-make_instruction![[op_3f, AM_3F, IN_3F] ~RLA &LLHH,X];
-make_instruction![[op_3b, AM_3B, IN_3B] ~RLA &LLHH,Y];
-make_instruction![[op_23, AM_23, IN_23] ~RLA (&LL,X)];
-make_instruction![[op_33, AM_33, IN_33] ~RLA (&LL),Y];
-
-make_instruction![[op_67, AM_67, IN_67] ~RRA &LL    ];
-make_instruction![[op_77, AM_77, IN_77] ~RRA &LL,X  ];
-make_instruction![[op_6f, AM_6F, IN_6F] ~RRA &LLHH  ];
-make_instruction![[op_7f, AM_7F, IN_7F] ~RRA &LLHH,X];
-make_instruction![[op_7b, AM_7B, IN_7B] ~RRA &LLHH,Y];
-make_instruction![[op_63, AM_63, IN_63] ~RRA (&LL,X)];
-make_instruction![[op_73, AM_73, IN_73] ~RRA (&LL),Y];
-
-make_instruction![[op_87, AM_87, IN_87] ~SAX &LL    ];
-make_instruction![[op_97, AM_97, IN_97] ~SAX &LL,Y  ];
-make_instruction![[op_8f, AM_8F, IN_8F] ~SAX &LLHH  ];
-make_instruction![[op_83, AM_83, IN_83] ~SAX (&LL,X)];
-
-make_instruction![[op_eb, AM_EB, IN_EB] ~SBC #&BB   ];
-
-make_instruction![[op_07, AM_07, IN_07] ~SLO &LL    ];
-make_instruction![[op_17, AM_17, IN_17] ~SLO &LL,X  ];
-make_instruction![[op_0f, AM_0F, IN_0F] ~SLO &LLHH  ];
-make_instruction![[op_1f, AM_1F, IN_1F] ~SLO &LLHH,X];
-make_instruction![[op_1b, AM_1B, IN_1B] ~SLO &LLHH,Y];
-make_instruction![[op_03, AM_03, IN_03] ~SLO (&LL,X)];
-make_instruction![[op_13, AM_13, IN_13] ~SLO (&LL),Y];
-
-make_instruction![[op_47, AM_47, IN_47] ~SRE &LL    ];
-make_instruction![[op_57, AM_57, IN_57] ~SRE &LL,X  ];
-make_instruction![[op_4f, AM_4F, IN_4F] ~SRE &LLHH  ];
-make_instruction![[op_5f, AM_5F, IN_5F] ~SRE &LLHH,X];
-make_instruction![[op_5b, AM_5B, IN_5B] ~SRE &LLHH,Y];
-make_instruction![[op_43, AM_43, IN_43] ~SRE (&LL,X)];
-make_instruction![[op_53, AM_53, IN_53] ~SRE (&LL),Y];
-
-make_instruction![[op_02, AM_02, IN_02] ~JAM        ];
-make_instruction![[op_12, AM_12, IN_12] ~JAM        ];
-make_instruction![[op_22, AM_22, IN_22] ~JAM        ];
-make_instruction![[op_32, AM_32, IN_32] ~JAM        ];
-make_instruction![[op_42, AM_42, IN_42] ~JAM        ];
-make_instruction![[op_52, AM_52, IN_52] ~JAM        ];
-make_instruction![[op_62, AM_62, IN_62] ~JAM        ];
-make_instruction![[op_72, AM_72, IN_72] ~JAM        ];
-make_instruction![[op_92, AM_92, IN_92] ~JAM        ];
-make_instruction![[op_b2, AM_B2, IN_B2] ~JAM        ];
-make_instruction![[op_d2, AM_D2, IN_D2] ~JAM        ];
-make_instruction![[op_f2, AM_F2, IN_F2] ~JAM        ];
+    make_instruction![[op_a2, AM_A2, IN_A2] LDX #&BB    ];
+    make_instruction![[op_a6, AM_A6, IN_A6] LDX &LL     ];
+    make_instruction![[op_b6, AM_B6, IN_B6] LDX &LL,Y   ];
+    make_instruction![[op_ae, AM_AE, IN_AE] LDX &LLHH   ];
+    make_instruction![[op_be, AM_BE, IN_BE] LDX &LLHH,Y ];
+
+    make_instruction![[op_a0, AM_A0, IN_A0] LDY #&BB    ];
+    make_instruction![[op_a4, AM_A4, IN_A4] LDY &LL     ];
+    make_instruction![[op_b4, AM_B4, IN_B4] LDY &LL,X   ];
+    make_instruction![[op_ac, AM_AC, IN_AC] LDY &LLHH   ];
+    make_instruction![[op_bc, AM_BC, IN_BC] LDY &LLHH,X ];
+
+    make_instruction![[op_4a, AM_4A, IN_4A] LSR A       ];
+    make_instruction![[op_46, AM_46, IN_46] LSR &LL     ];
+    make_instruction![[op_56, AM_56, IN_56] LSR &LL,X   ];
+    make_instruction![[op_4e, AM_4E, IN_4E] LSR &LLHH   ];
+    make_instruction![[op_5e, AM_5E, IN_5E] LSR &LLHH,X ];
+
+    make_instruction![[op_ea, AM_EA, IN_EA] NOP         ];
+
+    make_instruction![[op_09, AM_09, IN_09] ORA #&BB    ];
+    make_instruction![[op_05, AM_05, IN_05] ORA &LL     ];
+    make_instruction![[op_15, AM_15, IN_15] ORA &LL,X   ];
+    make_instruction![[op_0d, AM_0D, IN_0D] ORA &LLHH   ];
+    make_instruction![[op_1d, AM_1D, IN_1D] ORA &LLHH,X ];
+    make_instruction![[op_19, AM_19, IN_19] ORA &LLHH,Y ];
+    make_instruction![[op_01, AM_01, IN_01] ORA (&LL,X) ];
+    make_instruction![[op_11, AM_11, IN_11] ORA (&LL),Y ];
+
+    make_instruction![[op_48, AM_48, IN_48] PHA         ];
+
+    make_instruction![[op_08, AM_08, IN_08] PHP         ];
+
+    make_instruction![[op_68, AM_68, IN_68] PLA         ];
+
+    make_instruction![[op_28, AM_28, IN_28] PLP         ];
+
+    make_instruction![[op_2a, AM_2A, IN_2A] ROL A       ];
+    make_instruction![[op_26, AM_26, IN_26] ROL &LL     ];
+    make_instruction![[op_36, AM_36, IN_36] ROL &LL,X   ];
+    make_instruction![[op_2e, AM_2E, IN_2E] ROL &LLHH   ];
+    make_instruction![[op_3e, AM_3E, IN_3E] ROL &LLHH,X ];
+
+    make_instruction![[op_6a, AM_6A, IN_6A] ROR A       ];
+    make_instruction![[op_66, AM_66, IN_66] ROR &LL     ];
+    make_instruction![[op_76, AM_76, IN_76] ROR &LL,X   ];
+    make_instruction![[op_6e, AM_6E, IN_6E] ROR &LLHH   ];
+    make_instruction![[op_7e, AM_7E, IN_7E] ROR &LLHH,X ];
+
+    make_instruction![[op_40, AM_40, IN_40] RTI         ];
+
+    make_instruction![[op_60, AM_60, IN_60] RTS         ];
+
+    make_instruction![[op_e9, AM_E9, IN_E9] SBC #&BB    ];
+    make_instruction![[op_e5, AM_E5, IN_E5] SBC &LL     ];
+    make_instruction![[op_f5, AM_F5, IN_F5] SBC &LL,X   ];
+    make_instruction![[op_ed, AM_ED, IN_ED] SBC &LLHH   ];
+    make_instruction![[op_fd, AM_FD, IN_FD] SBC &LLHH,X ];
+    make_instruction![[op_f9, AM_F9, IN_F9] SBC &LLHH,Y ];
+    make_instruction![[op_e1, AM_E1, IN_E1] SBC (&LL,X) ];
+    make_instruction![[op_f1, AM_F1, IN_F1] SBC (&LL),Y ];
+
+    make_instruction![[op_38, AM_38, IN_38] SEC         ];
+
+    make_instruction![[op_f8, AM_F8, IN_F8] SED         ];
+
+    make_instruction![[op_78, AM_78, IN_78] SEI         ];
+
+    make_instruction![[op_85, AM_85, IN_85] STA &LL     ];
+    make_instruction![[op_95, AM_95, IN_95] STA &LL,X   ];
+    make_instruction![[op_8d, AM_8D, IN_8D] STA &LLHH   ];
+    make_instruction![[op_9d, AM_9D, IN_9D] STA &LLHH,X ];
+    make_instruction![[op_99, AM_99, IN_99] STA &LLHH,Y ];
+    make_instruction![[op_81, AM_81, IN_81] STA (&LL,X) ];
+    make_instruction![[op_91, AM_91, IN_91] STA (&LL),Y ];
+
+    make_instruction![[op_86, AM_86, IN_86] STX &LL     ];
+    make_instruction![[op_96, AM_96, IN_96] STX &LL,Y   ];
+    make_instruction![[op_8e, AM_8E, IN_8E] STX &LLHH   ];
+
+    make_instruction![[op_84, AM_84, IN_84] STY &LL     ];
+    make_instruction![[op_94, AM_94, IN_94] STY &LL,X   ];
+    make_instruction![[op_8c, AM_8C, IN_8C] STY &LLHH   ];
+
+    make_instruction![[op_aa, AM_AA, IN_AA] TAX         ];
+
+    make_instruction![[op_a8, AM_A8, IN_A8] TAY         ];
+
+    make_instruction![[op_ba, AM_BA, IN_BA] TSX         ];
+
+    make_instruction![[op_8a, AM_8A, IN_8A] TXA         ];
+
+    make_instruction![[op_9a, AM_9A, IN_9A] TXS         ];
+
+    make_instruction![[op_98, AM_98, IN_98] TYA         ];
+}
+
+mod illegal {
+    use super::*;
+
+    make_instruction![[op_c7, AM_C7, IN_C7] ~DCP &LL    ];
+    make_instruction![[op_d7, AM_D7, IN_D7] ~DCP &LL,X  ];
+    make_instruction![[op_cf, AM_CF, IN_CF] ~DCP &LLHH  ];
+    make_instruction![[op_df, AM_DF, IN_DF] ~DCP &LLHH,X];
+    make_instruction![[op_db, AM_DB, IN_DB] ~DCP &LLHH,Y];
+    make_instruction![[op_c3, AM_C3, IN_C3] ~DCP (&LL,X)];
+    make_instruction![[op_d3, AM_D3, IN_D3] ~DCP (&LL),Y];
+
+    make_instruction![[op_e7, AM_E7, IN_E7] ~ISC &LL    ];
+    make_instruction![[op_f7, AM_F7, IN_F7] ~ISC &LL,X  ];
+    make_instruction![[op_ef, AM_EF, IN_EF] ~ISC &LLHH  ];
+    make_instruction![[op_ff, AM_FF, IN_FF] ~ISC &LLHH,X];
+    make_instruction![[op_fb, AM_FB, IN_FB] ~ISC &LLHH,Y];
+    make_instruction![[op_e3, AM_E3, IN_E3] ~ISC (&LL,X)];
+    make_instruction![[op_f3, AM_F3, IN_F3] ~ISC (&LL),Y];
+
+    make_instruction![[op_a7, AM_A7, IN_A7] ~LAX &LL    ];
+    make_instruction![[op_b7, AM_B7, IN_B7] ~LAX &LL,Y  ];
+    make_instruction![[op_af, AM_AF, IN_AF] ~LAX &LLHH  ];
+    make_instruction![[op_bf, AM_BF, IN_BF] ~LAX &LLHH,Y];
+    make_instruction![[op_a3, AM_A3, IN_A3] ~LAX (&LL,X)];
+    make_instruction![[op_b3, AM_B3, IN_B3] ~LAX (&LL),Y];
+
+    make_instruction![[op_1a, AM_1A, IN_1A] ~NOP        ];
+    make_instruction![[op_3a, AM_3A, IN_3A] ~NOP        ];
+    make_instruction![[op_5a, AM_5A, IN_5A] ~NOP        ];
+    make_instruction![[op_7a, AM_7A, IN_7A] ~NOP        ];
+    make_instruction![[op_da, AM_DA, IN_DA] ~NOP        ];
+    make_instruction![[op_fa, AM_FA, IN_FA] ~NOP        ];
+    make_instruction![[op_80, AM_80, IN_80] ~NOP #&BB   ];
+    make_instruction![[op_82, AM_82, IN_82] ~NOP #&BB   ];
+    make_instruction![[op_89, AM_89, IN_89] ~NOP #&BB   ];
+    make_instruction![[op_c2, AM_C2, IN_C2] ~NOP #&BB   ];
+    make_instruction![[op_e2, AM_E2, IN_E2] ~NOP #&BB   ];
+    make_instruction![[op_04, AM_04, IN_04] ~NOP &LL    ];
+    make_instruction![[op_44, AM_44, IN_44] ~NOP &LL    ];
+    make_instruction![[op_64, AM_64, IN_64] ~NOP &LL    ];
+    make_instruction![[op_14, AM_14, IN_14] ~NOP &LL,X  ];
+    make_instruction![[op_34, AM_34, IN_34] ~NOP &LL,X  ];
+    make_instruction![[op_54, AM_54, IN_54] ~NOP &LL,X  ];
+    make_instruction![[op_74, AM_74, IN_74] ~NOP &LL,X  ];
+    make_instruction![[op_d4, AM_D4, IN_D4] ~NOP &LL,X  ];
+    make_instruction![[op_f4, AM_F4, IN_F4] ~NOP &LL,X  ];
+    make_instruction![[op_0c, AM_0C, IN_0C] ~NOP &LLHH  ];
+    make_instruction![[op_1c, AM_1C, IN_1C] ~NOP &LLHH,X];
+    make_instruction![[op_3c, AM_3C, IN_3C] ~NOP &LLHH,X];
+    make_instruction![[op_5c, AM_5C, IN_5C] ~NOP &LLHH,X];
+    make_instruction![[op_7c, AM_7C, IN_7C] ~NOP &LLHH,X];
+    make_instruction![[op_dc, AM_DC, IN_DC] ~NOP &LLHH,X];
+    make_instruction![[op_fc, AM_FC, IN_FC] ~NOP &LLHH,X];
+
+    make_instruction![[op_27, AM_27, IN_27] ~RLA &LL    ];
+    make_instruction![[op_37, AM_37, IN_37] ~RLA &LL,X  ];
+    make_instruction![[op_2f, AM_2F, IN_2F] ~RLA &LLHH  ];
+    make_instruction![[op_3f, AM_3F, IN_3F] ~RLA &LLHH,X];
+    make_instruction![[op_3b, AM_3B, IN_3B] ~RLA &LLHH,Y];
+    make_instruction![[op_23, AM_23, IN_23] ~RLA (&LL,X)];
+    make_instruction![[op_33, AM_33, IN_33] ~RLA (&LL),Y];
+
+    make_instruction![[op_67, AM_67, IN_67] ~RRA &LL    ];
+    make_instruction![[op_77, AM_77, IN_77] ~RRA &LL,X  ];
+    make_instruction![[op_6f, AM_6F, IN_6F] ~RRA &LLHH  ];
+    make_instruction![[op_7f, AM_7F, IN_7F] ~RRA &LLHH,X];
+    make_instruction![[op_7b, AM_7B, IN_7B] ~RRA &LLHH,Y];
+    make_instruction![[op_63, AM_63, IN_63] ~RRA (&LL,X)];
+    make_instruction![[op_73, AM_73, IN_73] ~RRA (&LL),Y];
+
+    make_instruction![[op_87, AM_87, IN_87] ~SAX &LL    ];
+    make_instruction![[op_97, AM_97, IN_97] ~SAX &LL,Y  ];
+    make_instruction![[op_8f, AM_8F, IN_8F] ~SAX &LLHH  ];
+    make_instruction![[op_83, AM_83, IN_83] ~SAX (&LL,X)];
+
+    make_instruction![[op_eb, AM_EB, IN_EB] ~SBC #&BB   ];
+
+    make_instruction![[op_07, AM_07, IN_07] ~SLO &LL    ];
+    make_instruction![[op_17, AM_17, IN_17] ~SLO &LL,X  ];
+    make_instruction![[op_0f, AM_0F, IN_0F] ~SLO &LLHH  ];
+    make_instruction![[op_1f, AM_1F, IN_1F] ~SLO &LLHH,X];
+    make_instruction![[op_1b, AM_1B, IN_1B] ~SLO &LLHH,Y];
+    make_instruction![[op_03, AM_03, IN_03] ~SLO (&LL,X)];
+    make_instruction![[op_13, AM_13, IN_13] ~SLO (&LL),Y];
+
+    make_instruction![[op_47, AM_47, IN_47] ~SRE &LL    ];
+    make_instruction![[op_57, AM_57, IN_57] ~SRE &LL,X  ];
+    make_instruction![[op_4f, AM_4F, IN_4F] ~SRE &LLHH  ];
+    make_instruction![[op_5f, AM_5F, IN_5F] ~SRE &LLHH,X];
+    make_instruction![[op_5b, AM_5B, IN_5B] ~SRE &LLHH,Y];
+    make_instruction![[op_43, AM_43, IN_43] ~SRE (&LL,X)];
+    make_instruction![[op_53, AM_53, IN_53] ~SRE (&LL),Y];
+
+    make_instruction![[op_02, AM_02, IN_02] ~JAM        ];
+    make_instruction![[op_12, AM_12, IN_12] ~JAM        ];
+    make_instruction![[op_22, AM_22, IN_22] ~JAM        ];
+    make_instruction![[op_32, AM_32, IN_32] ~JAM        ];
+    make_instruction![[op_42, AM_42, IN_42] ~JAM        ];
+    make_instruction![[op_52, AM_52, IN_52] ~JAM        ];
+    make_instruction![[op_62, AM_62, IN_62] ~JAM        ];
+    make_instruction![[op_72, AM_72, IN_72] ~JAM        ];
+    make_instruction![[op_92, AM_92, IN_92] ~JAM        ];
+    make_instruction![[op_b2, AM_B2, IN_B2] ~JAM        ];
+    make_instruction![[op_d2, AM_D2, IN_D2] ~JAM        ];
+    make_instruction![[op_f2, AM_F2, IN_F2] ~JAM        ];
+}
+
+use legal::*;
+use illegal::*;
 
 pub fn reset() -> InstructionIterator {
     InstructionIterator::new(&addr::IMP, &act::RESET)
@@ -575,20 +582,34 @@ mod test {
     #[test]
     fn nestest() -> Result<(), CartridgeLoadError> {
         let cart = Cartridge::try_from(NES_TEST.as_slice())?;
-        // According to nestest logs the test ends at $C66E
         let mut nes = Nes::default().with_cart(cart).with_entry(0xC000);
-
+        
+        // According to nestest logs the test ends at $C66E
         nes.run_until(0xC66E);
 
         // Fetch error codes
         let official_opcode_result = nes.read(0x02);
-        let unofficial_opcode_result = nes.read(0x03);
 
         assert_eq!(
             official_opcode_result, 0,
             "Official opcodes exited with code ${:02X}",
             official_opcode_result
         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn nestest_illegal() -> Result<(), CartridgeLoadError> {
+        let cart = Cartridge::try_from(NES_TEST.as_slice())?;
+        let mut nes = Nes::default().with_cart(cart).with_entry(0xC000);
+        
+        // According to nestest logs the test ends at $C66E
+        nes.run_until(0xC66E);
+
+        // Fetch error codes
+        let unofficial_opcode_result = nes.read(0x03);
+
         assert_eq!(
             unofficial_opcode_result, 0,
             "Unofficial opcodes exited with code ${:02X}",

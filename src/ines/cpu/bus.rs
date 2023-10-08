@@ -92,6 +92,10 @@ const MPR_IO_HI: Word = 0xFFFF;
 
 const APU_MEM_SIZE: usize = (APU_IO_HI - APU_IO_LO) as usize + 1;
 
+pub trait CpuCtrl {
+    fn reset(&mut self);
+}
+
 /// # CPU memory map
 ///```text
 /// Address range    Size      Device
@@ -128,11 +132,13 @@ impl Bus {
 impl ReadDevice for Bus {
     fn read(&self, addr: Word) -> Byte {
         match addr {
-            CPU_RAM_LO..=CPU_RAM_HI => self.ram[(addr & CPU_MIRROR_MASK) as usize],
+            CPU_RAM_LO..=CPU_RAM_HI => {
+                self.ram[(addr & CPU_MIRROR_MASK) as usize]
+            }
             MPR_IO_LO..=MPR_IO_HI => self.mpr.borrow().read_prg(addr),
             PPU_REGISTER_LO..=PPU_REGISTER_HI => self.ppu.borrow().read(addr),
             APU_IO_LO..=APU_IO_HI => {
-                println!("Unimplemented region @ {addr:<04X}");
+                log::warn!("Unimplemented region @ {addr:<04X}");
                 self.apu[(addr & APU_IO_MASK) as usize]
             }
         }
@@ -154,7 +160,7 @@ impl WriteDevice for Bus {
                 self.ppu.borrow_mut().write(masked, data)
             }
             APU_IO_LO..=APU_IO_HI => {
-                println!("Unimplemented region @ {addr:<04X}");
+                log::warn!("Unimplemented region @ {addr:<04X}");
                 let masked = (addr & APU_IO_MASK) as usize;
                 let tmp = self.apu[masked];
                 self.apu[masked] = data;
@@ -165,3 +171,8 @@ impl WriteDevice for Bus {
 }
 
 impl RwDevice for Bus {}
+
+impl CpuCtrl for Bus {
+    fn reset(&mut self) {
+    }
+}
