@@ -137,6 +137,8 @@ pub enum OperType {
     /// ILLEGAL
     SLO,
     /// ILLEGAL
+    SRE,
+    /// ILLEGAL
     JAM,
 }
 

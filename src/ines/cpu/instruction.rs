@@ -42,8 +42,8 @@ pub const OPER: [Instruc; 256] = [
     op_10, op_11, op_12, op_13, op_14, op_15, op_16, op_17, op_18, op_19, op_1a, op_1b, op_1c, op_1d, op_1e, op_1f,
     op_20, op_21, op_22, op_23, op_24, op_25, op_26, op_27, op_28, op_29, op_2a, INOOP, op_2c, op_2d, op_2e, op_2f,
     op_30, op_31, op_32, op_33, op_34, op_35, op_36, op_37, op_38, op_39, op_3a, op_3b, op_3c, op_3d, op_3e, op_3f,
-    op_40, op_41, op_42, INOOP, op_44, op_45, op_46, INOOP, op_48, op_49, op_4a, INOOP, op_4c, op_4d, op_4e, INOOP,
-    op_50, op_51, op_52, INOOP, op_54, op_55, op_56, INOOP, op_58, op_59, op_5a, INOOP, op_5c, op_5d, op_5e, INOOP,
+    op_40, op_41, op_42, op_43, op_44, op_45, op_46, op_47, op_48, op_49, op_4a, INOOP, op_4c, op_4d, op_4e, op_4f,
+    op_50, op_51, op_52, op_53, op_54, op_55, op_56, op_57, op_58, op_59, op_5a, op_5b, op_5c, op_5d, op_5e, op_5f,
     op_60, op_61, op_62, INOOP, op_64, op_65, op_66, INOOP, op_68, op_69, op_6a, INOOP, op_6c, op_6d, op_6e, INOOP,
     op_70, op_71, op_72, INOOP, op_74, op_75, op_76, INOOP, op_78, op_79, op_7a, INOOP, op_7c, op_7d, op_7e, INOOP,
     op_80, op_81, op_82, op_83, op_84, op_85, op_86, op_87, op_88, op_89, op_8a, INOOP, op_8c, op_8d, op_8e, op_8f,
@@ -66,8 +66,8 @@ pub const ADDR_MODE: [AddrMode; 256] = [
     AM_10, AM_11, AM_12, AM_13, AM_14, AM_15, AM_16, AM_17, AM_18, AM_19, AM_1A, AM_1B, AM_1C, AM_1D, AM_1E, AM_1F,
     AM_20, AM_21, AM_22, AM_23, AM_24, AM_25, AM_26, AM_27, AM_28, AM_29, AM_2A, INOAM, AM_2C, AM_2D, AM_2E, AM_2F,
     AM_30, AM_31, AM_32, AM_33, AM_34, AM_35, AM_36, AM_37, AM_38, AM_39, AM_3A, AM_3B, AM_3C, AM_3D, AM_3E, AM_3F,
-    AM_40, AM_41, AM_42, INOAM, AM_44, AM_45, AM_46, INOAM, AM_48, AM_49, AM_4A, INOAM, AM_4C, AM_4D, AM_4E, INOAM,
-    AM_50, AM_51, AM_52, INOAM, AM_54, AM_55, AM_56, INOAM, AM_58, AM_59, AM_5A, INOAM, AM_5C, AM_5D, AM_5E, INOAM,
+    AM_40, AM_41, AM_42, AM_43, AM_44, AM_45, AM_46, AM_47, AM_48, AM_49, AM_4A, INOAM, AM_4C, AM_4D, AM_4E, AM_4F,
+    AM_50, AM_51, AM_52, AM_53, AM_54, AM_55, AM_56, AM_57, AM_58, AM_59, AM_5A, AM_5B, AM_5C, AM_5D, AM_5E, AM_5F,
     AM_60, AM_61, AM_62, INOAM, AM_64, AM_65, AM_66, INOAM, AM_68, AM_69, AM_6A, INOAM, AM_6C, AM_6D, AM_6E, INOAM,
     AM_70, AM_71, AM_72, INOAM, AM_74, AM_75, AM_76, INOAM, AM_78, AM_79, AM_7A, INOAM, AM_7C, AM_7D, AM_7E, INOAM,
     AM_80, AM_81, AM_82, AM_83, AM_84, AM_85, AM_86, AM_87, AM_88, AM_89, AM_8A, INOAM, AM_8C, AM_8D, AM_8E, AM_8F,
@@ -90,8 +90,8 @@ pub const INSTRUCTION_TYPE: [OperType; 256] = [
     IN_10, IN_11, IN_12, IN_13, IN_14, IN_15, IN_16, IN_17, IN_18, IN_19, IN_1A, IN_1B, IN_1C, IN_1D, IN_1E, IN_1F,
     IN_20, IN_21, IN_22, IN_23, IN_24, IN_25, IN_26, IN_27, IN_28, IN_29, IN_2A, INOIN, IN_2C, IN_2D, IN_2E, IN_2F,
     IN_30, IN_31, IN_32, IN_33, IN_34, IN_35, IN_36, IN_37, IN_38, IN_39, IN_3A, IN_3B, IN_3C, IN_3D, IN_3E, IN_3F,
-    IN_40, IN_41, IN_42, INOIN, IN_44, IN_45, IN_46, INOIN, IN_48, IN_49, IN_4A, INOIN, IN_4C, IN_4D, IN_4E, INOIN,
-    IN_50, IN_51, IN_52, INOIN, IN_54, IN_55, IN_56, INOIN, IN_58, IN_59, IN_5A, INOIN, IN_5C, IN_5D, IN_5E, INOIN,
+    IN_40, IN_41, IN_42, IN_43, IN_44, IN_45, IN_46, IN_47, IN_48, IN_49, IN_4A, INOIN, IN_4C, IN_4D, IN_4E, IN_4F,
+    IN_50, IN_51, IN_52, IN_53, IN_54, IN_55, IN_56, IN_57, IN_58, IN_59, IN_5A, IN_5B, IN_5C, IN_5D, IN_5E, IN_5F,
     IN_60, IN_61, IN_62, INOIN, IN_64, IN_65, IN_66, INOIN, IN_68, IN_69, IN_6A, INOIN, IN_6C, IN_6D, IN_6E, INOIN,
     IN_70, IN_71, IN_72, INOIN, IN_74, IN_75, IN_76, INOIN, IN_78, IN_79, IN_7A, INOIN, IN_7C, IN_7D, IN_7E, INOIN,
     IN_80, IN_81, IN_82, IN_83, IN_84, IN_85, IN_86, IN_87, IN_88, IN_89, IN_8A, INOIN, IN_8C, IN_8D, IN_8E, IN_8F,
@@ -366,6 +366,14 @@ make_instruction![[op_7c, AM_7C, IN_7C] ~NOP &LLHH,X];
 make_instruction![[op_dc, AM_DC, IN_DC] ~NOP &LLHH,X];
 make_instruction![[op_fc, AM_FC, IN_FC] ~NOP &LLHH,X];
 
+make_instruction![[op_27, AM_27, IN_27] ~RLA &LL    ];
+make_instruction![[op_37, AM_37, IN_37] ~RLA &LL,X  ];
+make_instruction![[op_2f, AM_2F, IN_2F] ~RLA &LLHH  ];
+make_instruction![[op_3f, AM_3F, IN_3F] ~RLA &LLHH,X];
+make_instruction![[op_3b, AM_3B, IN_3B] ~RLA &LLHH,Y];
+make_instruction![[op_23, AM_23, IN_23] ~RLA (&LL,X)];
+make_instruction![[op_33, AM_33, IN_33] ~RLA (&LL),Y];
+
 make_instruction![[op_87, AM_87, IN_87] ~SAX &LL    ];
 make_instruction![[op_97, AM_97, IN_97] ~SAX &LL,Y  ];
 make_instruction![[op_8f, AM_8F, IN_8F] ~SAX &LLHH  ];
@@ -381,13 +389,13 @@ make_instruction![[op_1b, AM_1B, IN_1B] ~SLO &LLHH,Y];
 make_instruction![[op_03, AM_03, IN_03] ~SLO (&LL,X)];
 make_instruction![[op_13, AM_13, IN_13] ~SLO (&LL),Y];
 
-make_instruction![[op_27, AM_27, IN_27] ~RLA &LL    ];
-make_instruction![[op_37, AM_37, IN_37] ~RLA &LL,X  ];
-make_instruction![[op_2f, AM_2F, IN_2F] ~RLA &LLHH  ];
-make_instruction![[op_3f, AM_3F, IN_3F] ~RLA &LLHH,X];
-make_instruction![[op_3b, AM_3B, IN_3B] ~RLA &LLHH,Y];
-make_instruction![[op_23, AM_23, IN_23] ~RLA (&LL,X)];
-make_instruction![[op_33, AM_33, IN_33] ~RLA (&LL),Y];
+make_instruction![[op_47, AM_47, IN_47] ~SRE &LL    ];
+make_instruction![[op_57, AM_57, IN_57] ~SRE &LL,X  ];
+make_instruction![[op_4f, AM_4F, IN_4F] ~SRE &LLHH  ];
+make_instruction![[op_5f, AM_5F, IN_5F] ~SRE &LLHH,X];
+make_instruction![[op_5b, AM_5B, IN_5B] ~SRE &LLHH,Y];
+make_instruction![[op_43, AM_43, IN_43] ~SRE (&LL,X)];
+make_instruction![[op_53, AM_53, IN_53] ~SRE (&LL),Y];
 
 make_instruction![[op_02, AM_02, IN_02] ~JAM        ];
 make_instruction![[op_12, AM_12, IN_12] ~JAM        ];

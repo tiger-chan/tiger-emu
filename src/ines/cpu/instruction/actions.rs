@@ -2649,6 +2649,29 @@ pub mod act {
 
         steps! {SLO [rmw_m_00, slo, rmw_m_02]}
 
+        fn sre(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let func = |reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState| {
+                let m = state.tmp >> 1;
+
+                reg.ac ^= m as Byte;
+
+                reg.p
+                    .set(Status::C, is_set!(state.tmp, 0x01))
+                    .set(Status::Z, is_zero!(reg.ac))
+                    .set(Status::N, is_neg!(reg.ac));
+
+                m as Word
+            };
+
+            rmw_m_01(reg, bus, state, func)
+        }
+
+        steps! {SRE [rmw_m_00, sre, rmw_m_02]}
+
         fn jam(
             _: &mut Registers,
             _: &mut dyn RwDevice,
@@ -4625,6 +4648,51 @@ macro_rules! make_instruction {
         /// (indirect),Y RLA (oper),Y    33     2        8
         /// ```
         pub const $inst: OperType = OperType::RLA;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] ~SRE $($am:tt)*) => {
+
+        /// # SRE (LSE)
+        /// LSR oper + EOR oper
+        ///
+        ///```text
+        /// M = 0 -> [76543210] -> C, A EOR M -> A
+        ///                                   N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// zeropage     SRE oper        47     2        5
+        /// zeropage,X   SRE oper,X      57     2        6
+        /// absolute     SRE oper        4F     3        6
+        /// absolut,X    SRE oper,X      5F     3        7
+        /// absolut,Y    SRE oper,Y      5B     3        7
+        /// (indirect,X) SRE (oper,X)    43     2        8
+        /// (indirect),Y SRE (oper),Y    53     2        8
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![RMW $($am)*];
+            let work = &act::SRE;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+
+        /// # SRE (LSE)
+        /// LSR oper + EOR oper
+        ///
+        ///```text
+        /// M = 0 -> [76543210] -> C, A EOR M -> A
+        ///                                   N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// zeropage     SRE oper        47     2        5
+        /// zeropage,X   SRE oper,X      57     2        6
+        /// absolute     SRE oper        4F     3        6
+        /// absolut,X    SRE oper,X      5F     3        7
+        /// absolut,Y    SRE oper,Y      5B     3        7
+        /// (indirect,X) SRE (oper,X)    43     2        8
+        /// (indirect),Y SRE (oper),Y    53     2        8
+        /// ```
+        pub const $inst: OperType = OperType::SRE;
     };
 
     ([$opc:tt, $ami:tt, $inst:tt] ~NOP $($am:tt)*) => {
