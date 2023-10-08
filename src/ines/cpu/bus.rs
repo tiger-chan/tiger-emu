@@ -146,7 +146,10 @@ impl WriteDevice for Bus {
                 let masked = addr | PPU_REGISTER_MASK;
                 self.ppu.borrow_mut().write(masked, data)
             }
-            _ => unimplemented!(),
+            _ => {
+                println!("Unimplemented region @ {addr:<04X}");
+                unimplemented!()
+            }
         }
     }
 }

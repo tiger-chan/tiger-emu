@@ -25,7 +25,7 @@ macro_rules! is_neg {
 }
 
 macro_rules! is_overflow {
-    ($a:expr, $m:expr, $r:expr) => {
+    ($r:expr, $a:expr, $m:expr) => {
         (!($a ^ $m) & ($a ^ $r)) & 0x80 == 0x80
     };
 }
@@ -1240,7 +1240,7 @@ pub mod act {
             reg.p
                 .set(Status::C, tmp > 255)
                 .set(Status::Z, is_zero!(tmp))
-                .set(Status::V, is_overflow!(ac, data, tmp))
+                .set(Status::V, is_overflow!(tmp, ac, data))
                 .set(Status::N, is_neg!(tmp));
 
             reg.ac = tmp as Byte;
@@ -2276,7 +2276,7 @@ pub mod act {
             reg.p
                 .set(Status::C, tmp > 255)
                 .set(Status::Z, is_zero!(tmp))
-                .set(Status::V, is_overflow!(ac, val, tmp))
+                .set(Status::V, is_overflow!(tmp, ac, val))
                 .set(Status::N, is_neg!(tmp));
 
             reg.ac = tmp as Byte;
@@ -2547,7 +2547,7 @@ pub mod act {
                 reg.p
                     .set(Status::C, tmp > 255)
                     .set(Status::Z, is_zero!(tmp))
-                    .set(Status::V, is_overflow!(ac, val, tmp))
+                    .set(Status::V, is_overflow!(val, ac, tmp))
                     .set(Status::N, is_neg!(tmp));
 
                 reg.ac = tmp as Byte;
@@ -2613,6 +2613,35 @@ pub mod act {
         }
 
         steps! {RLA [rmw_m_00, rla, rmw_m_02]}
+
+        fn rra(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let func =
+                |reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState| {
+                    let c = Word::from(reg.p & Status::C) << 7;
+                    let m = c | state.tmp >> 1;
+
+                    let c = state.tmp & 0x01;
+                    let ac = reg.ac as Word;
+                    let tmp = ac + m + c;
+                    reg.p
+                        .set(Status::C, tmp > 255)
+                        .set(Status::Z, is_zero!(tmp))
+                        .set(Status::V, is_overflow!(tmp, ac, m))
+                        .set(Status::N, is_neg!(tmp));
+
+                    reg.ac = tmp as Byte;
+
+                    m as Word
+                };
+
+            rmw_m_01(reg, bus, state, func)
+        }
+
+        steps! {RRA [rmw_m_00, rra, rmw_m_02]}
 
         fn sax(
             reg: &mut Registers,
@@ -4648,6 +4677,51 @@ macro_rules! make_instruction {
         /// (indirect),Y RLA (oper),Y    33     2        8
         /// ```
         pub const $inst: OperType = OperType::RLA;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] ~RRA $($am:tt)*) => {
+
+        /// # RRA
+        /// ROR oper + ADC oper
+        ///
+        ///```text
+        /// M = C -> [76543210] -> C, A + M + C -> A, C
+        ///                                   N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  +
+        /// addressing   assembler       opc    bytes    cycles
+        /// zeropage     RRA oper        67     2        5
+        /// zeropage,X   RRA oper,X      77     2        6
+        /// absolute     RRA oper        6F     3        6
+        /// absolut,X    RRA oper,X      7F     3        7
+        /// absolut,Y    RRA oper,Y      7B     3        7
+        /// (indirect,X) RRA (oper,X)    63     2        8
+        /// (indirect),Y RRA (oper),Y    73     2        8
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![RMW $($am)*];
+            let work = &act::RRA;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+
+        /// # RRA
+        /// ROR oper + ADC oper
+        ///
+        ///```text
+        /// M = C -> [76543210] -> C, A + M + C -> A, C
+        ///                                   N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  +
+        /// addressing   assembler       opc    bytes    cycles
+        /// zeropage     RRA oper        67     2        5
+        /// zeropage,X   RRA oper,X      77     2        6
+        /// absolute     RRA oper        6F     3        6
+        /// absolut,X    RRA oper,X      7F     3        7
+        /// absolut,Y    RRA oper,Y      7B     3        7
+        /// (indirect,X) RRA (oper,X)    63     2        8
+        /// (indirect),Y RRA (oper),Y    73     2        8
+        /// ```
+        pub const $inst: OperType = OperType::RRA;
     };
 
     ([$opc:tt, $ami:tt, $inst:tt] ~SRE $($am:tt)*) => {
