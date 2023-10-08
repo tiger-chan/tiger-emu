@@ -2604,6 +2604,31 @@ pub mod act {
 
         steps! {SAX [sax]}
 
+        /**
+         * ASL oper + ORA oper
+         * M = C <- [76543210] <- 0, A OR M -> A
+         */
+        fn slo(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let func = |reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState| {
+                let m = state.tmp << 1;
+                reg.ac |= m as Byte;
+                reg.p
+                    .set(Status::C, m & HI_MASK != 0)
+                    .set(Status::Z, is_zero!(reg.ac))
+                    .set(Status::N, is_neg!(reg.ac));
+
+                m as Word
+            };
+
+            rmw_m_01(reg, bus, state, func)
+        }
+
+        steps! {SLO [rmw_m_00, slo, rmw_m_02]}
+
         fn jam(
             _: &mut Registers,
             _: &mut dyn RwDevice,
@@ -4692,6 +4717,51 @@ macro_rules! make_instruction {
         /// immediate    USBC #oper      EB     2        2
         /// ```
         pub const $inst: OperType = OperType::USBC;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] ~SLO $($am:tt)*) => {
+
+        /// # SLO (ASO)
+        /// ASL oper + ORA oper
+        ///
+        ///```text
+        /// M = C <- [76543210] <- 0, A OR M -> A
+        ///                                   N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// zeropage     SLO oper        07     2        5
+        /// zeropage,X   SLO oper,X      17     2        6
+        /// absolute     SLO oper        0F     3        6
+        /// absolut,X    SLO oper,X      1F     3        7
+        /// absolut,Y    SLO oper,Y      1B     3        7
+        /// (indirect,X) SLO (oper,X)    03     2        8
+        /// (indirect),Y SLO (oper),Y    13     2        8
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![RMW $($am)*];
+            let work = &act::SLO;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+
+        /// # SLO (ASO)
+        /// ASL oper + ORA oper
+        ///
+        ///```text
+        /// M = C <- [76543210] <- 0, A OR M -> A
+        ///                                   N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// zeropage     SLO oper        07     2        5
+        /// zeropage,X   SLO oper,X      17     2        6
+        /// absolute     SLO oper        0F     3        6
+        /// absolut,X    SLO oper,X      1F     3        7
+        /// absolut,Y    SLO oper,Y      1B     3        7
+        /// (indirect,X) SLO (oper,X)    03     2        8
+        /// (indirect),Y SLO (oper),Y    13     2        8
+        /// ```
+        pub const $inst: OperType = OperType::SLO;
     };
 
     ([$opc:tt, $ami:tt, $inst:tt] ~JAM $($am:tt)*) => {
