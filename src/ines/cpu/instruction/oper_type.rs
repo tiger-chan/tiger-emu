@@ -129,6 +129,8 @@ pub enum OperType {
     /// ILLEGAL
     XNOP,
     /// ILLEGAL
+    RLA,
+    /// ILLEGAL
     SAX,
     /// ILLEGAL
     USBC,

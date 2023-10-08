@@ -2590,6 +2590,30 @@ pub mod act {
 
         steps! {XNOP [illegal_nop]}
 
+        fn rla(
+            reg: &mut Registers,
+            bus: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            let func = |reg: &mut Registers, _: &mut dyn RwDevice, state: &mut InstructionState| {
+                let c = Word::from(reg.p & Status::C);
+                let m = c | state.tmp << 1;
+
+                reg.ac &= m as Byte;
+
+                reg.p
+                    .set(Status::C, is_set!(state.tmp, 0x80))
+                    .set(Status::Z, is_zero!(reg.ac))
+                    .set(Status::N, is_neg!(reg.ac));
+
+                m as Word
+            };
+
+            rmw_m_01(reg, bus, state, func)
+        }
+
+        steps! {RLA [rmw_m_00, rla, rmw_m_02]}
+
         fn sax(
             reg: &mut Registers,
             bus: &mut dyn RwDevice,
@@ -2604,10 +2628,6 @@ pub mod act {
 
         steps! {SAX [sax]}
 
-        /**
-         * ASL oper + ORA oper
-         * M = C <- [76543210] <- 0, A OR M -> A
-         */
         fn slo(
             reg: &mut Registers,
             bus: &mut dyn RwDevice,
@@ -4560,6 +4580,51 @@ macro_rules! make_instruction {
         /// (indirect),Y LAX (oper),Y    B3     2        5*
         /// ```
         pub const $inst: OperType = OperType::LAX;
+    };
+
+    ([$opc:tt, $ami:tt, $inst:tt] ~RLA $($am:tt)*) => {
+
+        /// # RLA
+        /// ROL oper + AND oper
+        ///
+        ///```text
+        /// M = C <- [76543210] <- C, A AND M -> A
+        ///                                   N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// zeropage     RLA oper        27     2        5
+        /// zeropage,X   RLA oper,X      37     2        6
+        /// absolute     RLA oper        2F     3        6
+        /// absolut,X    RLA oper,X      3F     3        7
+        /// absolut,Y    RLA oper,Y      3B     3        7
+        /// (indirect,X) RLA (oper,X)    23     2        8
+        /// (indirect),Y RLA (oper),Y    33     2        8
+        /// ```
+        fn $opc() -> InstructionIterator {
+            let addr = addr_mode![RMW $($am)*];
+            let work = &act::RLA;
+            InstructionIterator::new(&addr, work)
+        }
+
+        am_const!([$ami] $($am)*);
+
+        /// # RLA
+        /// ROL oper + AND oper
+        ///
+        ///```text
+        /// M = C <- [76543210] <- C, A AND M -> A
+        ///                                   N  Z  C  I  D  V
+        ///                                   +  +  +  -  -  -
+        /// addressing   assembler       opc    bytes    cycles
+        /// zeropage     RLA oper        27     2        5
+        /// zeropage,X   RLA oper,X      37     2        6
+        /// absolute     RLA oper        2F     3        6
+        /// absolut,X    RLA oper,X      3F     3        7
+        /// absolut,Y    RLA oper,Y      3B     3        7
+        /// (indirect,X) RLA (oper,X)    23     2        8
+        /// (indirect),Y RLA (oper),Y    33     2        8
+        /// ```
+        pub const $inst: OperType = OperType::RLA;
     };
 
     ([$opc:tt, $ami:tt, $inst:tt] ~NOP $($am:tt)*) => {

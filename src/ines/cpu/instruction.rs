@@ -40,8 +40,8 @@ const INOOP: Instruc = op_ea;
 pub const OPER: [Instruc; 256] = [
     op_00, op_01, op_02, op_03, op_04, op_05, op_06, op_07, op_08, op_09, op_0a, INOOP, op_0c, op_0d, op_0e, op_0f,
     op_10, op_11, op_12, op_13, op_14, op_15, op_16, op_17, op_18, op_19, op_1a, op_1b, op_1c, op_1d, op_1e, op_1f,
-    op_20, op_21, op_22, INOOP, op_24, op_25, op_26, INOOP, op_28, op_29, op_2a, INOOP, op_2c, op_2d, op_2e, INOOP,
-    op_30, op_31, op_32, INOOP, op_34, op_35, op_36, INOOP, op_38, op_39, op_3a, INOOP, op_3c, op_3d, op_3e, INOOP,
+    op_20, op_21, op_22, op_23, op_24, op_25, op_26, op_27, op_28, op_29, op_2a, INOOP, op_2c, op_2d, op_2e, op_2f,
+    op_30, op_31, op_32, op_33, op_34, op_35, op_36, op_37, op_38, op_39, op_3a, op_3b, op_3c, op_3d, op_3e, op_3f,
     op_40, op_41, op_42, INOOP, op_44, op_45, op_46, INOOP, op_48, op_49, op_4a, INOOP, op_4c, op_4d, op_4e, INOOP,
     op_50, op_51, op_52, INOOP, op_54, op_55, op_56, INOOP, op_58, op_59, op_5a, INOOP, op_5c, op_5d, op_5e, INOOP,
     op_60, op_61, op_62, INOOP, op_64, op_65, op_66, INOOP, op_68, op_69, op_6a, INOOP, op_6c, op_6d, op_6e, INOOP,
@@ -64,8 +64,8 @@ const INOAM: AddrMode = AddrMode::IMP;
 pub const ADDR_MODE: [AddrMode; 256] = [
     AM_00, AM_01, AM_02, AM_03, AM_04, AM_05, AM_06, AM_07, AM_08, AM_09, AM_0A, INOAM, AM_0C, AM_0D, AM_0E, AM_0F,
     AM_10, AM_11, AM_12, AM_13, AM_14, AM_15, AM_16, AM_17, AM_18, AM_19, AM_1A, AM_1B, AM_1C, AM_1D, AM_1E, AM_1F,
-    AM_20, AM_21, AM_22, INOAM, AM_24, AM_25, AM_26, INOAM, AM_28, AM_29, AM_2A, INOAM, AM_2C, AM_2D, AM_2E, INOAM,
-    AM_30, AM_31, AM_32, INOAM, AM_34, AM_35, AM_36, INOAM, AM_38, AM_39, AM_3A, INOAM, AM_3C, AM_3D, AM_3E, INOAM,
+    AM_20, AM_21, AM_22, AM_23, AM_24, AM_25, AM_26, AM_27, AM_28, AM_29, AM_2A, INOAM, AM_2C, AM_2D, AM_2E, AM_2F,
+    AM_30, AM_31, AM_32, AM_33, AM_34, AM_35, AM_36, AM_37, AM_38, AM_39, AM_3A, AM_3B, AM_3C, AM_3D, AM_3E, AM_3F,
     AM_40, AM_41, AM_42, INOAM, AM_44, AM_45, AM_46, INOAM, AM_48, AM_49, AM_4A, INOAM, AM_4C, AM_4D, AM_4E, INOAM,
     AM_50, AM_51, AM_52, INOAM, AM_54, AM_55, AM_56, INOAM, AM_58, AM_59, AM_5A, INOAM, AM_5C, AM_5D, AM_5E, INOAM,
     AM_60, AM_61, AM_62, INOAM, AM_64, AM_65, AM_66, INOAM, AM_68, AM_69, AM_6A, INOAM, AM_6C, AM_6D, AM_6E, INOAM,
@@ -88,8 +88,8 @@ const INOIN: OperType = OperType::XXX;
 pub const INSTRUCTION_TYPE: [OperType; 256] = [
     IN_00, IN_01, IN_02, IN_03, IN_04, IN_05, IN_06, IN_07, IN_08, IN_09, IN_0A, INOIN, IN_0C, IN_0D, IN_0E, IN_0F,
     IN_10, IN_11, IN_12, IN_13, IN_14, IN_15, IN_16, IN_17, IN_18, IN_19, IN_1A, IN_1B, IN_1C, IN_1D, IN_1E, IN_1F,
-    IN_20, IN_21, IN_22, INOIN, IN_24, IN_25, IN_26, INOIN, IN_28, IN_29, IN_2A, INOIN, IN_2C, IN_2D, IN_2E, INOIN,
-    IN_30, IN_31, IN_32, INOIN, IN_34, IN_35, IN_36, INOIN, IN_38, IN_39, IN_3A, INOIN, IN_3C, IN_3D, IN_3E, INOIN,
+    IN_20, IN_21, IN_22, IN_23, IN_24, IN_25, IN_26, IN_27, IN_28, IN_29, IN_2A, INOIN, IN_2C, IN_2D, IN_2E, IN_2F,
+    IN_30, IN_31, IN_32, IN_33, IN_34, IN_35, IN_36, IN_37, IN_38, IN_39, IN_3A, IN_3B, IN_3C, IN_3D, IN_3E, IN_3F,
     IN_40, IN_41, IN_42, INOIN, IN_44, IN_45, IN_46, INOIN, IN_48, IN_49, IN_4A, INOIN, IN_4C, IN_4D, IN_4E, INOIN,
     IN_50, IN_51, IN_52, INOIN, IN_54, IN_55, IN_56, INOIN, IN_58, IN_59, IN_5A, INOIN, IN_5C, IN_5D, IN_5E, INOIN,
     IN_60, IN_61, IN_62, INOIN, IN_64, IN_65, IN_66, INOIN, IN_68, IN_69, IN_6A, INOIN, IN_6C, IN_6D, IN_6E, INOIN,
@@ -380,6 +380,14 @@ make_instruction![[op_1f, AM_1F, IN_1F] ~SLO &LLHH,X];
 make_instruction![[op_1b, AM_1B, IN_1B] ~SLO &LLHH,Y];
 make_instruction![[op_03, AM_03, IN_03] ~SLO (&LL,X)];
 make_instruction![[op_13, AM_13, IN_13] ~SLO (&LL),Y];
+
+make_instruction![[op_27, AM_27, IN_27] ~RLA &LL    ];
+make_instruction![[op_37, AM_37, IN_37] ~RLA &LL,X  ];
+make_instruction![[op_2f, AM_2F, IN_2F] ~RLA &LLHH  ];
+make_instruction![[op_3f, AM_3F, IN_3F] ~RLA &LLHH,X];
+make_instruction![[op_3b, AM_3B, IN_3B] ~RLA &LLHH,Y];
+make_instruction![[op_23, AM_23, IN_23] ~RLA (&LL,X)];
+make_instruction![[op_33, AM_33, IN_33] ~RLA (&LL),Y];
 
 make_instruction![[op_02, AM_02, IN_02] ~JAM        ];
 make_instruction![[op_12, AM_12, IN_12] ~JAM        ];
