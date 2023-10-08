@@ -126,7 +126,7 @@ impl ReadDevice for Bus {
             PPU_REGISTER_LO..=PPU_REGISTER_HI => self.ppu.borrow().read(addr),
             _ => {
                 println!("Unimplemented region @ {addr:<04X}");
-                unimplemented!()
+                0
             }
         }
     }
@@ -148,7 +148,7 @@ impl WriteDevice for Bus {
             }
             _ => {
                 println!("Unimplemented region @ {addr:<04X}");
-                unimplemented!()
+                0
             }
         }
     }
