@@ -114,6 +114,13 @@ impl Nes {
     pub fn read(&self, addr: Word) -> Byte {
         self.cpu.borrow().read(addr)
     }
+
+    #[allow(unused)]
+    pub fn read_slice(&self, addr: Word, out: &mut [Byte]) {
+        for (i, v) in out.iter_mut().enumerate() {
+            *v = self.cpu.borrow().read(addr + i as Word)
+        }
+    }
 }
 
 impl Default for Nes {

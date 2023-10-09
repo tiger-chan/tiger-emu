@@ -11,6 +11,8 @@ pub use status_reg::Status;
 
 use instruction::{AddrModeData, InstructionIterator, OperData, OperType, INSTRUCTION_TYPE};
 
+pub use instruction::ADDR_MODE;
+
 use self::{instruction::OPER, bus::CpuCtrl};
 
 use super::{io::RwDevice, Byte, Word};

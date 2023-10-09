@@ -85,13 +85,16 @@ impl RwMapper for Nrom {
     }
 
     fn write_prg(&mut self, addr: Word, data: Byte) -> Byte {
-        if (RAM_LO..=RAM_HI).contains(&addr) {
-            let masked = addr & RAM_MASK;
-            let tmp = self.prg[masked as usize];
-            self.prg[masked as usize] = data;
-            tmp
-        } else {
-            0
+        match addr {
+            RAM_LO..=RAM_HI => {
+                let masked = addr & RAM_MASK;
+                let tmp = self.prg[masked as usize];
+                self.prg[masked as usize] = data;
+                tmp    
+            }
+            _ => {
+                0
+            }
         }
     }
 }

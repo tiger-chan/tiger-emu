@@ -1536,6 +1536,7 @@ pub mod act {
             state: &mut InstructionState,
         ) -> OperationResult {
             state.addr |= (bus.read(state.tmp + 1) as Word) << 8;
+            reg.pc = state.addr;
             reg.p.set(Status::I, true);
             state.oper = OperData::None;
             OperationResult::None

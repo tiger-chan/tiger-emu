@@ -5,6 +5,8 @@ mod cpu;
 mod io;
 mod ppu;
 mod registers;
+#[cfg(test)]
+mod roms;
 
 use clock_counter::*;
 pub use console::*;
