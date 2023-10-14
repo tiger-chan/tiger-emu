@@ -1,4 +1,4 @@
-use crate::ines::{Byte, Word};
+use crate::{Byte, Word};
 
 use super::Status;
 

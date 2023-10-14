@@ -1,4 +1,4 @@
-use crate::ines::Byte;
+use crate::Byte;
 use std::{io, io::Read};
 
 use super::CartridgeLoadError;

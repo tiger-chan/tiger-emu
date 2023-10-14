@@ -1,4 +1,4 @@
-mod cart;
+pub mod cart;
 mod clock_counter;
 mod console;
 mod cpu;

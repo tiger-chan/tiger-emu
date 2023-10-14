@@ -2,7 +2,7 @@ pub mod nestest;
 
 #[cfg(test)]
 mod test {
-    use crate::ines::{
+    use crate::{
         cart::{Cartridge, CartridgeLoadError},
         console::Nes,
         cpu::{ADDR_MODE, Registers, Status, Cpu, TestBus},
@@ -118,7 +118,7 @@ mod test {
         use std::io::Read;
 
         // Open a file for reading
-        let mut file = File::open("roms/nes6502/v1/00.json")?;
+        let mut file = File::open("../roms/nes6502/v1/00.json")?;
 
         // Create a buffer to store the file contents
         let mut buffer = Vec::new();
@@ -134,7 +134,6 @@ mod test {
         cpu.configure_bus(TestBus::default());
         
         for entry in tests {
-            
             for ram in entry.initial.ram.iter() {
                 cpu.write(ram.0, ram.1);
             }

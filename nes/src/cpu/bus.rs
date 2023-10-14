@@ -1,6 +1,6 @@
 // https://www.nesdev.org/wiki/CPU_memory_map
 
-use crate::ines::{
+use crate::{
     cart::MapperRef,
     io::{ReadDevice, RwDevice, RwDeviceRef, RwMapper, WriteDevice},
     Byte, Word, CPU_RAM,

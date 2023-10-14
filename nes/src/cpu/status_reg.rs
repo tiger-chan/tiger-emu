@@ -1,4 +1,4 @@
-use crate::ines::registers::{
+use crate::registers::{
     bit_and, bit_or, bit_xor, display, not, partial_eq, reg_add_impl, reg_from_impl,
 };
 use core::fmt;
