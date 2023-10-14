@@ -123,6 +123,30 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
         self.instruction = instruction::reset();
     }
 
+    #[allow(unused)]
+    pub fn irq(&mut self) {
+        self.prev = InstructionState {
+            reg: self.reg,
+            tcc: self.tcc,
+            opcode: 0xFF,
+            op: OperType::BRK,
+            ..Default::default()
+        };
+        self.instruction = instruction::irq();
+    }
+
+    #[allow(unused)]
+    pub fn nmi(&mut self) {
+        self.prev = InstructionState {
+            reg: self.reg,
+            tcc: self.tcc,
+            opcode: 0xFF,
+            op: OperType::BRK,
+            ..Default::default()
+        };
+        self.instruction = instruction::nmi();
+    }
+
     pub fn read(&self, addr: Word) -> Byte {
         let bus = self.bus.as_ref().expect("Bus is set");
         bus.read(addr)
@@ -149,7 +173,7 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
             }
             self.pc(addr);
         }
-        
+
         state = self.next();
         while !self.waiting() {
             state = self.next();

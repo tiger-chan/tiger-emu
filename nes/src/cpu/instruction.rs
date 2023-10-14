@@ -422,9 +422,17 @@ mod illegal {
     make_instruction![[op_f2, AM_F2, IN_F2] ~JAM        ];
 }
 
-use legal::*;
 use illegal::*;
+use legal::*;
 
 pub fn reset() -> InstructionIterator {
     InstructionIterator::new(&addr::IMP, &act::RESET)
+}
+
+pub fn irq() -> InstructionIterator {
+    InstructionIterator::new(&addr::IMP, &act::IRQ)
+}
+
+pub fn nmi() -> InstructionIterator {
+    InstructionIterator::new(&addr::IMP, &act::NMI)
 }

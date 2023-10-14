@@ -148,7 +148,7 @@ mod test {
             assert_eq!(state.reg, expected_reg, "Test: {} -- Registers don't match", entry.name);
             for ram in entry.fin.ram.iter() {
                 let val = cpu.read(ram.0);
-                assert_eq!(val, ram.1, "Test: {} -- Ram at {} should be equal after processing", entry.name, ram.0);
+                assert_eq!(val, ram.1, "Test: {} -- Ram at ${:>04X} should be equal after processing", entry.name, ram.0);
             }
         }
 

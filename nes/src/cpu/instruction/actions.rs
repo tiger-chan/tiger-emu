@@ -1501,11 +1501,7 @@ pub mod act {
         ) -> OperationResult {
             bus.write(PS.wrapping_add(reg.sp as Word), reg.pc as Byte);
             reg.sp = reg.sp.wrapping_sub(1);
-            state.tmp = if reg.p & Status::I == Status::I {
-                IRQ_LO
-            } else {
-                NMI_LO
-            };
+            state.tmp = IRQ_LO;
             OperationResult::None
         }
 
@@ -2497,6 +2493,30 @@ pub mod act {
         }
 
         steps! {RESET [brk_01, brk_02, rest_03, reset_04, reset_05, brk_06, brk_07]}
+
+        fn irq_04(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.sp = reg.sp.wrapping_sub(1);
+            state.tmp = IRQ_LO;
+            OperationResult::None
+        }
+
+        steps! {IRQ [brk_01, brk_02, brk_03, irq_04, brk_05, brk_06, brk_07]}
+
+        fn nmi_04(
+            reg: &mut Registers,
+            _: &mut dyn RwDevice,
+            state: &mut InstructionState,
+        ) -> OperationResult {
+            reg.sp = reg.sp.wrapping_sub(1);
+            state.tmp = NMI_LO;
+            OperationResult::None
+        }
+
+        steps! {NMI [brk_01, brk_02, brk_03, nmi_04, brk_05, brk_06, brk_07]}
     }
 
     // =================
