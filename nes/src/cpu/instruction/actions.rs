@@ -1489,7 +1489,7 @@ pub mod act {
             bus: &mut dyn RwDevice,
             _: &mut InstructionState,
         ) -> OperationResult {
-            bus.write(PS.wrapping_add(reg.sp as Word), (reg.pc >> 8) as Byte);
+            bus.write(PS.wrapping_add(reg.sp as Word), ((reg.pc + 1) >> 8) as Byte);
             reg.sp = reg.sp.wrapping_sub(1);
             OperationResult::None
         }
@@ -1499,7 +1499,7 @@ pub mod act {
             bus: &mut dyn RwDevice,
             state: &mut InstructionState,
         ) -> OperationResult {
-            bus.write(PS.wrapping_add(reg.sp as Word), reg.pc as Byte);
+            bus.write(PS.wrapping_add(reg.sp as Word), (reg.pc + 1) as Byte);
             reg.sp = reg.sp.wrapping_sub(1);
             state.tmp = IRQ_LO;
             OperationResult::None
@@ -2077,7 +2077,7 @@ pub mod act {
             state: &mut InstructionState,
         ) -> OperationResult {
             let tmp = bus.read(PS.wrapping_add(reg.sp as Word));
-            reg.p = Status::from(tmp) & !(Status::U | Status::B);
+            reg.p = Status::from(tmp) & !Status::B | Status::U;
 
             state.oper = OperData::None;
             OperationResult::None
@@ -2184,7 +2184,7 @@ pub mod act {
         ) -> OperationResult {
             let status = bus.read(PS.wrapping_add(reg.sp as Word));
             reg.sp = reg.sp.wrapping_add(1);
-            reg.p = Status::from(status) & !(Status::B | Status::U);
+            reg.p = Status::from(status) & !Status::B | Status::U;
 
             OperationResult::None
         }
@@ -2249,7 +2249,7 @@ pub mod act {
             _: &mut dyn RwDevice,
             state: &mut InstructionState,
         ) -> OperationResult {
-            reg.pc = state.tmp;
+            reg.pc = state.tmp + 1;
 
             state.oper = OperData::None;
             OperationResult::None
@@ -2568,7 +2568,7 @@ pub mod act {
                 reg.p
                     .set(Status::C, tmp > 255)
                     .set(Status::Z, is_zero!(tmp))
-                    .set(Status::V, is_overflow!(val, ac, tmp))
+                    .set(Status::V, is_overflow!(tmp, ac, val))
                     .set(Status::N, is_neg!(tmp));
 
                 reg.ac = tmp as Byte;
