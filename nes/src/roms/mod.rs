@@ -112,6 +112,7 @@ mod test {
         Ok(())
     }
 
+    // Download tests json here: https://github.com/TomHarte/ProcessorTests/tree/main/nes6502
     macro_rules! cpu_test {
         ($v:literal, $test:ident) => {
             #[test]
