@@ -115,6 +115,7 @@ mod test {
     // Download tests json here: https://github.com/TomHarte/ProcessorTests/tree/main/nes6502
     macro_rules! cpu_test {
         ($v:literal, $test:ident) => {
+            #[ignore] // Remove the ignore if the test files are downloaded
             #[test]
             fn $test() -> Result<(), Box<dyn std::error::Error>> {
                 use std::fs::File;

@@ -20,7 +20,7 @@ pub struct INesHeader {
     pub prg_chunks: Byte,
     pub chr_chunks: Byte,
     /// Flags 6 – Mapper, mirroring, battery, trainer
-    /// ```
+    /// ```text
     /// 76543210
     /// ||||||||
     /// |||||||+- Mirroring: 0: horizontal (vertical arrangement) (CIRAM A10 = PPU A11)
@@ -32,7 +32,7 @@ pub struct INesHeader {
     /// ```
     pub mpr1: Byte,
     /// Flags 7 – Mapper, VS/Playchoice, NES 2.0
-    /// ```
+    /// ```text
     /// 76543210
     /// ||||||||
     /// |||||||+- VS Unisystem
@@ -42,14 +42,14 @@ pub struct INesHeader {
     /// ```
     pub mpr2: Byte,
     /// Flags 8 – PRG-RAM size (rarely used extension)
-    ///```
+    ///```text
     /// 76543210
     /// ||||||||
     /// ++++++++- PRG RAM size
     /// ```
     pub prg_ram_size: Byte,
     /// Flags 9 – TV system (rarely used extension)
-    /// ```
+    /// ```text
     /// 76543210
     /// ||||||||
     /// |||||||+- TV system (0: NTSC; 1: PAL)
@@ -57,7 +57,7 @@ pub struct INesHeader {
     /// ```
     pub tv_sys1: Byte,
     /// Flags 10 – TV system, PRG-RAM presence (unofficial, rarely used extension)
-    /// ```
+    /// ```text
     /// 76543210
     ///   ||  ||
     ///   ||  ++- TV system (0: NTSC; 2: PAL; 1/3: dual compatible)
