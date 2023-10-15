@@ -1,4 +1,5 @@
 mod bus;
+mod registers;
 
 use std::{cell::RefCell, rc::Rc};
 
