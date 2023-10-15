@@ -2,15 +2,13 @@ pub mod cart;
 mod clock_counter;
 mod console;
 mod cpu;
-mod io;
+pub mod io;
 mod ppu;
 mod registers;
-#[cfg(test)]
-mod roms;
 
 use clock_counter::*;
 pub use console::*;
-pub use cpu::{Registers, Status};
+pub use cpu::{Registers, Status, Cpu, CpuCtrl};
 
 /// Bytes, Words, Addressing
 /// 8 bit bytes, 16 bit words in lobyte-hibyte representation (Little-Endian).
@@ -70,3 +68,12 @@ pub const RESET_LO: Word = 0xFFFC;
 pub const IRQ_HI: Word = 0xFFFF;
 
 pub const CPU_RAM: usize = 64 * 1024;
+
+pub mod prelude {
+    pub use super::{Word, Byte};
+    pub use super::console::*;
+    pub use super::io;
+    pub mod cpu {
+        pub use crate::cpu::{AddrMode, AddrModeData, OperData, OperType};
+    }
+}

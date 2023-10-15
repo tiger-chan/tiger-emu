@@ -5,18 +5,15 @@ mod status_reg;
 
 use std::{cell::RefCell, rc::Rc};
 
-#[cfg(test)]
-pub use bus::TestBus;
-
-pub use bus::Bus;
+pub use bus::{Bus, CpuCtrl};
 pub use registers::Registers;
 pub use status_reg::Status;
 
-use instruction::{AddrModeData, InstructionIterator, OperData, OperType, INSTRUCTION_TYPE};
+pub use instruction::{AddrMode, AddrModeData, OperData, OperType};
 
-pub use instruction::ADDR_MODE;
+use instruction::{InstructionIterator, INSTRUCTION_TYPE};
 
-use self::{bus::CpuCtrl, instruction::OPER};
+use self::instruction::{OPER, ADDR_MODE};
 
 use super::{io::RwDevice, Byte, Word};
 
@@ -30,17 +27,23 @@ pub struct InstructionState {
     pub addr: AddrModeData,
     pub oper: OperData,
     pub op: OperType,
+    pub am: AddrMode,
 }
 
 impl Default for InstructionState {
     fn default() -> Self {
         Self {
-            reg: Registers::default(),
+            reg: Registers{
+                sp: 0xFD,
+                p: Status(0x34),
+                ..Registers::default()
+            },
             tcc: 0,
             opcode: 0xFF,
             addr: AddrModeData::Imp,
             oper: OperData::None,
             op: OperType::ADC,
+            am: AddrMode::A,
         }
     }
 }
@@ -90,6 +93,7 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
                 tcc: self.tcc,
                 opcode: opc as u8,
                 op: INSTRUCTION_TYPE[opc],
+                am: ADDR_MODE[opc],
                 ..Default::default()
             }
         } else {
@@ -100,6 +104,7 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
                 addr: self.prev.addr,
                 oper: self.prev.oper,
                 op: self.prev.op,
+                am: self.prev.am,
             }
         }
     }
@@ -152,18 +157,15 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
         bus.read(addr)
     }
 
-    #[cfg(test)]
     pub fn write(&mut self, addr: Word, data: Byte) -> Byte {
         let bus = self.bus.as_mut().expect("Bus is set");
         bus.write(addr, data)
     }
 
-    #[cfg(test)]
     pub fn set_reg(&mut self, reg: Registers) {
         self.reg = reg;
     }
 
-    #[cfg(test)]
     #[allow(unused)]
     pub fn run_pc(&mut self, addr: Word) -> CpuState {
         let mut state;
@@ -182,7 +184,6 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
         state.unwrap()
     }
 
-    #[cfg(test)]
     #[allow(unused)]
     pub fn run_until(&mut self, addr: Word) -> CpuState {
         let mut pc = self.cur_pc();
@@ -195,7 +196,6 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
         state.unwrap()
     }
 
-    #[cfg(test)]
     pub fn complete_operation(&mut self) -> CpuState {
         let mut state = Some(CpuState::OperComplete(self.prev));
         while !self.waiting() {
@@ -261,6 +261,7 @@ impl<CpuBus: RwDevice + CpuCtrl> Iterator for Cpu<CpuBus> {
                     tcc: self.tcc.wrapping_sub(1),
                     opcode: opc as u8,
                     op: INSTRUCTION_TYPE[opc],
+                    am: ADDR_MODE[opc],
                     ..Default::default()
                 };
 
