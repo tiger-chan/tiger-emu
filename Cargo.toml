@@ -5,3 +5,5 @@ members = [
     "emu",
     "nes"
 ]
+
+default-members = ["emu"]

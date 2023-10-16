@@ -32,6 +32,7 @@ fn main() {
     let console_thread = thread::spawn(move || {
         let mut nes = Nes::default();
 
+        let mut sent_registers = false;
         while let Ok(msg) = emulator_receiver.try_recv() {
             match msg {
                 EmulatorMessage::Step => {
@@ -43,9 +44,12 @@ fn main() {
                 }
                 EmulatorMessage::Query(query) => match query {
                     EmuQuery::CpuRegisters => {
-                        let state = nes.cur_state().cpu;
-                        let msg = GuiResult::CpuRegister(state);
-                        let _ = emulator_sender.send(GuiMessage::QueryResult(msg));
+                        if !sent_registers {
+                            let state = nes.cur_state().cpu;
+                            let msg = GuiResult::CpuRegister(state);
+                            let _ = emulator_sender.send(GuiMessage::QueryResult(msg));
+                        }
+                        sent_registers = true;
                     }
                 },
             }
