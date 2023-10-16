@@ -10,6 +10,9 @@ use super::{
 
 pub use bus::Bus;
 
+pub const WIDTH: u32 = 256;
+pub const HEIGHT: u32 = 240;
+
 #[derive(Debug, Default, Clone, Copy)]
 pub struct PpuState {
     pub scanline: u16,
@@ -27,10 +30,12 @@ pub struct Ppu<PpuBus: RwDevice> {
 impl<PpuBus: RwDevice> Ppu<PpuBus> {
     #[allow(unused)]
     pub fn cur_state(&self) -> PpuState {
-        PpuState { scanline: self.state.scanline, cycle: self.state.cycle }
+        PpuState {
+            scanline: self.state.scanline,
+            cycle: self.state.cycle,
+        }
     }
 }
-
 
 impl<PpuBus: RwDevice> Default for Ppu<PpuBus> {
     fn default() -> Self {

@@ -10,6 +10,8 @@ use clock_counter::*;
 pub use console::*;
 pub use cpu::{Registers, Status, Cpu, CpuCtrl};
 
+pub use ppu::{HEIGHT, WIDTH};
+
 /// Bytes, Words, Addressing
 /// 8 bit bytes, 16 bit words in lobyte-hibyte representation (Little-Endian).
 /// 16 bit address range, operands follow instruction codes.
@@ -74,6 +76,6 @@ pub mod prelude {
     pub use super::console::*;
     pub use super::io;
     pub mod cpu {
-        pub use crate::cpu::{AddrMode, AddrModeData, OperData, OperType};
+        pub use crate::cpu::{AddrMode, AddrModeData, OperData, OperType, InstructionState};
     }
 }
