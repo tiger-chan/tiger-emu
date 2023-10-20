@@ -1,86 +1,30 @@
-use nes::prelude::*;
+mod thread_nes;
+mod triple_buffer;
+
+use std::error::Error;
 use std::sync::mpsc;
 use std::thread;
+use triple_buffer::TripleBuffer;
 
-pub enum EmuQuery {
-    CpuRegisters,
-}
-
-pub enum GuiResult {
-    CpuRegister(cpu::InstructionState),
-}
-
-pub enum EmulatorMessage {
-    Step,
-    Query(EmuQuery),
-    Quit,
-}
-
-pub enum GuiMessage {
-    QueryResult(GuiResult),
-}
-
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     env_logger::builder()
         .filter_module("emu", log::LevelFilter::Debug)
         .init();
+
+    let emu_handle: TripleBuffer<thread_nes::Buffer> = TripleBuffer::default();
+    let ui_handle = emu_handle.clone();
 
     // Create channels for communication
     let (ui_sender, emulator_receiver) = mpsc::channel();
     let (emulator_sender, ui_receiver) = mpsc::channel();
 
     let console_thread = thread::spawn(move || {
-        let mut nes = Nes::default();
-
-        let mut sent_registers = false;
-        while let Ok(msg) = emulator_receiver.try_recv() {
-            match msg {
-                EmulatorMessage::Step => {
-                    nes.next();
-                }
-                EmulatorMessage::Quit => {
-                    log::warn!("Quiting EMU thread");
-                    break;
-                }
-                EmulatorMessage::Query(query) => match query {
-                    EmuQuery::CpuRegisters => {
-                        if !sent_registers {
-                            let state = nes.cur_state().cpu;
-                            let msg = GuiResult::CpuRegister(state);
-                            let _ = emulator_sender.send(GuiMessage::QueryResult(msg));
-                        }
-                        sent_registers = true;
-                    }
-                },
-            }
-        }
+        thread_nes::emu_thread(emulator_sender, emulator_receiver, emu_handle);
     });
 
-    let ui_thread = thread::spawn(move || {
-        let mut countdown = 5000;
-        loop {
-            if let Ok(msg) = ui_receiver.try_recv() {
-                match msg {
-                    GuiMessage::QueryResult(msg) => match msg {
-                        GuiResult::CpuRegister(_reg) => {}
-                    },
-                }
-            }
-
-            countdown -= 1;
-            if countdown == 0 {
-                log::warn!("Quiting UI thread");
-                ui_sender.send(EmulatorMessage::Quit).unwrap();
-                break;
-            } else {
-                //ui_sender.send(EmulatorMessage::Step).unwrap();
-                ui_sender
-                    .send(EmulatorMessage::Query(EmuQuery::CpuRegisters))
-                    .unwrap();
-            }
-        }
-    });
+    thread_nes::ui_thread(ui_sender, ui_receiver, ui_handle)?;
 
     console_thread.join().unwrap();
-    ui_thread.join().unwrap();
+
+    Ok(())
 }
