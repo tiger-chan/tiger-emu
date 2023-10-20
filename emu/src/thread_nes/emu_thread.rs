@@ -121,7 +121,7 @@ pub fn emu_thread(
                     }
                 } else {
                     let was_fetch = nes.is_fetching_instr();
-                    nes.next();
+                    nes.clock();
                     if was_fetch && was_fetch != nes.is_fetching_instr() {
                         match state {
                             InstructionFlow::Waiting => {
@@ -146,7 +146,7 @@ pub fn emu_thread(
                     }
                 } else {
                     let was_fetch = nes.is_vblank();
-                    nes.next();
+                    nes.clock();
                     if was_fetch && was_fetch != nes.is_vblank() {
                         match state {
                             FrameFlow::Waiting => {
@@ -179,6 +179,9 @@ pub fn emu_thread(
                     let b = ((t + 4.0 / 3.0).sin() * 127.0 + 128.0) as u8;
 
                     let frame = Instant::now();
+
+                    nes.clock();
+
                     if let Ok(mut bck) = frame_buffer.back_mut().write() {
                         for y in 0..HEIGHT as usize {
                             let y_idx = y * WIDTH as usize;

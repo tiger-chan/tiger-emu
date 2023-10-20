@@ -3,6 +3,8 @@ mod registers;
 
 use std::{cell::RefCell, rc::Rc};
 
+use crate::Clocked;
+
 use super::{
     io::{ReadDevice, RwDevice, WriteDevice},
     Byte, Word,
@@ -52,9 +54,9 @@ impl<PpuBus: RwDevice> Default for Ppu<PpuBus> {
     }
 }
 
-impl<PpuBus: RwDevice> Iterator for Ppu<PpuBus> {
+impl<PpuBus: RwDevice> Clocked for Ppu<PpuBus> {
     type Item = PpuState;
-    fn next(&mut self) -> Option<Self::Item> {
+    fn clock(&mut self) -> Option<Self::Item> {
         if self.state.scanline == u16::MAX && self.state.cycle == 1 {
             self.reg.status.set(Status::V, false);
         }

@@ -6,9 +6,14 @@ pub mod io;
 mod ppu;
 mod registers;
 
+pub trait Clocked {
+    type Item;
+    fn clock(&mut self) -> Option<Self::Item>;
+}
+
 use clock_counter::*;
 pub use console::*;
-pub use cpu::{Registers, Status, Cpu, CpuCtrl};
+pub use cpu::{Cpu, CpuCtrl, Registers, Status};
 
 pub use ppu::{HEIGHT, WIDTH};
 
@@ -72,10 +77,10 @@ pub const IRQ_HI: Word = 0xFFFF;
 pub const CPU_RAM: usize = 64 * 1024;
 
 pub mod prelude {
-    pub use super::{Word, Byte};
     pub use super::console::*;
     pub use super::io;
+    pub use super::{Byte, Clocked, Word};
     pub mod cpu {
-        pub use crate::cpu::{AddrMode, AddrModeData, OperData, OperType, InstructionState};
+        pub use crate::cpu::{AddrMode, AddrModeData, InstructionState, OperData, OperType};
     }
 }

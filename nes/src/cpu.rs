@@ -13,7 +13,9 @@ pub use instruction::{AddrMode, AddrModeData, OperData, OperType};
 
 use instruction::{InstructionIterator, INSTRUCTION_TYPE};
 
-use self::instruction::{OPER, ADDR_MODE};
+use crate::Clocked;
+
+use self::instruction::{ADDR_MODE, OPER};
 
 use super::{io::RwDevice, Byte, Word};
 
@@ -33,7 +35,7 @@ pub struct InstructionState {
 impl Default for InstructionState {
     fn default() -> Self {
         Self {
-            reg: Registers{
+            reg: Registers {
                 sp: 0xFD,
                 p: Status(0x34),
                 ..Registers::default()
@@ -171,14 +173,14 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
         let mut state;
         if self.cur_pc() != addr {
             while !self.waiting() {
-                self.next();
+                self.clock();
             }
             self.pc(addr);
         }
 
-        state = self.next();
+        state = self.clock();
         while !self.waiting() {
-            state = self.next();
+            state = self.clock();
         }
 
         state.unwrap()
@@ -189,7 +191,7 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
         let mut pc = self.cur_pc();
         let mut state = Some(CpuState::OperComplete(self.prev));
         while pc != addr {
-            state = self.next();
+            state = self.clock();
             pc = self.cur_pc();
         }
 
@@ -199,7 +201,7 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
     pub fn complete_operation(&mut self) -> CpuState {
         let mut state = Some(CpuState::OperComplete(self.prev));
         while !self.waiting() {
-            state = self.next();
+            state = self.clock();
         }
 
         state.unwrap()
@@ -227,9 +229,9 @@ impl<CpuBus: RwDevice + CpuCtrl> Default for Cpu<CpuBus> {
     }
 }
 
-impl<CpuBus: RwDevice + CpuCtrl> Iterator for Cpu<CpuBus> {
+impl<CpuBus: RwDevice + CpuCtrl> Clocked for Cpu<CpuBus> {
     type Item = CpuState;
-    fn next(&mut self) -> Option<Self::Item> {
+    fn clock(&mut self) -> Option<Self::Item> {
         self.tcc = self.tcc.wrapping_add(1);
 
         match self.instruction.next() {

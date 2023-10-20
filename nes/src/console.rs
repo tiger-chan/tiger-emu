@@ -1,5 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
+use crate::Clocked;
+
 use super::{
     cart::{Cartridge, Mapper, MapperRef},
     cpu::{Bus as CpuBus, CpuRef, CpuState, InstructionState},
@@ -52,7 +54,7 @@ impl Nes {
 
     pub fn reset(&mut self) {
         while !self.cpu.borrow().waiting() {
-            self.next();
+            self.clock();
         }
         self.tcc = 0;
         self.cpu.borrow_mut().reset();
@@ -60,14 +62,14 @@ impl Nes {
 
     pub fn irq(&mut self) {
         while !self.cpu.borrow().waiting() {
-            self.next();
+            self.clock();
         }
         self.cpu.borrow_mut().irq();
     }
 
     pub fn nmi(&mut self) {
         while !self.cpu.borrow().waiting() {
-            self.next();
+            self.clock();
         }
         self.cpu.borrow_mut().nmi();
     }
@@ -76,16 +78,16 @@ impl Nes {
     pub fn run_pc(&mut self, addr: Word) -> NesState {
         if self.cpu.borrow().cur_pc() != addr {
             while !self.cpu.borrow().waiting() {
-                self.next();
+                self.clock();
             }
             self.cpu.borrow_mut().pc(addr);
         }
         if let Some(cc) = self.count_until_process(Process::Cpu) {
             for _ in 0..=cc {
-                self.next();
+                self.clock();
             }
             while !self.cpu.borrow().waiting() {
-                self.next();
+                self.clock();
             }
         }
 
@@ -96,7 +98,7 @@ impl Nes {
     pub fn run_until(&mut self, addr: Word) -> NesState {
         let mut pc = self.cpu.borrow().cur_pc();
         while pc != addr {
-            self.next();
+            self.clock();
             pc = self.cpu.borrow().cur_pc();
         }
 
@@ -106,7 +108,7 @@ impl Nes {
     #[allow(unused)]
     pub fn complete_operation(&mut self) -> NesState {
         while !self.cpu.borrow().waiting() {
-            self.next();
+            self.clock();
         }
 
         self.state.clone()
@@ -176,18 +178,18 @@ impl Default for Nes {
     }
 }
 
-impl Iterator for Nes {
+impl Clocked for Nes {
     type Item = NesState;
-    fn next(&mut self) -> Option<Self::Item> {
+    fn clock(&mut self) -> Option<Self::Item> {
         for p in self.seq.iter_mut() {
             if let Some(process) = p.next() {
                 match process {
                     Process::Ppu => {
-                        if let Some(state) = self.ppu.borrow_mut().next() {
+                        if let Some(state) = self.ppu.borrow_mut().clock() {
                             self.ppu_cur = state;
                         }
                     }
-                    Process::Cpu => match self.cpu.borrow_mut().next() {
+                    Process::Cpu => match self.cpu.borrow_mut().clock() {
                         Some(CpuState::OperComplete(state)) => {
                             self.state.cpu = state;
                         }
