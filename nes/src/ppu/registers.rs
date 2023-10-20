@@ -1,6 +1,7 @@
-use crate::{registers::{
-    bit_and, bit_or, bit_xor, display, not, partial_eq, reg_add_impl, reg_from_impl,
-}, Byte, Word};
+use crate::{
+    registers::{bit_and, bit_or, bit_xor, display, not, partial_eq, reg_add_impl, reg_from_impl},
+    Byte, Word,
+};
 use core::fmt;
 use std::ops::{Add, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not};
 
@@ -27,7 +28,7 @@ use std::ops::{Add, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssi
 /// PPUDATA       $2007     dddd dddd    PPU data read/write
 /// OAMDMA        $4014     aaaa aaaa    OAM DMA high address
 ///```
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Registers {
     /// # PPUCTRL
     ///

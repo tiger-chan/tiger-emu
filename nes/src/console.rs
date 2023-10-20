@@ -26,12 +26,10 @@ pub struct Nes {
 }
 
 impl Nes {
-    #[allow(unused)]
     pub fn new() -> Self {
         Self::default()
     }
 
-    #[allow(unused)]
     pub fn with_cart(mut self, cart: Cartridge) -> Self {
         self.insert_cart(cart);
         self.cpu.borrow_mut().reset();
@@ -52,13 +50,26 @@ impl Nes {
         self
     }
 
-    #[allow(unused)]
     pub fn reset(&mut self) {
         while !self.cpu.borrow().waiting() {
             self.next();
         }
         self.tcc = 0;
         self.cpu.borrow_mut().reset();
+    }
+
+    pub fn irq(&mut self) {
+        while !self.cpu.borrow().waiting() {
+            self.next();
+        }
+        self.cpu.borrow_mut().irq();
+    }
+
+    pub fn nmi(&mut self) {
+        while !self.cpu.borrow().waiting() {
+            self.next();
+        }
+        self.cpu.borrow_mut().nmi();
     }
 
     #[allow(unused)]
@@ -105,7 +116,11 @@ impl Nes {
     pub fn cur_state(&self) -> NesState {
         let cpu = self.cpu.borrow().cur_state();
         let ppu = self.ppu.borrow().cur_state();
-        NesState { ppu, cpu, tcc: self.tcc }
+        NesState {
+            ppu,
+            cpu,
+            tcc: self.tcc,
+        }
     }
 
     fn count_until_process(&self, p: Process) -> Option<u8> {
@@ -136,6 +151,14 @@ impl Nes {
         for (i, v) in out.iter_mut().enumerate() {
             *v = self.cpu.borrow().read(addr + i as Word)
         }
+    }
+
+    pub fn is_fetching_instr(&self) -> bool {
+        self.cpu.borrow().waiting()
+    }
+
+    pub fn is_vblank(&self) -> bool {
+        self.ppu.borrow().is_vblank()
     }
 }
 
