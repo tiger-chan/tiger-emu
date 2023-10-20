@@ -1,4 +1,4 @@
-use std::sync::mpsc::*;
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::time::Instant;
 
 use error_iter::ErrorIter;
@@ -15,7 +15,8 @@ use winit::{
 use winit_input_helper::WinitInputHelper;
 
 use super::{Buffer, EmulatorMessage, GuiMessage, GuiResult};
-use crate::thread_nes::FRAME_TIME;
+use crate::gui::{Framework, Message};
+use crate::thread_nes::{EmuQuery, FRAME_TIME};
 use crate::triple_buffer::TripleBuffer;
 
 const WIDTH: u32 = 1024;
@@ -43,24 +44,39 @@ pub fn ui_thread(
             .unwrap()
     };
 
-    let (mut pixels, _) = {
+    let (mut pixels, mut framework) = {
         let window_size = window.inner_size();
+        let scale_factor = window.scale_factor() as f32;
         let surface_texture = SurfaceTexture::new(window_size.width, window_size.height, &window);
         let pixels = Pixels::new(NES_WIDTH, NES_HEIGHT, surface_texture)?;
-        (pixels, 5)
+
+        let framework = Framework::new(
+            &evt_loop,
+            window_size.width,
+            window_size.height,
+            scale_factor,
+            &pixels,
+        );
+
+        (pixels, framework)
     };
 
     let mut residual_time = 0.0;
     let mut prev_instant = Instant::now();
+    let mut is_running = false;
 
     evt_loop.run(move |event, _, control_flow| {
+        let (gui_sender, gui_receiver) = mpsc::channel();
         let cur_instant = Instant::now();
         let mut delta_time = cur_instant.duration_since(prev_instant).as_secs_f32();
         prev_instant = cur_instant;
-        if let Ok(msg) = receiver.try_recv() {
+        while let Ok(msg) = receiver.try_recv() {
             match msg {
                 GuiMessage::QueryResult(msg) => match msg {
                     GuiResult::CpuRegister(_reg) => {}
+                    GuiResult::PlayState(state) => {
+                        is_running = state;
+                    }
                 },
             }
         }
@@ -77,6 +93,9 @@ pub fn ui_thread(
             residual_time += FRAME_TIME - delta_time;
 
             let frame = Instant::now();
+
+            let _ = sender.send(EmulatorMessage::Query(EmuQuery::CpuRegisters));
+
             if let Ok(front) = frame_buffer.front().read() {
                 let pixels = pixels.frame_mut();
                 for (i, p) in pixels.chunks_exact_mut(4).enumerate() {
@@ -88,14 +107,14 @@ pub fn ui_thread(
             frame_buffer.flip();
             let end_frame = Instant::now();
             let dur = end_frame.duration_since(frame).as_secs_f32();
-            log::debug!("Frame took {dur}");
+            log::trace!("Frame took {dur}");
         }
 
         if residual_time < -1.0 {
             *control_flow = ControlFlow::Exit;
 
             log::warn!("Quiting UI thread");
-            sender.send(EmulatorMessage::Quit).unwrap();
+            let _ = sender.send(EmulatorMessage::Quit);
             return;
         }
 
@@ -106,13 +125,13 @@ pub fn ui_thread(
                 *control_flow = ControlFlow::Exit;
 
                 log::warn!("Quiting UI thread");
-                sender.send(EmulatorMessage::Quit).unwrap();
+                let _ = sender.send(EmulatorMessage::Quit);
                 return;
             }
 
             // Update the scale factor
-            if let Some(_scale_factor) = input.scale_factor() {
-                //framework.scale_factor(scale_factor);
+            if let Some(scale_factor) = input.scale_factor() {
+                framework.scale_factor(scale_factor);
             }
 
             // Resize the window
@@ -122,10 +141,10 @@ pub fn ui_thread(
                     *control_flow = ControlFlow::Exit;
 
                     log::warn!("Quiting UI thread");
-                    sender.send(EmulatorMessage::Quit).unwrap();
+                    let _ = sender.send(EmulatorMessage::Quit);
                     return;
                 }
-                //framework.resize(size.width, size.height);
+                framework.resize(size.width, size.height);
             }
 
             // Update internal state and request a redraw
@@ -136,16 +155,49 @@ pub fn ui_thread(
         match event {
             Event::WindowEvent { event, .. } => {
                 let _ = event;
-                // // Update egui inputs
-                // framework.handle_event(&event);
+                // Update egui inputs
+                framework.handle_event(&event);
             }
             // Draw the current frame
             Event::RedrawRequested(_) => {
                 // // Draw the world
                 // board.draw(pixels.frame_mut());
 
-                // // Prepare egui
-                // framework.prepare(&window, &mut run_emulation, &mut board);
+                // Prepare egui
+                framework.prepare(&window, &gui_sender);
+                while let Ok(msg) = gui_receiver.try_recv() {
+                    match msg {
+                        Message::Frame => {
+                            sender.send(EmulatorMessage::Frame).unwrap();
+                        }
+                        Message::Irq => {
+                            sender.send(EmulatorMessage::Irq).unwrap();
+                        }
+                        Message::Load(cart) => {
+                            sender.send(EmulatorMessage::Load(cart)).unwrap();
+                        }
+                        Message::Nmi => {
+                            sender.send(EmulatorMessage::Nmi).unwrap();
+                        }
+                        Message::Play => {
+                            sender.send(EmulatorMessage::Play).unwrap();
+                        }
+                        Message::PlayPause => {
+                            let action = if is_running {
+                                EmulatorMessage::Pause
+                            } else {
+                                EmulatorMessage::Play
+                            };
+                            sender.send(action).unwrap();
+                        }
+                        Message::Reset => {
+                            sender.send(EmulatorMessage::Reset).unwrap();
+                        }
+                        Message::Step => {
+                            sender.send(EmulatorMessage::Step).unwrap();
+                        }
+                    }
+                }
 
                 // Render everything together
                 let render_result = pixels.render_with(|encoder, render_target, context| {
@@ -153,7 +205,7 @@ pub fn ui_thread(
                     context.scaling_renderer.render(encoder, render_target);
 
                     // // Render egui
-                    // framework.render(encoder, render_target, context);
+                    framework.render(encoder, render_target, context);
 
                     Ok(())
                 });

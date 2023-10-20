@@ -1,7 +1,7 @@
-use std::{sync::mpsc::*, time::Instant};
+use std::{path::Path, sync::mpsc::*, time::Instant};
 
 use crate::{thread_nes::FRAME_TIME, triple_buffer::TripleBuffer};
-use nes::{prelude::*, HEIGHT, WIDTH};
+use nes::{cart::Cartridge, prelude::*, HEIGHT, WIDTH};
 
 use super::{Buffer, EmuQuery, EmulatorMessage, GuiMessage, GuiResult};
 
@@ -9,25 +9,42 @@ pub fn emu_thread(
     sender: Sender<GuiMessage>,
     receiver: Receiver<EmulatorMessage>,
     mut frame_buffer: TripleBuffer<Buffer>,
-) {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut nes = Nes::default();
 
     let mut cycles: u64 = 0;
-    let mut run_emulation: bool = true;
+    let mut run_emulation: bool = false;
 
     let mut residual_time = 0.0;
     let mut prev_instant = Instant::now();
 
-    let mut sent_registers = false;
+    let mut color_time = 0.0;
+
     'emu_loop: loop {
         let cur_instant = Instant::now();
         let mut delta_time = cur_instant.duration_since(prev_instant).as_secs_f32();
         prev_instant = cur_instant;
 
-        if let Ok(msg) = receiver.try_recv() {
+        let mut sent_registers = false;
+        while let Ok(msg) = receiver.try_recv() {
             match msg {
+                EmulatorMessage::Load(cart_location) => {
+                    run_emulation = false;
+                    let path = Path::new(&cart_location);
+                    let cart = Cartridge::try_from(path)?;
+                    nes = Nes::default().with_cart(cart);
+                }
+                EmulatorMessage::Play => {
+                    run_emulation = true;
+                }
+                EmulatorMessage::Pause => {
+                    run_emulation = false;
+                }
+                EmulatorMessage::Frame => {
+                    //nes.complete_frame();
+                }
                 EmulatorMessage::Step => {
-                    nes.next();
+                    //nes.step_instruction();
                 }
                 EmulatorMessage::Quit => {
                     log::warn!("Quiting EMU thread");
@@ -43,9 +60,19 @@ pub fn emu_thread(
                         sent_registers = true;
                     }
                 },
+                EmulatorMessage::Irq => {
+                    //nes.irq();
+                }
+                EmulatorMessage::Nmi => {
+                    //nes.nmi();
+                }
+                EmulatorMessage::Reset => {
+                    nes.reset();
+                }
             }
         }
 
+        let _ = sender.send(GuiMessage::QueryResult(GuiResult::PlayState(run_emulation)));
         if run_emulation {
             if residual_time > 0.0 {
                 residual_time -= delta_time;
@@ -58,15 +85,21 @@ pub fn emu_thread(
 
                 residual_time += FRAME_TIME - delta_time;
 
+                color_time += FRAME_TIME;
+                let t = (color_time % 5.0) / 5.0;
+                let r = (t.sin() * 127.0 + 128.0) as u8;
+                let g = ((t + 2.0 / 3.0).sin() * 127.0 + 128.0) as u8;
+                let b = ((t + 4.0 / 3.0).sin() * 127.0 + 128.0) as u8;
+
                 let frame = Instant::now();
                 if let Ok(mut bck) = frame_buffer.back_mut().write() {
                     for y in 0..HEIGHT as usize {
                         let y_idx = y * WIDTH as usize;
                         for x in 0..WIDTH as usize {
                             let idx = (x + y_idx) * 3;
-                            bck.0[idx] = cycles as u8;
-                            bck.0[idx + 1] = cycles as u8;
-                            bck.0[idx + 2] = cycles as u8;
+                            bck.0[idx] = r;
+                            bck.0[idx + 1] = g;
+                            bck.0[idx + 2] = b;
                         }
                     }
                 }
@@ -81,4 +114,6 @@ pub fn emu_thread(
 
         cycles = cycles.wrapping_add(1);
     }
+
+    Ok(())
 }

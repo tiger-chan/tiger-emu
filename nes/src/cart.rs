@@ -1,13 +1,14 @@
 mod ines_header;
 mod mapper;
 
+use std::fmt::Display;
 use std::fs;
 use std::io::Seek;
 use std::path::Path;
 use std::{io, io::Read, io::SeekFrom};
 
+pub use ines_header::{Format, INesHeader};
 pub use mapper::{Mapper, MapperRef};
-pub use ines_header::{INesHeader, Format};
 
 pub type ProgramMemory = Vec<u8>;
 pub type CharacterMemory = Vec<u8>;
@@ -48,6 +49,27 @@ pub enum CartridgeLoadError {
     FileError(io::Error),
     IoError(io::Error),
 }
+
+impl Display for CartridgeLoadError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CartridgeLoadError::BadChrChunk => {
+                write!(f, "Bad character chunk data")
+            }
+            CartridgeLoadError::BadHeader => {
+                write!(f, "Bad Header")
+            }
+            CartridgeLoadError::BadPrgChunk => {
+                write!(f, "Bad program chunk data")
+            }
+            CartridgeLoadError::FileError(s) | CartridgeLoadError::IoError(s) => {
+                write!(f, "{}", s)
+            }
+        }
+    }
+}
+
+impl std::error::Error for CartridgeLoadError {}
 
 impl TryFrom<&[u8]> for Cartridge {
     type Error = CartridgeLoadError;

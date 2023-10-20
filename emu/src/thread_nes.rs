@@ -21,10 +21,18 @@ pub enum EmuQuery {
 
 pub enum GuiResult {
     CpuRegister(cpu::InstructionState),
+    PlayState(bool),
 }
 
 pub enum EmulatorMessage {
+    Load(String),
+    Play,
+    Pause,
+    Frame,
     Step,
+    Reset,
+    Irq,
+    Nmi,
     Query(EmuQuery),
     Quit,
 }
