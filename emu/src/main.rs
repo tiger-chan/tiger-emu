@@ -9,6 +9,7 @@ use triple_buffer::TripleBuffer;
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::builder()
+        .filter_module("nes", log::LevelFilter::Debug)
         .filter_module("emu", log::LevelFilter::Debug)
         .init();
 

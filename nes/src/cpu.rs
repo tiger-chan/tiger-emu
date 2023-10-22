@@ -87,16 +87,19 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
                 self.reg.pc
             };
 
-            let bus = self.bus.as_ref().expect("Bus is set");
-            let opc = bus.read(pc) as usize;
+            if let Some(bus) = self.bus.as_ref() {
+                let opc = bus.read(pc) as usize;
 
-            InstructionState {
-                reg: self.reg,
-                tcc: self.tcc,
-                opcode: opc as u8,
-                op: INSTRUCTION_TYPE[opc],
-                am: ADDR_MODE[opc],
-                ..Default::default()
+                InstructionState {
+                    reg: self.reg,
+                    tcc: self.tcc,
+                    opcode: opc as u8,
+                    op: INSTRUCTION_TYPE[opc],
+                    am: ADDR_MODE[opc],
+                    ..Default::default()
+                }
+            } else {
+                InstructionState::default()
             }
         } else {
             InstructionState {
@@ -155,13 +158,19 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
     }
 
     pub fn read(&self, addr: Word) -> Byte {
-        let bus = self.bus.as_ref().expect("Bus is set");
-        bus.read(addr)
+        if let Some(bus) = self.bus.as_ref() {
+            bus.read(addr)
+        } else {
+            0
+        }
     }
 
     pub fn write(&mut self, addr: Word, data: Byte) -> Byte {
-        let bus = self.bus.as_mut().expect("Bus is set");
-        bus.write(addr, data)
+        if let Some(bus) = self.bus.as_mut() {
+            bus.write(addr, data)
+        } else {
+            0
+        }
     }
 
     pub fn set_reg(&mut self, reg: Registers) {
@@ -237,14 +246,17 @@ impl<CpuBus: RwDevice + CpuCtrl> Clocked for Cpu<CpuBus> {
         match self.instruction.next() {
             Some(_) => {
                 use instruction::InstructionResult::*;
-                let bus = self.bus.as_mut().expect("Bus is set");
-                match self.instruction.clock(&mut self.reg, bus) {
-                    Clock => Some(CpuState::OperExecuting),
-                    Result(addr, oper) => {
-                        self.prev.addr = addr;
-                        self.prev.oper = oper;
-                        Some(CpuState::OperComplete(self.prev))
+                if let Some(bus) = self.bus.as_mut() {
+                    match self.instruction.clock(&mut self.reg, bus) {
+                        Clock => Some(CpuState::OperExecuting),
+                        Result(addr, oper) => {
+                            self.prev.addr = addr;
+                            self.prev.oper = oper;
+                            Some(CpuState::OperComplete(self.prev))
+                        }
                     }
+                } else {
+                    None
                 }
             }
             None => {
@@ -253,22 +265,23 @@ impl<CpuBus: RwDevice + CpuCtrl> Clocked for Cpu<CpuBus> {
                     self.reg.pc = pc;
                 };
 
-                let bus = self.bus.as_ref().expect("Bus is set");
-                let opc = bus.read(self.reg.pc) as usize;
+                if let Some(bus) = self.bus.as_ref() {
+                    let opc = bus.read(self.reg.pc) as usize;
 
-                self.reg.p.set(Status::U, true);
+                    self.reg.p.set(Status::U, true);
 
-                self.prev = InstructionState {
-                    reg: self.reg,
-                    tcc: self.tcc.wrapping_sub(1),
-                    opcode: opc as u8,
-                    op: INSTRUCTION_TYPE[opc],
-                    am: ADDR_MODE[opc],
-                    ..Default::default()
-                };
+                    self.prev = InstructionState {
+                        reg: self.reg,
+                        tcc: self.tcc.wrapping_sub(1),
+                        opcode: opc as u8,
+                        op: INSTRUCTION_TYPE[opc],
+                        am: ADDR_MODE[opc],
+                        ..Default::default()
+                    };
 
-                self.reg.pc = self.reg.pc.wrapping_add(1);
-                self.instruction = OPER[opc]();
+                    self.reg.pc = self.reg.pc.wrapping_add(1);
+                    self.instruction = OPER[opc]();
+                }
                 None
             }
         }

@@ -1,7 +1,7 @@
-use std::{path::Path, sync::mpsc::*, time::Instant};
+use std::{cell::RefCell, path::Path, rc::Rc, sync::mpsc::*, time::Instant};
 
 use crate::{thread_nes::FRAME_TIME, triple_buffer::TripleBuffer};
-use nes::{cart::Cartridge, prelude::*, HEIGHT, WIDTH};
+use nes::{cart::Cartridge, io::DisplayDevice, prelude::*, HEIGHT, WIDTH};
 
 use super::{Buffer, EmuQuery, EmulatorMessage, GuiMessage, GuiResult};
 
@@ -27,21 +27,32 @@ enum EmulationStepMethod {
     Standard,
 }
 
+impl DisplayDevice for TripleBuffer<Buffer> {
+    fn write(&mut self, x: Word, y: Word, data: Color) {
+        if x < WIDTH && y < HEIGHT {
+            if let Ok(mut bck) = self.back_mut().write() {
+                let idx = (y * WIDTH + x) as usize;
+                bck.0[idx] = data;
+            }
+        }
+    }
+}
+
 pub fn emu_thread(
     sender: Sender<GuiMessage>,
     receiver: Receiver<EmulatorMessage>,
-    mut frame_buffer: TripleBuffer<Buffer>,
+    frame_buffer: TripleBuffer<Buffer>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let mut nes = Nes::default();
+    let display = Rc::new(RefCell::new(frame_buffer));
+    let mut nes = Nes::default().with_display(display.clone());
 
-    let mut cycles: u64 = 0;
     let mut residual_time = 0.0;
     let mut prev_instant = Instant::now();
 
-    let mut color_time = 0.0;
     let mut emu_processing = EmulationStepMethod::None;
 
     'emu_loop: loop {
+        let last_emu_processing = emu_processing;
         let cur_instant = Instant::now();
         let mut delta_time = cur_instant.duration_since(prev_instant).as_secs_f32();
         prev_instant = cur_instant;
@@ -53,7 +64,7 @@ pub fn emu_thread(
                     emu_processing = EmulationStepMethod::None;
                     let path = Path::new(&cart_location);
                     let cart = Cartridge::try_from(path)?;
-                    nes = Nes::default().with_cart(cart);
+                    nes = Nes::default().with_cart(cart).with_display(display.clone());
                 }
                 EmulatorMessage::Play => {
                     emu_processing = EmulationStepMethod::Standard;
@@ -105,8 +116,6 @@ pub fn emu_thread(
             }
         }
 
-        let is_running = emu_processing == EmulationStepMethod::Standard;
-        let _ = sender.send(GuiMessage::QueryResult(GuiResult::PlayState(is_running)));
         match emu_processing {
             EmulationStepMethod::None => {
                 // Do Nothing no processing reset timers
@@ -172,28 +181,16 @@ pub fn emu_thread(
 
                     residual_time += FRAME_TIME - delta_time;
 
-                    color_time += FRAME_TIME;
-                    let t = (color_time % 5.0) / 5.0;
-                    let r = (t.sin() * 127.0 + 128.0) as u8;
-                    let g = ((t + 2.0 / 3.0).sin() * 127.0 + 128.0) as u8;
-                    let b = ((t + 4.0 / 3.0).sin() * 127.0 + 128.0) as u8;
-
                     let frame = Instant::now();
 
-                    nes.clock();
-
-                    if let Ok(mut bck) = frame_buffer.back_mut().write() {
-                        for y in 0..HEIGHT as usize {
-                            let y_idx = y * WIDTH as usize;
-                            for x in 0..WIDTH as usize {
-                                let idx = (x + y_idx) * 3;
-                                bck.0[idx] = r;
-                                bck.0[idx + 1] = g;
-                                bck.0[idx + 2] = b;
-                            }
-                        }
+                    while nes.is_vblank() {
+                        nes.clock();
                     }
-                    frame_buffer.submit();
+
+                    while !nes.is_vblank() {
+                        nes.clock();
+                    }
+
                     let end_frame = Instant::now();
                     let dur = end_frame.duration_since(frame).as_secs_f32();
                     log::trace!("Frame took {dur}");
@@ -201,7 +198,14 @@ pub fn emu_thread(
             }
         }
 
-        cycles = cycles.wrapping_add(1);
+        if emu_processing != last_emu_processing {
+            let is_running = emu_processing == EmulationStepMethod::Standard;
+            let _ = sender.send(GuiMessage::QueryResult(GuiResult::PlayState(is_running)));
+        }
+
+        if nes.is_vblank() {
+            display.borrow_mut().submit();
+        }
     }
 
     Ok(())

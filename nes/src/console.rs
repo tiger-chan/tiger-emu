@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::Clocked;
+use crate::{io::DisplayDevice, Clocked};
 
 use super::{
     cart::{Cartridge, Mapper, MapperRef},
@@ -35,6 +35,11 @@ impl Nes {
     pub fn with_cart(mut self, cart: Cartridge) -> Self {
         self.insert_cart(cart);
         self.cpu.borrow_mut().reset();
+        self
+    }
+
+    pub fn with_display(self, display: Rc<RefCell<dyn DisplayDevice>>) -> Self {
+        self.ppu.borrow_mut().connect_display(display);
         self
     }
 

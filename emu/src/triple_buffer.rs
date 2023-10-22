@@ -12,6 +12,7 @@ impl Default for BufferIndex {
     }
 }
 
+#[derive(Debug)]
 pub struct TripleBuffer<Content> {
     buf: [Arc<RwLock<Content>>; 3],
     idx: Arc<RwLock<BufferIndex>>,

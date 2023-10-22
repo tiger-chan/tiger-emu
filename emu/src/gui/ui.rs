@@ -54,63 +54,63 @@ impl MainGui {
                         }
                         ui.close_menu();
                     }
-
-                    ui.menu_button("Diagnostics", |ui| {
-                        ui.menu_button("CPU", |ui| {
-                            if ui.button("Registers").clicked() {
-                                self.cpu_status = true;
-                                ui.close_menu();
-                            }
-
-                            if ui.button("Memory").clicked() {
-                                self.cpu_memory = true;
-                                ui.close_menu();
-                            }
-
-                            if ui.button("Instructions").clicked() {
-                                self.cpu_instructions = true;
-                                ui.close_menu();
-                            }
-                        });
-
-                        if ui.button("PPU").clicked() {
-                            ui.close_menu();
-                        }
-
-                        ui.separator();
-
-                        if ui.button("Play (F5)").clicked() {
-                            sender.send(Message::Play).unwrap();
-                            ui.close_menu();
-                        }
-
-                        if ui.button("Step (F10)").clicked() {
-                            sender.send(Message::Step).unwrap();
-                            ui.close_menu();
-                        }
-
-                        if ui.button("Step Frame (CTRL+F10)").clicked() {
-                            sender.send(Message::Frame).unwrap();
-                            ui.close_menu();
-                        }
-
-                        if ui.button("Reset (CTRL + SHIFT + F5)").clicked() {
-                            sender.send(Message::Reset).unwrap();
-                            ui.close_menu();
-                        }
-
-                        if ui.button("IRQ (CTRL + SHIFT + I)").clicked() {
-                            sender.send(Message::Irq).unwrap();
-                            ui.close_menu();
-                        }
-
-                        if ui.button("NMI (CTRL + SHIFT + N)").clicked() {
-                            sender.send(Message::Nmi).unwrap();
-                            ui.close_menu();
-                        }
-                    })
                 });
-            })
+
+                ui.menu_button("Diagnostics", |ui| {
+                    ui.menu_button("CPU", |ui| {
+                        if ui.button("Registers").clicked() {
+                            self.cpu_status = true;
+                            ui.close_menu();
+                        }
+
+                        if ui.button("Memory").clicked() {
+                            self.cpu_memory = true;
+                            ui.close_menu();
+                        }
+
+                        if ui.button("Instructions").clicked() {
+                            self.cpu_instructions = true;
+                            ui.close_menu();
+                        }
+                    });
+
+                    if ui.button("PPU").clicked() {
+                        ui.close_menu();
+                    }
+
+                    ui.separator();
+
+                    if ui.button("Play (F5)").clicked() {
+                        sender.send(Message::Play).unwrap();
+                        ui.close_menu();
+                    }
+
+                    if ui.button("Step (F10)").clicked() {
+                        sender.send(Message::Step).unwrap();
+                        ui.close_menu();
+                    }
+
+                    if ui.button("Step Frame (CTRL+F10)").clicked() {
+                        sender.send(Message::Frame).unwrap();
+                        ui.close_menu();
+                    }
+
+                    if ui.button("Reset (CTRL + SHIFT + F5)").clicked() {
+                        sender.send(Message::Reset).unwrap();
+                        ui.close_menu();
+                    }
+
+                    if ui.button("IRQ (CTRL + SHIFT + I)").clicked() {
+                        sender.send(Message::Irq).unwrap();
+                        ui.close_menu();
+                    }
+
+                    if ui.button("NMI (CTRL + SHIFT + N)").clicked() {
+                        sender.send(Message::Nmi).unwrap();
+                        ui.close_menu();
+                    }
+                })
+            });
         });
     }
 }

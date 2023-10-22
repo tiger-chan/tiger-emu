@@ -98,9 +98,8 @@ pub fn ui_thread(
 
             if let Ok(front) = frame_buffer.front().read() {
                 let pixels = pixels.frame_mut();
-                for (i, p) in pixels.chunks_exact_mut(4).enumerate() {
-                    let idx = i * 3;
-                    let color = [front.0[idx], front.0[idx + 1], front.0[idx + 2], 255];
+                for (idx, p) in pixels.chunks_exact_mut(4).enumerate() {
+                    let color = front.0[idx].to_array();
                     p.copy_from_slice(&color);
                 }
             }
@@ -111,10 +110,7 @@ pub fn ui_thread(
         }
 
         if residual_time < -1.0 {
-            *control_flow = ControlFlow::Exit;
-
-            log::warn!("Quiting UI thread");
-            let _ = sender.send(EmulatorMessage::Quit);
+            residual_time = 0.0;
             return;
         }
 

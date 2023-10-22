@@ -80,6 +80,7 @@ pub mod prelude {
     pub use super::console::*;
     pub use super::io;
     pub use super::{Byte, Clocked, Word};
+    pub use super::ppu::Color;
     pub mod cpu {
         pub use crate::cpu::{AddrMode, AddrModeData, InstructionState, OperData, OperType};
     }

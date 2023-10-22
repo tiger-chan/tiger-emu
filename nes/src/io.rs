@@ -1,5 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
+use crate::ppu::Color;
+
 use super::{Byte, Word};
 
 pub trait ReadDevice: std::fmt::Debug {
@@ -8,6 +10,10 @@ pub trait ReadDevice: std::fmt::Debug {
 
 pub trait WriteDevice: std::fmt::Debug {
     fn write(&mut self, addr: Word, data: Byte) -> Byte;
+}
+
+pub trait DisplayDevice: std::fmt::Debug {
+    fn write(&mut self, x: Word, y: Word, data: Color);
 }
 
 pub trait RwDevice: ReadDevice + WriteDevice {}
