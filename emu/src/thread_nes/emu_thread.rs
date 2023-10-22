@@ -151,8 +151,8 @@ pub fn emu_thread(
                         residual_time -= delta_time;
                     } else {
                         if FRAME_TIME < delta_time {
-                            log::warn!("Delta time is too large {delta_time}");
                             // Just ignore the time
+                            log::warn!("Delta time is too large {delta_time}");
                             delta_time = FRAME_TIME;
                         }
 
@@ -160,17 +160,20 @@ pub fn emu_thread(
 
                         let frame = Instant::now();
 
+                        let mut count = 0;
                         while nes.is_vblank() {
+                            count += 1;
                             nes.clock(&mut display);
                         }
 
                         while !nes.is_vblank() {
+                            count += 1;
                             nes.clock(&mut display);
                         }
 
                         let end_frame = Instant::now();
                         let dur = end_frame.duration_since(frame).as_secs_f32();
-                        log::debug!("Standard running took {dur}");
+                        log::debug!("Standard running took {dur} and clocked: {count}");
                     }
                 }
             }

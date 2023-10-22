@@ -403,12 +403,18 @@ impl<PpuBus: RwDevice> Default for Ppu<PpuBus> {
     }
 }
 
+const STATIC_COLORS: [Color; 2] = [
+    Color::BLACK,
+    Color::WHITE,
+];
+
 impl<PpuBus: RwDevice> DisplayClocked for Ppu<PpuBus> {
     type Item = PpuState;
     fn clock(&mut self, display: &mut dyn DisplayDevice) -> Option<Self::Item> {
         let scanline = self.state.scanline;
-        match (scanline, self.state.cycle) {
-            (scanlines::PRE, cycle) => {
+        let cycle = self.state.cycle;
+        match scanline {
+            scanlines::PRE => {
                 //log::debug!("Entered Pre-render");
                 match cycle {
                     cycles::IDLE => {}
@@ -423,17 +429,20 @@ impl<PpuBus: RwDevice> DisplayClocked for Ppu<PpuBus> {
                     _ => {}
                 }
             }
-            (scanlines::VIS_LO..=scanlines::VIS_HI, cycle) => {
+            scanlines::VIS_LO..=scanlines::VIS_HI => {
                 //log::debug!("Entered rendered");
                 match cycle {
                     cycles::IDLE => {}
                     cycles::VIS_LO..=cycles::VIS_HI => {
-                        let color = if rand::random() {
-                            Color::BLACK
-                        } else {
-                            Color::WHITE
-                        };
-                        display.write(cycle, scanline, color);
+                        //display.write(cycle, scanline, Color::WHITE);
+                        let idx = (((scanline * WIDTH + cycle) as f32).sin().signum() == -1.0) as usize;
+                        display.write(cycle, scanline, STATIC_COLORS[idx]);
+                        // let color = if rand::random() {
+                        //     Color::BLACK
+                        // } else {
+                        //     Color::WHITE
+                        // };
+                        // display.write(cycle, scanline, color);
                     }
                     cycles::HB_GC_LO..=cycles::HB_GC_HI => {}
                     cycles::HB_FETCH_LO..=cycles::HB_FETCH_HI => {}
@@ -447,7 +456,7 @@ impl<PpuBus: RwDevice> DisplayClocked for Ppu<PpuBus> {
                     }
                 }
             }
-            (scanlines::POST, cycle) => {
+            scanlines::POST => {
                 //log::debug!("Entered post-render");
                 match cycle {
                     cycles::IDLE => {}
@@ -459,7 +468,7 @@ impl<PpuBus: RwDevice> DisplayClocked for Ppu<PpuBus> {
                     _ => {}
                 }
             }
-            (scanlines::VB_LO..=scanlines::VB_HI, cycle) => {
+            scanlines::VB_LO..=scanlines::VB_HI => {
                 //log::debug!("Entered v-blank");
                 match cycle {
                     cycles::IDLE => {}
@@ -474,8 +483,8 @@ impl<PpuBus: RwDevice> DisplayClocked for Ppu<PpuBus> {
                     _ => {}
                 }
             }
-            (s, c) => {
-                log::error!("Impossible scanline/cycle detected Scanline: {s} Cycle: {c}");
+            s => {
+                log::error!("Impossible scanline/cycle detected Scanline: {s} Cycle: {cycle}");
             }
         }
 
