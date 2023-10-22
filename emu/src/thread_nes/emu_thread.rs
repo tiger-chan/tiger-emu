@@ -1,39 +1,38 @@
-use std::{cell::RefCell, path::Path, rc::Rc, sync::mpsc::*, time::Instant};
+use std::{
+    path::Path,
+    sync::{mpsc::*, RwLockWriteGuard},
+    time::Instant,
+};
 
 use crate::{thread_nes::FRAME_TIME, triple_buffer::TripleBuffer};
-use nes::{cart::Cartridge, io::DisplayDevice, prelude::*, HEIGHT, WIDTH};
+use nes::{cart::Cartridge, io::DisplayDevice, prelude::*, DisplayClocked, HEIGHT, WIDTH};
 
 use super::{Buffer, EmuQuery, EmulatorMessage, GuiMessage, GuiResult};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum InstructionFlow {
-    Waiting,
-    Start,
-    Finish,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum FrameFlow {
-    Waiting,
-    Start,
-    Finish,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum EmulationStepMethod {
     None,
-    Instruction(InstructionFlow),
-    Frame(FrameFlow),
+    Instruction,
+    Frame,
     Standard,
 }
 
-impl DisplayDevice for TripleBuffer<Buffer> {
+#[derive(Debug)]
+struct DisplayBuffer<'a> {
+    buf: RwLockWriteGuard<'a, Buffer>,
+}
+
+impl<'a> DisplayBuffer<'a> {
+    pub fn new(buf: RwLockWriteGuard<'a, Buffer>) -> Self {
+        Self { buf }
+    }
+}
+
+impl<'a> DisplayDevice for DisplayBuffer<'a> {
     fn write(&mut self, x: Word, y: Word, data: Color) {
         if x < WIDTH && y < HEIGHT {
-            if let Ok(mut bck) = self.back_mut().write() {
-                let idx = (y * WIDTH + x) as usize;
-                bck.0[idx] = data;
-            }
+            let idx = (y * WIDTH + x) as usize;
+            self.buf.0[idx] = data;
         }
     }
 }
@@ -41,10 +40,9 @@ impl DisplayDevice for TripleBuffer<Buffer> {
 pub fn emu_thread(
     sender: Sender<GuiMessage>,
     receiver: Receiver<EmulatorMessage>,
-    frame_buffer: TripleBuffer<Buffer>,
+    mut frame_buffer: TripleBuffer<Buffer>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let display = Rc::new(RefCell::new(frame_buffer));
-    let mut nes = Nes::default().with_display(display.clone());
+    let mut nes = Nes::default();
 
     let mut residual_time = 0.0;
     let mut prev_instant = Instant::now();
@@ -64,7 +62,7 @@ pub fn emu_thread(
                     emu_processing = EmulationStepMethod::None;
                     let path = Path::new(&cart_location);
                     let cart = Cartridge::try_from(path)?;
-                    nes = Nes::default().with_cart(cart).with_display(display.clone());
+                    nes = Nes::default().with_cart(cart);
                 }
                 EmulatorMessage::Play => {
                     emu_processing = EmulationStepMethod::Standard;
@@ -73,22 +71,10 @@ pub fn emu_thread(
                     emu_processing = EmulationStepMethod::None;
                 }
                 EmulatorMessage::Frame => {
-                    let step = if nes.is_vblank() {
-                        FrameFlow::Start
-                    } else {
-                        FrameFlow::Waiting
-                    };
-
-                    emu_processing = EmulationStepMethod::Frame(step);
+                    emu_processing = EmulationStepMethod::Frame;
                 }
                 EmulatorMessage::Step => {
-                    let step = if nes.is_fetching_instr() {
-                        InstructionFlow::Start
-                    } else {
-                        InstructionFlow::Waiting
-                    };
-
-                    emu_processing = EmulationStepMethod::Instruction(step);
+                    emu_processing = EmulationStepMethod::Instruction;
                 }
                 EmulatorMessage::Quit => {
                     log::warn!("Quiting EMU thread");
@@ -116,84 +102,76 @@ pub fn emu_thread(
             }
         }
 
-        match emu_processing {
-            EmulationStepMethod::None => {
-                // Do Nothing no processing reset timers
-                residual_time = 0.0;
-            }
-            EmulationStepMethod::Instruction(state) => {
-                // Run one Cpu instruction
-                if state == InstructionFlow::Finish {
-                    let was_fetch = nes.is_fetching_instr();
-                    if was_fetch {
-                        emu_processing = EmulationStepMethod::None;
-                    }
-                } else {
-                    let was_fetch = nes.is_fetching_instr();
-                    nes.clock();
-                    if was_fetch && was_fetch != nes.is_fetching_instr() {
-                        match state {
-                            InstructionFlow::Waiting => {
-                                emu_processing =
-                                    EmulationStepMethod::Instruction(InstructionFlow::Start);
-                            }
-                            InstructionFlow::Start => {
-                                emu_processing =
-                                    EmulationStepMethod::Instruction(InstructionFlow::Finish);
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-            }
-            EmulationStepMethod::Frame(state) => {
-                // Run one v-blank period
-                if state == FrameFlow::Finish {
-                    let was_fetch = nes.is_vblank();
-                    if was_fetch {
-                        emu_processing = EmulationStepMethod::None;
-                    }
-                } else {
-                    let was_fetch = nes.is_vblank();
-                    nes.clock();
-                    if was_fetch && was_fetch != nes.is_vblank() {
-                        match state {
-                            FrameFlow::Waiting => {
-                                emu_processing = EmulationStepMethod::Frame(FrameFlow::Start);
-                            }
-                            FrameFlow::Start => {
-                                emu_processing = EmulationStepMethod::Frame(FrameFlow::Finish);
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-            }
-            EmulationStepMethod::Standard => {
-                if residual_time > 0.0 {
-                    residual_time -= delta_time;
-                } else {
-                    if FRAME_TIME < delta_time {
-                        log::warn!("Delta time is too large {delta_time}");
-                        // Just ignore the time
-                        delta_time = FRAME_TIME;
-                    }
+        {
+            let mut display = DisplayBuffer::new(frame_buffer.back_mut().write().unwrap());
 
-                    residual_time += FRAME_TIME - delta_time;
-
+            match emu_processing {
+                EmulationStepMethod::None => {
+                    // Do Nothing no processing reset timers
+                    residual_time = 0.0;
+                }
+                EmulationStepMethod::Instruction => {
+                    // Run one Cpu instruction
                     let frame = Instant::now();
 
-                    while nes.is_vblank() {
-                        nes.clock();
+                    while nes.is_fetching_instr() {
+                        nes.clock(&mut display);
                     }
 
-                    while !nes.is_vblank() {
-                        nes.clock();
+                    while !nes.is_fetching_instr() {
+                        nes.clock(&mut display);
                     }
 
                     let end_frame = Instant::now();
                     let dur = end_frame.duration_since(frame).as_secs_f32();
-                    log::debug!("Frame took {dur}");
+                    log::debug!("Instruction request {dur}");
+
+                    emu_processing = EmulationStepMethod::None;
+                }
+                EmulationStepMethod::Frame => {
+                    // Run one v-blank period
+                    let frame = Instant::now();
+
+                    while nes.is_vblank() {
+                        nes.clock(&mut display);
+                    }
+
+                    while !nes.is_vblank() {
+                        nes.clock(&mut display);
+                    }
+
+                    let end_frame = Instant::now();
+                    let dur = end_frame.duration_since(frame).as_secs_f32();
+                    log::debug!("Frame request {dur}");
+
+                    emu_processing = EmulationStepMethod::None;
+                }
+                EmulationStepMethod::Standard => {
+                    if residual_time > 0.0 {
+                        residual_time -= delta_time;
+                    } else {
+                        if FRAME_TIME < delta_time {
+                            log::warn!("Delta time is too large {delta_time}");
+                            // Just ignore the time
+                            delta_time = FRAME_TIME;
+                        }
+
+                        residual_time += FRAME_TIME - delta_time;
+
+                        let frame = Instant::now();
+
+                        while nes.is_vblank() {
+                            nes.clock(&mut display);
+                        }
+
+                        while !nes.is_vblank() {
+                            nes.clock(&mut display);
+                        }
+
+                        let end_frame = Instant::now();
+                        let dur = end_frame.duration_since(frame).as_secs_f32();
+                        log::debug!("Standard running took {dur}");
+                    }
                 }
             }
         }
@@ -204,7 +182,7 @@ pub fn emu_thread(
         }
 
         if emu_processing != EmulationStepMethod::None && nes.is_vblank() {
-            display.borrow_mut().submit();
+            frame_buffer.submit();
         }
     }
 

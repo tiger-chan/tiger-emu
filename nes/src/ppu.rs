@@ -4,7 +4,7 @@ mod registers;
 
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{io::DisplayDevice, Clocked};
+use crate::{io::DisplayDevice, DisplayClocked};
 
 use super::{
     io::{ReadDevice, RwDevice, WriteDevice},
@@ -378,7 +378,6 @@ pub struct Ppu<PpuBus: RwDevice> {
     bus: Option<PpuBus>,
     reg: Registers,
     state: PpuState,
-    display: Option<Rc<RefCell<dyn DisplayDevice>>>,
 }
 
 impl<PpuBus: RwDevice> Ppu<PpuBus> {
@@ -392,10 +391,6 @@ impl<PpuBus: RwDevice> Ppu<PpuBus> {
     pub fn is_vblank(&self) -> bool {
         self.reg.status & Status::V == Status::V
     }
-
-    pub fn connect_display(&mut self, display: Rc<RefCell<dyn DisplayDevice>>) {
-        self.display = Some(display);
-    }
 }
 
 impl<PpuBus: RwDevice> Default for Ppu<PpuBus> {
@@ -404,14 +399,13 @@ impl<PpuBus: RwDevice> Default for Ppu<PpuBus> {
             bus: None,
             reg: Registers::default(),
             state: PpuState::default(),
-            display: None,
         }
     }
 }
 
-impl<PpuBus: RwDevice> Clocked for Ppu<PpuBus> {
+impl<PpuBus: RwDevice> DisplayClocked for Ppu<PpuBus> {
     type Item = PpuState;
-    fn clock(&mut self) -> Option<Self::Item> {
+    fn clock(&mut self, display: &mut dyn DisplayDevice) -> Option<Self::Item> {
         let scanline = self.state.scanline;
         match (scanline, self.state.cycle) {
             (scanlines::PRE, cycle) => {
@@ -434,14 +428,12 @@ impl<PpuBus: RwDevice> Clocked for Ppu<PpuBus> {
                 match cycle {
                     cycles::IDLE => {}
                     cycles::VIS_LO..=cycles::VIS_HI => {
-                        if let Some(display_cell) = self.display.as_mut() {
-                            let color = if rand::random() {
-                                Color::BLACK
-                            } else {
-                                Color::WHITE
-                            };
-                            display_cell.borrow_mut().write(cycle, scanline, color);
-                        }
+                        let color = if rand::random() {
+                            Color::BLACK
+                        } else {
+                            Color::WHITE
+                        };
+                        display.write(cycle, scanline, color);
                     }
                     cycles::HB_GC_LO..=cycles::HB_GC_HI => {}
                     cycles::HB_FETCH_LO..=cycles::HB_FETCH_HI => {}

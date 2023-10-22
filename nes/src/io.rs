@@ -27,3 +27,10 @@ pub trait RwMapper {
 
 #[allow(dead_code)]
 pub type RwDeviceRef = Rc<RefCell<dyn RwDevice>>;
+
+#[derive(Debug)]
+pub struct VoidDisplay;
+
+impl DisplayDevice for VoidDisplay {
+    fn write(&mut self, _: Word, _: Word, _: Color) {}
+}

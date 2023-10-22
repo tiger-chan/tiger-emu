@@ -1,6 +1,9 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{io::DisplayDevice, Clocked};
+use crate::{
+    io::{DisplayDevice, VoidDisplay},
+    Clocked, DisplayClocked,
+};
 
 use super::{
     cart::{Cartridge, Mapper, MapperRef},
@@ -38,11 +41,6 @@ impl Nes {
         self
     }
 
-    pub fn with_display(self, display: Rc<RefCell<dyn DisplayDevice>>) -> Self {
-        self.ppu.borrow_mut().connect_display(display);
-        self
-    }
-
     #[allow(unused)]
     pub fn with_entry(mut self, addr: Word) -> Self {
         self.cpu.borrow_mut().pc(addr);
@@ -58,41 +56,45 @@ impl Nes {
     }
 
     pub fn reset(&mut self) {
+        let mut display = VoidDisplay {};
         while !self.cpu.borrow().waiting() {
-            self.clock();
+            self.clock(&mut display);
         }
         self.tcc = 0;
         self.cpu.borrow_mut().reset();
     }
 
     pub fn irq(&mut self) {
+        let mut display = VoidDisplay {};
         while !self.cpu.borrow().waiting() {
-            self.clock();
+            self.clock(&mut display);
         }
         self.cpu.borrow_mut().irq();
     }
 
     pub fn nmi(&mut self) {
+        let mut display = VoidDisplay {};
         while !self.cpu.borrow().waiting() {
-            self.clock();
+            self.clock(&mut display);
         }
         self.cpu.borrow_mut().nmi();
     }
 
     #[allow(unused)]
     pub fn run_pc(&mut self, addr: Word) -> NesState {
+        let mut display = VoidDisplay {};
         if self.cpu.borrow().cur_pc() != addr {
             while !self.cpu.borrow().waiting() {
-                self.clock();
+                self.clock(&mut display);
             }
             self.cpu.borrow_mut().pc(addr);
         }
         if let Some(cc) = self.count_until_process(Process::Cpu) {
             for _ in 0..=cc {
-                self.clock();
+                self.clock(&mut display);
             }
             while !self.cpu.borrow().waiting() {
-                self.clock();
+                self.clock(&mut display);
             }
         }
 
@@ -101,9 +103,10 @@ impl Nes {
 
     #[allow(unused)]
     pub fn run_until(&mut self, addr: Word) -> NesState {
+        let mut display = VoidDisplay {};
         let mut pc = self.cpu.borrow().cur_pc();
         while pc != addr {
-            self.clock();
+            self.clock(&mut display);
             pc = self.cpu.borrow().cur_pc();
         }
 
@@ -112,8 +115,9 @@ impl Nes {
 
     #[allow(unused)]
     pub fn complete_operation(&mut self) -> NesState {
+        let mut display = VoidDisplay {};
         while !self.cpu.borrow().waiting() {
-            self.clock();
+            self.clock(&mut display);
         }
 
         self.state.clone()
@@ -183,14 +187,14 @@ impl Default for Nes {
     }
 }
 
-impl Clocked for Nes {
+impl DisplayClocked for Nes {
     type Item = NesState;
-    fn clock(&mut self) -> Option<Self::Item> {
+    fn clock(&mut self, display: &mut dyn DisplayDevice) -> Option<Self::Item> {
         for p in self.seq.iter_mut() {
             if let Some(process) = p.next() {
                 match process {
                     Process::Ppu => {
-                        if let Some(state) = self.ppu.borrow_mut().clock() {
+                        if let Some(state) = self.ppu.borrow_mut().clock(display) {
                             self.ppu_cur = state;
                         }
                     }

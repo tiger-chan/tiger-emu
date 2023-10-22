@@ -6,16 +6,22 @@ pub mod io;
 mod ppu;
 mod registers;
 
-pub trait Clocked {
-    type Item;
-    fn clock(&mut self) -> Option<Self::Item>;
-}
-
 use clock_counter::*;
 pub use console::*;
 pub use cpu::{Cpu, CpuCtrl, Registers, Status};
 
 pub use ppu::{HEIGHT, WIDTH};
+use prelude::io::DisplayDevice;
+
+pub trait Clocked {
+    type Item;
+    fn clock(&mut self) -> Option<Self::Item>;
+}
+
+pub trait DisplayClocked {
+    type Item;
+    fn clock(&mut self, display: &mut dyn DisplayDevice) -> Option<Self::Item>;
+}
 
 /// Bytes, Words, Addressing
 /// 8 bit bytes, 16 bit words in lobyte-hibyte representation (Little-Endian).
@@ -79,8 +85,8 @@ pub const CPU_RAM: usize = 64 * 1024;
 pub mod prelude {
     pub use super::console::*;
     pub use super::io;
-    pub use super::{Byte, Clocked, Word};
     pub use super::ppu::Color;
+    pub use super::{Byte, Clocked, Word};
     pub mod cpu {
         pub use crate::cpu::{AddrMode, AddrModeData, InstructionState, OperData, OperType};
     }
