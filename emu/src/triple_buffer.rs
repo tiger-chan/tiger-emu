@@ -4,11 +4,13 @@ use std::sync::{Arc, RwLock};
 struct BufferIndex {
     pub fwd: usize,
     pub bck: usize,
+    /// Indicates the newest submitted buffer
+    pub new: usize,
 }
 
 impl Default for BufferIndex {
     fn default() -> Self {
-        Self { bck: 1, fwd: 0 }
+        Self { bck: 1, fwd: 0, new: 0 }
     }
 }
 
@@ -29,12 +31,15 @@ impl<Content> TripleBuffer<Content> {
 
     pub fn submit(&mut self) {
         let mut idx = self.idx.write().unwrap();
+        idx.new = idx.bck;
         idx.bck = 3 - idx.fwd - idx.bck;
     }
 
     pub fn flip(&mut self) {
         let mut idx = self.idx.write().unwrap();
-        idx.fwd = 3 - idx.fwd - idx.bck;
+        if idx.new != idx.fwd {
+            idx.fwd = 3 - idx.fwd - idx.bck;
+        }
     }
 
     #[allow(unused)]

@@ -193,7 +193,7 @@ pub fn emu_thread(
 
                     let end_frame = Instant::now();
                     let dur = end_frame.duration_since(frame).as_secs_f32();
-                    log::trace!("Frame took {dur}");
+                    log::debug!("Frame took {dur}");
                 }
             }
         }
@@ -203,7 +203,7 @@ pub fn emu_thread(
             let _ = sender.send(GuiMessage::QueryResult(GuiResult::PlayState(is_running)));
         }
 
-        if nes.is_vblank() {
+        if emu_processing != EmulationStepMethod::None && nes.is_vblank() {
             display.borrow_mut().submit();
         }
     }
