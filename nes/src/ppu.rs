@@ -18,6 +18,7 @@ pub use registers::*;
 pub const WIDTH: Word = 256;
 pub const HEIGHT: Word = 240;
 
+#[allow(unused)]
 mod cycles {
     use crate::Word;
 
@@ -285,50 +286,9 @@ mod cycles {
     pub const HB_FINAL_HI: Word = HB_FINAL_LO + HBLANK_FINAL;
 }
 
+#[allow(unused)]
 mod scanlines {
     use crate::Word;
-
-    /// # Visible scanlines (0-239)
-    ///
-    /// These are the visible scanlines, which contain the graphics to be
-    /// displayed on the screen. This includes the rendering of both the
-    /// background and the sprites. During these scanlines, the PPU is busy
-    /// fetching data, so the program should not access PPU memory during this
-    /// time, unless rendering is turned off.
-    pub const VIS_LO: Word = 0;
-
-    /// # Visible scanlines (0-239)
-    ///
-    /// These are the visible scanlines, which contain the graphics to be
-    /// displayed on the screen. This includes the rendering of both the
-    /// background and the sprites. During these scanlines, the PPU is busy
-    /// fetching data, so the program should not access PPU memory during this
-    /// time, unless rendering is turned off.
-    pub const VIS_HI: Word = 239;
-
-    /// Vertical blanking lines (241-260)
-    ///
-    /// The VBlank flag of the PPU is set at tick 1 (the second tick) of
-    /// scanline 241, where the VBlank NMI also occurs. The PPU makes no memory
-    /// accesses during these scanlines, so PPU memory can be freely accessed by
-    /// the program.
-    pub const VBLANK: Word = 19;
-
-    /// Vertical blanking lines (241-260)
-    ///
-    /// The VBlank flag of the PPU is set at tick 1 (the second tick) of
-    /// scanline 241, where the VBlank NMI also occurs. The PPU makes no memory
-    /// accesses during these scanlines, so PPU memory can be freely accessed by
-    /// the program.
-    pub const VB_LO: Word = 241;
-
-    /// Vertical blanking lines (241-260)
-    ///
-    /// The VBlank flag of the PPU is set at tick 1 (the second tick) of
-    /// scanline 241, where the VBlank NMI also occurs. The PPU makes no memory
-    /// accesses during these scanlines, so PPU memory can be freely accessed by
-    /// the program.
-    pub const VB_HI: Word = VB_LO + VBLANK;
 
     /// # Pre-render scanline (-1 or 261)
     ///
@@ -357,12 +317,54 @@ mod scanlines {
     /// are reloaded if rendering is enabled.
     pub const PRE: Word = 261;
 
+    /// # Visible scanlines (0-239)
+    ///
+    /// These are the visible scanlines, which contain the graphics to be
+    /// displayed on the screen. This includes the rendering of both the
+    /// background and the sprites. During these scanlines, the PPU is busy
+    /// fetching data, so the program should not access PPU memory during this
+    /// time, unless rendering is turned off.
+    pub const VIS_LO: Word = 0;
+
+    /// # Visible scanlines (0-239)
+    ///
+    /// These are the visible scanlines, which contain the graphics to be
+    /// displayed on the screen. This includes the rendering of both the
+    /// background and the sprites. During these scanlines, the PPU is busy
+    /// fetching data, so the program should not access PPU memory during this
+    /// time, unless rendering is turned off.
+    pub const VIS_HI: Word = 239;
+
     /// # Post-render scanline (240)
     ///
     /// The PPU just idles during this scanline. Even though accessing PPU
     /// memory from the program would be safe here, the VBlank flag isn't set
     /// until after this scanline.
     pub const POST: Word = 240;
+
+    /// Vertical blanking lines (241-260)
+    ///
+    /// The VBlank flag of the PPU is set at tick 1 (the second tick) of
+    /// scanline 241, where the VBlank NMI also occurs. The PPU makes no memory
+    /// accesses during these scanlines, so PPU memory can be freely accessed by
+    /// the program.
+    pub const VBLANK: Word = 19;
+
+    /// Vertical blanking lines (241-260)
+    ///
+    /// The VBlank flag of the PPU is set at tick 1 (the second tick) of
+    /// scanline 241, where the VBlank NMI also occurs. The PPU makes no memory
+    /// accesses during these scanlines, so PPU memory can be freely accessed by
+    /// the program.
+    pub const VB_LO: Word = 241;
+
+    /// Vertical blanking lines (241-260)
+    ///
+    /// The VBlank flag of the PPU is set at tick 1 (the second tick) of
+    /// scanline 241, where the VBlank NMI also occurs. The PPU makes no memory
+    /// accesses during these scanlines, so PPU memory can be freely accessed by
+    /// the program.
+    pub const VB_HI: Word = VB_LO + VBLANK;
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -373,6 +375,8 @@ pub struct PpuState {
 
 pub type PpuRef<PpuBus> = Rc<RefCell<Ppu<PpuBus>>>;
 
+const STATIC_COLORS: [Color; 2] = [Color::BLACK, Color::WHITE];
+
 #[derive(Debug)]
 pub struct Ppu<PpuBus: RwDevice> {
     bus: Option<PpuBus>,
@@ -381,6 +385,10 @@ pub struct Ppu<PpuBus: RwDevice> {
 }
 
 impl<PpuBus: RwDevice> Ppu<PpuBus> {
+    pub fn configure_bus(&mut self, bus: PpuBus) {
+        self.bus = Some(bus);
+    }
+
     pub fn cur_state(&self) -> PpuState {
         PpuState {
             scanline: self.state.scanline,
@@ -403,89 +411,34 @@ impl<PpuBus: RwDevice> Default for Ppu<PpuBus> {
     }
 }
 
-const STATIC_COLORS: [Color; 2] = [
-    Color::BLACK,
-    Color::WHITE,
-];
-
 impl<PpuBus: RwDevice> DisplayClocked for Ppu<PpuBus> {
     type Item = PpuState;
     fn clock(&mut self, display: &mut dyn DisplayDevice) -> Option<Self::Item> {
-        let scanline = self.state.scanline;
-        let cycle = self.state.cycle;
-        match scanline {
-            scanlines::PRE => {
-                //log::debug!("Entered Pre-render");
-                match cycle {
-                    cycles::IDLE => {}
-                    cycles::VIS_LO => {
-                        self.reg.status.set(Status::V, false);
-                    }
-                    cycles::HB_FINAL_HI => {
-                        self.state.cycle = 0;
-                        self.state.scanline = 0;
-                    }
-                    cycles::IDLE..=cycles::HB_FINAL_HI => {}
-                    _ => {}
+        if self.state.cycle > cycles::HB_FINAL_HI {
+            self.state.cycle = 0;
+            self.state.scanline += 1;
+ 
+            if self.state.scanline == scanlines::VB_LO {
+                self.reg.status |= Status::V;
+                if self.reg.ctrl & Ctrl::V == Ctrl::V {
+                    todo!("Should trigger NMI interrupt")
                 }
             }
-            scanlines::VIS_LO..=scanlines::VIS_HI => {
-                //log::debug!("Entered rendered");
-                match cycle {
-                    cycles::IDLE => {}
-                    cycles::VIS_LO..=cycles::VIS_HI => {
-                        //display.write(cycle, scanline, Color::WHITE);
-                        let idx = (((scanline * WIDTH + cycle) as f32).sin().signum() == -1.0) as usize;
-                        display.write(cycle, scanline, STATIC_COLORS[idx]);
-                        // let color = if rand::random() {
-                        //     Color::BLACK
-                        // } else {
-                        //     Color::WHITE
-                        // };
-                        // display.write(cycle, scanline, color);
-                    }
-                    cycles::HB_GC_LO..=cycles::HB_GC_HI => {}
-                    cycles::HB_FETCH_LO..=cycles::HB_FETCH_HI => {}
-                    cycles::HB_FINAL_HI => {
-                        self.state.cycle = 0;
-                        self.state.scanline += 1;
-                    }
-                    cycles::HB_FINAL_LO..=cycles::HB_FINAL_HI => {}
-                    _ => {
-                        log::debug!("Catch all branch {}", self.state.scanline);
-                    }
-                }
+ 
+            if self.state.scanline > scanlines::PRE {
+                self.state.scanline = 0;
+                self.reg.status &= !Status::V;
             }
-            scanlines::POST => {
-                //log::debug!("Entered post-render");
-                match cycle {
-                    cycles::IDLE => {}
-                    cycles::HB_FINAL_HI => {
-                        self.state.cycle = 0;
-                        self.state.scanline += 1;
-                    }
-                    cycles::IDLE..=cycles::HB_FINAL_HI => {}
-                    _ => {}
-                }
-            }
-            scanlines::VB_LO..=scanlines::VB_HI => {
-                //log::debug!("Entered v-blank");
-                match cycle {
-                    cycles::IDLE => {}
-                    cycles::VIS_LO => {
-                        self.reg.status.set(Status::V, true);
-                    }
-                    cycles::HB_FINAL_HI => {
-                        self.state.cycle = 0;
-                        self.state.scanline += 1;
-                    }
-                    cycles::IDLE..=cycles::HB_FINAL_HI => {}
-                    _ => {}
-                }
-            }
-            s => {
-                log::error!("Impossible scanline/cycle detected Scanline: {s} Cycle: {cycle}");
-            }
+        }
+
+        if self.state.scanline <= scanlines::VIS_HI {
+            let scanline = self.state.scanline;
+            let cycle = self.state.cycle;
+            // let idx =
+            //     (((scanline * WIDTH + cycle) as f32).sin().signum() == -1.0) as usize;
+            let idx = scanline & 0x01;
+            let idx = ((scanline * cycles::VIS_HI + cycle + idx) & 0x01) as usize;
+            display.write(cycle, scanline, STATIC_COLORS[idx]);
         }
 
         self.state.cycle += 1;

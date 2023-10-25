@@ -13,7 +13,7 @@ pub use instruction::{AddrMode, AddrModeData, OperData, OperType};
 
 use instruction::{InstructionIterator, INSTRUCTION_TYPE};
 
-use crate::Clocked;
+use crate::{Clocked, io::{ReadDevice, WriteDevice}};
 
 use self::instruction::{ADDR_MODE, OPER};
 
@@ -284,6 +284,28 @@ impl<CpuBus: RwDevice + CpuCtrl> Clocked for Cpu<CpuBus> {
                 }
                 None
             }
+        }
+    }
+}
+
+impl<CpuBus: RwDevice> RwDevice for Cpu<CpuBus> {}
+
+impl<CpuBus: RwDevice> ReadDevice for Cpu<CpuBus> {
+    fn read(&self, addr: Word) -> Byte {
+        if let Some(bus) = &self.bus {
+            bus.read(addr)
+        } else {
+            0
+        }
+    }
+}
+
+impl<CpuBus: RwDevice> WriteDevice for Cpu<CpuBus> {
+    fn write(&mut self, addr: Word, data: Byte) -> Byte {
+        if let Some(bus) = &mut self.bus {
+            bus.write(addr, data)
+        } else {
+            0
         }
     }
 }

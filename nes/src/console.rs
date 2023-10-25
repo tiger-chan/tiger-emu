@@ -52,6 +52,8 @@ impl Nes {
         self.mpr = Rc::new(RefCell::new(Mapper::from(cart)));
         let cpu_bus = CpuBus::new(self.ppu.clone(), self.mpr.clone());
         self.cpu.borrow_mut().configure_bus(cpu_bus);
+        let ppu_bus = PpuBus::new(self.cpu.clone(), self.mpr.clone());
+        self.ppu.borrow_mut().configure_bus(ppu_bus);
         self
     }
 

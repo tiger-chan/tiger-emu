@@ -161,6 +161,7 @@ pub fn emu_thread(
                         let frame = Instant::now();
 
                         let mut count = 0;
+
                         while nes.is_vblank() {
                             count += 1;
                             nes.clock(&mut display);
