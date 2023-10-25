@@ -7,6 +7,12 @@ pub struct Color {
     pub b: Byte,
 }
 
+impl Default for Color {
+    fn default() -> Self {
+        Color::new(0x00, 0x00, 0x00)
+    }
+}
+
 impl Color {
     pub const fn new(r: u8, g: u8, b: u8) -> Self {
         Self { r, g, b }

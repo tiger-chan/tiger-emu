@@ -4,7 +4,10 @@ mod registers;
 
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{io::DisplayDevice, DisplayClocked};
+use crate::{
+    io::{DisplayDevice, ReadOnlyDevice},
+    DisplayClocked,
+};
 
 use super::{
     io::{ReadDevice, RwDevice, WriteDevice},
@@ -367,6 +370,20 @@ mod scanlines {
     pub const VB_HI: Word = VB_LO + VBLANK;
 }
 
+#[derive(Debug, Clone)]
+pub struct Palette(pub Box<[Color; 128 * 128]>);
+
+impl Default for Palette {
+    fn default() -> Self {
+        Self(Box::new([Color::default(); 128 * 128]))
+    }
+}
+
+impl Palette {
+    pub const WIDTH: usize = 128;
+    pub const HEIGHT: usize = 128;
+}
+
 #[derive(Debug, Default, Clone, Copy)]
 pub struct PpuState {
     pub scanline: u16,
@@ -401,6 +418,54 @@ impl<PpuBus: RwDevice> Ppu<PpuBus> {
     }
 }
 
+impl<PpuBus: RwDevice + ReadOnlyDevice> Ppu<PpuBus> {
+    pub fn read_palette(&self, tbl: Word, palette: Word) -> Palette {
+        let mut pixels = Palette::default();
+
+        let color_from_palette = |bus: &PpuBus, palette: Word, pixel: Word| -> Color {
+            let addr = 0x3F00 + palette.overflowing_shl(2).0 + pixel;
+            let _addr = bus.read_only(addr) & 0x3F;
+            //self.memory.borrow().col_palette[addr as usize]
+            Color::WHITE
+        };
+
+        for y in 0..16 as Word {
+            for x in 0..16 as Word {
+                let offset = y * 256 + x * 16;
+
+                if let Some(bus) = self.bus.as_ref() {
+                    for r in 0..8 {
+                        let mut lsb = bus.read_only(tbl * 0x1000 + offset + r);
+                        let mut msb = bus.read_only(tbl * 0x1000 + offset + r + 8);
+                        for c in 0..8 {
+                            let pixel = ((lsb & 0x01) + (msb & 0x01)) as Word;
+                            lsb >>= 1;
+                            msb >>= 1;
+
+                            let x = x * 8 + (7 - c);
+                            let y = y * 8 + r;
+
+                            let color = color_from_palette(bus, palette, pixel);
+
+                            let mut set_pixel = |x, y, v| {
+                                let x = x as usize;
+                                let y = y as usize;
+                                let (w, h) = (Palette::WIDTH, Palette::HEIGHT);
+                                if x < w && y < h {
+                                    pixels.0[(y * w) + x] = v;
+                                }
+                            };
+                            set_pixel(x, y, color);
+                        }
+                    }
+                }
+            }
+        }
+
+        pixels
+    }
+}
+
 impl<PpuBus: RwDevice> Default for Ppu<PpuBus> {
     fn default() -> Self {
         Self {
@@ -417,14 +482,14 @@ impl<PpuBus: RwDevice> DisplayClocked for Ppu<PpuBus> {
         if self.state.cycle > cycles::HB_FINAL_HI {
             self.state.cycle = 0;
             self.state.scanline += 1;
- 
+
             if self.state.scanline == scanlines::VB_LO {
                 self.reg.status |= Status::V;
                 if self.reg.ctrl & Ctrl::V == Ctrl::V {
                     todo!("Should trigger NMI interrupt")
                 }
             }
- 
+
             if self.state.scanline > scanlines::PRE {
                 self.state.scanline = 0;
                 self.reg.status &= !Status::V;

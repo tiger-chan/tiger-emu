@@ -92,4 +92,8 @@ pub mod prelude {
             AddrMode, AddrModeData, InstructionState, OperData, OperType, Registers, Status,
         };
     }
+
+    pub mod ppu {
+        pub use crate::ppu::{Color, Palette};
+    }
 }

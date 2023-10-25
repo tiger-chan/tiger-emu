@@ -1,6 +1,6 @@
 use crate::{
     cart::MapperRef,
-    io::{ReadDevice, RwDevice, RwDeviceRef, WriteDevice},
+    io::{ReadDevice, ReadOnlyDevice, RwDevice, RwDeviceRef, WriteDevice},
     Byte,
 };
 
@@ -22,6 +22,12 @@ impl RwDevice for Bus {}
 
 impl ReadDevice for Bus {
     fn read(&self, _addr: crate::Word) -> crate::Byte {
+        0
+    }
+}
+
+impl ReadOnlyDevice for Bus {
+    fn read_only(&self, _addr: crate::Word) -> crate::Byte {
         0
     }
 }

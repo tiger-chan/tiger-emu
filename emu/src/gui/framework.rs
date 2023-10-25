@@ -2,6 +2,7 @@ use std::sync::mpsc::Sender;
 
 use egui::{ClippedPrimitive, Context, TexturesDelta};
 use egui_wgpu::{renderer::ScreenDescriptor, Renderer};
+use nes::Word;
 use pixels::{wgpu, Pixels, PixelsContext};
 use winit::{event_loop::EventLoopWindowTarget, window::Window};
 
@@ -16,6 +17,7 @@ pub enum Message {
     Reset,
     Irq,
     Nmi,
+    QueryPalette(Word, Word),
 }
 
 pub struct Framework {

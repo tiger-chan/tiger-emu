@@ -8,6 +8,10 @@ pub trait ReadDevice: std::fmt::Debug {
     fn read(&self, addr: Word) -> Byte;
 }
 
+pub trait ReadOnlyDevice: std::fmt::Debug {
+    fn read_only(&self, addr: Word) -> Byte;
+}
+
 pub trait WriteDevice: std::fmt::Debug {
     fn write(&mut self, addr: Word, data: Byte) -> Byte;
 }

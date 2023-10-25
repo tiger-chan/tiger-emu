@@ -56,6 +56,7 @@ pub fn emu_thread(
         prev_instant = cur_instant;
 
         let mut sent_registers = false;
+        let mut sent_palettes = [false, false];
         while let Ok(msg) = receiver.try_recv() {
             match msg {
                 EmulatorMessage::Load(cart_location) => {
@@ -83,11 +84,20 @@ pub fn emu_thread(
                 EmulatorMessage::Query(query) => match query {
                     EmuQuery::CpuRegisters => {
                         if !sent_registers {
+                            sent_registers = true;
                             let state = nes.cur_state().cpu;
                             let msg = GuiResult::CpuRegister(state);
                             let _ = sender.send(GuiMessage::QueryResult(msg));
                         }
-                        sent_registers = true;
+                    }
+                    EmuQuery::PpuPalette(idx, palette) => {
+                        let pal = (idx & 0x01) as usize;
+                        if !sent_palettes[pal] {
+                            sent_palettes[pal] = true;
+                            let data = nes.read_palette(idx, palette);
+                            let msg = GuiResult::PpuPalette(idx, palette, data);
+                            let _ = sender.send(GuiMessage::QueryResult(msg));
+                        }
                     }
                 },
                 EmulatorMessage::Irq => {

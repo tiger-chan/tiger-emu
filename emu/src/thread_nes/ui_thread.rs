@@ -76,6 +76,9 @@ pub fn ui_thread(
                     GuiResult::CpuRegister(reg) => {
                         framework.gui.update_cpu_status(reg);
                     }
+                    GuiResult::PpuPalette(idx, palette, data) => {
+                        framework.gui.update_ppu_palette(idx, palette, data);
+                    }
                     GuiResult::PlayState(state) => {
                         is_running = state;
                     }
@@ -193,6 +196,11 @@ pub fn ui_thread(
                         }
                         Message::Step => {
                             sender.send(EmulatorMessage::Step).unwrap();
+                        }
+                        Message::QueryPalette(tbl, palette) => {
+                            sender
+                                .send(EmulatorMessage::Query(EmuQuery::PpuPalette(tbl, palette)))
+                                .unwrap();
                         }
                     }
                 }

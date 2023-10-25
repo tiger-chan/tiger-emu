@@ -17,10 +17,12 @@ impl Default for Buffer {
 
 pub enum EmuQuery {
     CpuRegisters,
+    PpuPalette(Word, Word),
 }
 
 pub enum GuiResult {
     CpuRegister(cpu::InstructionState),
+    PpuPalette(Word, Word, ppu::Palette),
     PlayState(bool),
 }
 
