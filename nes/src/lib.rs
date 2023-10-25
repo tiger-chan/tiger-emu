@@ -88,6 +88,8 @@ pub mod prelude {
     pub use super::ppu::Color;
     pub use super::{Byte, Clocked, Word};
     pub mod cpu {
-        pub use crate::cpu::{AddrMode, AddrModeData, InstructionState, OperData, OperType};
+        pub use crate::cpu::{
+            AddrMode, AddrModeData, InstructionState, OperData, OperType, Registers, Status,
+        };
     }
 }

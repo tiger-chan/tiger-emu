@@ -28,7 +28,7 @@ pub struct Framework {
     textures: TexturesDelta,
 
     // State for the GUI
-    gui: MainGui,
+    pub gui: MainGui,
 }
 
 impl Framework {

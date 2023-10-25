@@ -73,7 +73,9 @@ pub fn ui_thread(
         while let Ok(msg) = receiver.try_recv() {
             match msg {
                 GuiMessage::QueryResult(msg) => match msg {
-                    GuiResult::CpuRegister(_reg) => {}
+                    GuiResult::CpuRegister(reg) => {
+                        framework.gui.update_cpu_status(reg);
+                    }
                     GuiResult::PlayState(state) => {
                         is_running = state;
                     }
