@@ -1,5 +1,8 @@
 mod bus;
 mod color;
+mod nametable;
+mod palette;
+mod pattern;
 mod registers;
 
 use std::{cell::RefCell, rc::Rc};
@@ -16,6 +19,7 @@ use super::{
 
 pub use bus::Bus;
 pub use color::Color;
+pub use nametable::NameTable;
 pub use registers::*;
 
 pub const WIDTH: Word = 256;

@@ -29,7 +29,6 @@ pub trait RwMapper {
     fn write_chr(&mut self, addr: Word, data: Byte) -> Byte;
 }
 
-#[allow(dead_code)]
 pub type RwDeviceRef = Rc<RefCell<dyn RwDevice>>;
 
 #[derive(Debug)]

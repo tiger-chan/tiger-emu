@@ -3,6 +3,7 @@ mod clock_counter;
 mod console;
 mod cpu;
 pub mod io;
+mod mem_map;
 mod ppu;
 mod registers;
 
