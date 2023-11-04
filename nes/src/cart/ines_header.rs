@@ -107,8 +107,7 @@ impl TryFrom<&mut io::Cursor<&[u8]>> for INesHeader {
             let _ = value.read(&mut byte_buf);
             result.tv_sys2 = byte_buf[0];
 
-            let mut byte_buf = [0; 5];
-            let _ = value.read(&mut byte_buf);
+            let _ = value.read(&mut result.padding);
             Ok(result)
         }
     }
