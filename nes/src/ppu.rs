@@ -9,8 +9,10 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     io::{DisplayDevice, ReadOnlyDevice},
-    DisplayClocked,
+    DisplayClocked, cpu::Message,
 };
+
+use self::bus::CpuSignal;
 
 use super::{
     io::{ReadDevice, RwDevice, WriteDevice},
@@ -56,7 +58,7 @@ mod cycles {
     /// scanline 241, where the VBlank NMI also occurs. The PPU makes no memory
     /// accesses during these scanlines, so PPU memory can be freely accessed by
     /// the program.
-    pub const VB_NOTIFY: Word = 1;
+    pub const VB_SIG: Word = 1;
 
     /// # Cycle 0
     ///
@@ -517,7 +519,7 @@ impl<PpuBus: RwDevice> Default for Ppu<PpuBus> {
     }
 }
 
-impl<PpuBus: RwDevice> DisplayClocked for Ppu<PpuBus> {
+impl<PpuBus: RwDevice + CpuSignal> DisplayClocked for Ppu<PpuBus> {
     type Item = PpuState;
     fn clock(&mut self, display: &mut dyn DisplayDevice) -> Option<Self::Item> {
         let PpuState {
@@ -526,19 +528,21 @@ impl<PpuBus: RwDevice> DisplayClocked for Ppu<PpuBus> {
             even_frame,
         } = &mut self.state;
 
-        if *scanline == scanlines::VB_LO && *cycle == cycles::VB_NOTIFY {
-            self.reg.borrow_mut().status |= Status::V;
-            if self.reg.borrow().ctrl & Ctrl::V == Ctrl::V {
-                todo!("Should trigger NMI interrupt")
+        if let Some(bus) = self.bus.as_mut() {
+            if *scanline == scanlines::VB_LO && *cycle == cycles::VB_SIG {
+                self.reg.borrow_mut().status |= Status::V;
+                if self.reg.borrow().ctrl & Ctrl::V == Ctrl::V {
+                    let _ = bus.signal().send(Message::Nmi);
+                }
             }
-        }
 
-        if *scanline <= scanlines::VIS_HI {
-            // let idx =
-            //     (((scanline * WIDTH + cycle) as f32).sin().signum() == -1.0) as usize;
-            let idx = *scanline & 0x01;
-            let idx = ((*scanline * cycles::VIS_HI + *cycle + idx) & 0x01) as usize;
-            display.write(*cycle, *scanline, STATIC_COLORS[idx]);
+            if *scanline <= scanlines::VIS_HI {
+                // let idx =
+                //     (((scanline * WIDTH + cycle) as f32).sin().signum() == -1.0) as usize;
+                let idx = *scanline & 0x01;
+                let idx = ((*scanline * cycles::VIS_HI + *cycle + idx) & 0x01) as usize;
+                display.write(*cycle, *scanline, STATIC_COLORS[idx]);
+            }
         }
 
         *cycle += 1;

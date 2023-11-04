@@ -134,7 +134,7 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
         self.instruction.waiting()
     }
 
-    pub fn get_sender(&self) -> Sender<Message> {
+    pub fn signal(&self) -> Sender<Message> {
         self.msg_snd.clone()
     }
 
@@ -256,7 +256,6 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
     }
 
     fn next_pc(&self) -> Word {
-        println!("Next PC");
         let mut msgs = [Message::Reset; 3];
         let mut idx = 0;
 

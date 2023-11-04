@@ -1,11 +1,11 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc, sync::mpsc::Sender};
 
 use crate::{
     cart::MapperRef,
     io::{ReadDevice, ReadOnlyDevice, RwDevice, RwDeviceRef, WriteDevice},
     mem_map::{Access, MemoryMap},
     ppu::palette,
-    Byte, Word,
+    Byte, Word, cpu::Message,
 };
 
 use super::{nametable::NameTable, palette::PaletteTable, pattern::PatternTable};
@@ -18,6 +18,10 @@ pub(crate) mod addr {
     pub const PATTERN_HI: Word = 0x1FFF;
 }
 
+pub trait CpuSignal {
+    fn signal(&self) -> &Sender<Message>;
+}
+
 #[derive(Debug)]
 pub struct Bus {
     #[allow(unused)]
@@ -27,11 +31,11 @@ pub struct Bus {
     nametables: [Rc<RefCell<NameTable>>; 2],
     palette: Rc<RefCell<PaletteTable>>,
     mem_map: MemoryMap,
+    cpu_sig: Sender<Message>,
 }
 
 impl Bus {
-    #[allow(dead_code)]
-    pub fn new(cpu: RwDeviceRef, mpr: MapperRef) -> Self {
+    pub fn new(cpu: RwDeviceRef, cpu_sig: Sender<Message>, mpr: MapperRef) -> Self {
         use crate::mem_map::PpuMemoryMapper;
 
         let mut value = Self {
@@ -41,6 +45,7 @@ impl Bus {
             nametables: [Rc::default(), Rc::default()],
             palette: Rc::new(RefCell::new(PaletteTable::default())),
             mem_map: MemoryMap::default(),
+            cpu_sig,
         };
 
         value.mem_map.register(
@@ -62,6 +67,12 @@ impl Bus {
             .map_ppu(&mut value.mem_map, &value.nametables);
 
         value
+    }
+}
+
+impl CpuSignal for Bus {
+    fn signal(&self) -> &Sender<Message> {
+        &self.cpu_sig
     }
 }
 
