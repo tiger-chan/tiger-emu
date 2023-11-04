@@ -62,8 +62,10 @@ pub fn emu_thread(
                 EmulatorMessage::Load(cart_location) => {
                     emu_processing = EmulationStepMethod::None;
                     let path = Path::new(&cart_location);
-                    let cart = Cartridge::try_from(path)?;
-                    nes = Nes::default().with_cart(cart);
+                    match Cartridge::try_from(path) {
+                        Ok(cart) => nes = Nes::default().with_cart(cart),
+                        Err(err) => log::error!("{}", err)
+                    }
                 }
                 EmulatorMessage::Play => {
                     emu_processing = EmulationStepMethod::Standard;

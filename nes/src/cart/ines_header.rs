@@ -109,11 +109,7 @@ impl TryFrom<&mut io::Cursor<&[u8]>> for INesHeader {
 
             let mut byte_buf = [0; 5];
             let _ = value.read(&mut byte_buf);
-            if byte_buf.iter().any(|x| 0 != *x) {
-                Err(CartridgeLoadError::BadHeader)
-            } else {
-                Ok(result)
-            }
+            Ok(result)
         }
     }
 }
