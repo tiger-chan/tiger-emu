@@ -4,7 +4,12 @@ use std::{cell::RefCell, rc::Rc};
 
 pub use nrom::Nrom;
 
-use crate::{io::RwMapper, mem_map::MemoryMap, ppu::NameTable, Byte, Word};
+use crate::{
+    io::RwMapper,
+    mem_map::{CpuMemoryMapper, MemoryMap, PpuMemoryMapper},
+    ppu::NameTable,
+    Byte, Word,
+};
 
 use super::Cartridge;
 
@@ -29,10 +34,6 @@ pub mod name_tbl {
     pub const NAMETABLE_2_HI: Word = 0x2BFF;
     pub const NAMETABLE_3_LO: Word = 0x2C00;
     pub const NAMETABLE_3_HI: Word = 0x2FFF;
-}
-
-pub trait MemoryMapper {
-    fn map_mem(&self, mem_map: &mut MemoryMap, nametables: &[Rc<RefCell<NameTable>>; 2]);
 }
 
 pub type MapperRef = Rc<RefCell<Mapper>>;
@@ -67,7 +68,8 @@ macro_rules! as_t_impl {
 
 impl Mapper {
     as_t_impl!(as_rw, as_rw_mut, RwMapper);
-    as_t_impl!(as_mm, as_mm_mut, MemoryMapper);
+    as_t_impl!(as_mm, as_mm_mut, PpuMemoryMapper);
+    as_t_impl!(as_cpu_mm, as_cpu_mm_mut, CpuMemoryMapper);
 }
 
 impl RwMapper for Mapper {
@@ -88,9 +90,15 @@ impl RwMapper for Mapper {
     }
 }
 
-impl MemoryMapper for Mapper {
-    fn map_mem(&self, mem_map: &mut MemoryMap, nametables: &[Rc<RefCell<NameTable>>; 2]) {
-        self.as_mm().map_mem(mem_map, nametables);
+impl PpuMemoryMapper for Mapper {
+    fn map_ppu(&self, mem_map: &mut MemoryMap, nametables: &[Rc<RefCell<NameTable>>; 2]) {
+        self.as_mm().map_ppu(mem_map, nametables);
+    }
+}
+
+impl CpuMemoryMapper for Mapper {
+    fn map_cpu(&self, mem_map: &mut MemoryMap) {
+        self.as_cpu_mm().map_cpu(mem_map);
     }
 }
 

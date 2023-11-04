@@ -67,7 +67,8 @@ pub struct Registers {
 
     pub addr_latch: Byte,
     pub data_buffer: Byte,
-    pub addr: Word,
+    pub addr_lo: Word,
+    pub addr_hi: Word,
 }
 
 /// # Controller ($2000) > write

@@ -3,7 +3,11 @@ mod instruction;
 mod registers;
 mod status_reg;
 
-use std::{cell::RefCell, rc::Rc};
+use std::{
+    cell::RefCell,
+    rc::Rc,
+    sync::mpsc::{channel, Receiver, Sender},
+};
 
 pub use bus::{Bus, CpuCtrl};
 pub use registers::Registers;
@@ -13,13 +17,24 @@ pub use instruction::{AddrMode, AddrModeData, OperData, OperType};
 
 use instruction::{InstructionIterator, INSTRUCTION_TYPE};
 
-use crate::{Clocked, io::{ReadDevice, WriteDevice}};
+use crate::{
+    io::{ReadDevice, WriteDevice},
+    Clocked,
+};
 
 use self::instruction::{ADDR_MODE, OPER};
 
 use super::{io::RwDevice, Byte, Word};
 
 pub type CpuRef<CpuBus> = Rc<RefCell<Cpu<CpuBus>>>;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Message {
+    Irq,
+    Nmi,
+    Pc(Word),
+    Reset,
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct InstructionState {
@@ -62,7 +77,8 @@ pub struct Cpu<CpuBus: RwDevice> {
     instruction: InstructionIterator,
     tcc: u64,
     prev: InstructionState,
-    queued_pc: Option<Word>,
+    msg_rcv: Receiver<Message>,
+    msg_snd: Sender<Message>,
 }
 
 impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
@@ -75,20 +91,20 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
     }
 
     pub fn pc(&mut self, addr: Word) {
-        self.queued_pc = Some(addr);
+        self.reg.pc = addr;
+    }
+
+    pub fn queue_pc(&mut self, addr: Word) {
+        let _ = self.msg_snd.send(Message::Pc(addr));
     }
 
     #[allow(unused)]
     pub fn cur_state(&self) -> InstructionState {
         if self.instruction.waiting() {
-            let pc = if let Some(pc) = self.queued_pc {
-                pc
-            } else {
-                self.reg.pc
-            };
+            let pc = self.next_pc();
 
             if let Some(bus) = self.bus.as_ref() {
-                let opc = bus.read(pc) as usize;
+                let opc = bus.read(self.reg.pc) as usize;
 
                 InstructionState {
                     reg: self.reg,
@@ -118,7 +134,10 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
         self.instruction.waiting()
     }
 
-    #[allow(unused)]
+    pub fn get_sender(&self) -> Sender<Message> {
+        self.msg_snd.clone()
+    }
+
     pub fn reset(&mut self) {
         if let Some(bus) = self.bus.as_mut() {
             bus.reset();
@@ -133,7 +152,6 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
         self.instruction = instruction::reset();
     }
 
-    #[allow(unused)]
     pub fn irq(&mut self) {
         self.prev = InstructionState {
             reg: self.reg,
@@ -145,7 +163,6 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
         self.instruction = instruction::irq();
     }
 
-    #[allow(unused)]
     pub fn nmi(&mut self) {
         self.prev = InstructionState {
             reg: self.reg,
@@ -215,6 +232,50 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
 
         state.unwrap()
     }
+
+    fn process_messages(&mut self) {
+        while let Ok(msg) = self.msg_rcv.try_recv() {
+            match msg {
+                Message::Pc(pc) => {
+                    self.reg.pc = pc;
+                }
+                Message::Irq => {
+                    self.irq();
+                    return;
+                }
+                Message::Reset => {
+                    self.reset();
+                    return;
+                }
+                Message::Nmi => {
+                    self.nmi();
+                    return;
+                }
+            }
+        }
+    }
+
+    fn next_pc(&self) -> Word {
+        println!("Next PC");
+        let mut msgs = [Message::Reset; 3];
+        let mut idx = 0;
+
+        while let Ok(msg) = self.msg_rcv.try_recv() {
+            msgs[idx] = msg;
+            idx += 1;
+        }
+
+        let mut addr = self.reg.pc;
+        for item in msgs.iter().take(idx + 1) {
+            if let Message::Pc(pc) = item {
+                println!("Peeked PC from queue {} to {}", self.reg.pc, pc);
+                addr = *pc;
+            }
+            let _ = self.msg_snd.send(*item);
+        }
+
+        addr
+    }
 }
 
 impl<CpuBus: RwDevice + CpuCtrl> Default for Cpu<CpuBus> {
@@ -227,13 +288,15 @@ impl<CpuBus: RwDevice + CpuCtrl> Default for Cpu<CpuBus> {
             ..Default::default()
         };
 
+        let (msg_snd, msg_rcv) = channel();
         Self {
             reg: Registers::default(),
             bus: None,
             instruction: instruction::reset(),
             tcc: 0,
             prev: state,
-            queued_pc: None,
+            msg_rcv,
+            msg_snd,
         }
     }
 }
@@ -260,10 +323,7 @@ impl<CpuBus: RwDevice + CpuCtrl> Clocked for Cpu<CpuBus> {
                 }
             }
             None => {
-                if let Some(pc) = self.queued_pc {
-                    self.queued_pc = None;
-                    self.reg.pc = pc;
-                };
+                self.process_messages();
 
                 if let Some(bus) = self.bus.as_ref() {
                     let opc = bus.read(self.reg.pc) as usize;

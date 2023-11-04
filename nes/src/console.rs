@@ -44,7 +44,7 @@ impl Nes {
 
     #[allow(unused)]
     pub fn with_entry(mut self, addr: Word) -> Self {
-        self.cpu.borrow_mut().pc(addr);
+        self.cpu.borrow_mut().queue_pc(addr);
         self
     }
 
@@ -90,7 +90,10 @@ impl Nes {
             while !self.cpu.borrow().waiting() {
                 self.clock(&mut display);
             }
-            self.cpu.borrow_mut().pc(addr);
+
+            if self.cpu.borrow().cur_pc() != addr {
+                self.cpu.borrow_mut().queue_pc(addr);
+            }
         }
         if let Some(cc) = self.count_until_process(Process::Cpu) {
             for _ in 0..=cc {

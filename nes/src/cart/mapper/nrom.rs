@@ -5,12 +5,12 @@ use std::{cell::RefCell, rc::Rc};
 use crate::{
     cart::{Cartridge, CharacterMemory, ProgramMemory},
     io::{ReadDevice, RwDevice, RwMapper, WriteDevice},
-    mem_map::{Access, MemoryMap},
+    mem_map::{Access, CpuMemoryMapper, MemoryMap},
     ppu::NameTable,
     Byte, Word,
 };
 
-use super::{MemoryMapper, Mirror};
+use super::{Mirror, PpuMemoryMapper};
 
 // CPU $6000-$7FFF: Family Basic only: PRG RAM, mirrored as
 // necessary to fill entire 8 KiB window, write protectable with an
@@ -192,11 +192,13 @@ impl From<Cartridge> for Nrom {
     }
 }
 
-impl MemoryMapper for Nrom {
+impl PpuMemoryMapper for Nrom {
     #[rustfmt::skip]
-    fn map_mem(&self, mem_map: &mut MemoryMap, nt: &[Rc<RefCell<NameTable>>; 2]) {
+    fn map_ppu(&self, mem_map: &mut MemoryMap, nt: &[Rc<RefCell<NameTable>>; 2]) {
         use super::name_tbl::*;
         use Access::*;
+
+        mem_map.register(CHR_LO, CHR_HI, self.chr.clone(), Read);
         match self.mirror {
             Mirror::Horizontal => {
                 mem_map.register(NAMETABLE_0_LO, NAMETABLE_0_HI, nt[0].clone(), ReadWrite);
@@ -216,7 +218,12 @@ impl MemoryMapper for Nrom {
                 unimplemented!("NROM must use vertical or horizontal mirroring");
             }
         }
+    }
+}
 
-        //mem_map.register(CHR_LO, CHR_HI, self.chr.clone(), Access::Read);
+impl CpuMemoryMapper for Nrom {
+    fn map_cpu(&self, mem_map: &mut MemoryMap) {
+        use Access::*;
+        mem_map.register(PRG_LO, PRG_HI, self.prg.clone(), Read);
     }
 }

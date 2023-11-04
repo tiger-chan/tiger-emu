@@ -1,5 +1,8 @@
+use std::{cell::RefCell, rc::Rc};
+
 use crate::{
     io::{ReadDevice, RwDevice, RwDeviceRef, WriteDevice},
+    ppu::NameTable,
     Byte, Word,
 };
 
@@ -16,6 +19,14 @@ pub struct TableEntry {
     pub hi: Word,
     pub device: RwDeviceRef,
     pub access: Access,
+}
+
+pub trait PpuMemoryMapper {
+    fn map_ppu(&self, mem_map: &mut MemoryMap, nametables: &[Rc<RefCell<NameTable>>; 2]);
+}
+
+pub trait CpuMemoryMapper {
+    fn map_cpu(&self, mem_map: &mut MemoryMap);
 }
 
 #[derive(Debug, Default)]

@@ -8,7 +8,7 @@ use std::path::Path;
 use std::{io, io::Read, io::SeekFrom};
 
 pub use ines_header::{Format, INesHeader};
-pub use mapper::{Mapper, MapperRef, MemoryMapper};
+pub use mapper::{Mapper, MapperRef};
 
 pub type ProgramMemory = Vec<u8>;
 pub type CharacterMemory = Vec<u8>;

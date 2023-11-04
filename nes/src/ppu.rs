@@ -22,12 +22,41 @@ pub use color::Color;
 pub use nametable::NameTable;
 pub use registers::*;
 
+/// ```text
+/// Address range    Size      Device
+/// $2000–$2007     $0008      NES PPU registers
+/// $2008–$3FFF     $1FF8      Mirrors of $2000–$2007 (repeats every 8 bytes)
+/// ```
+pub const REG_LO: Word = 0x2000;
+
+/// ```text
+/// Address range    Size      Device
+/// $2000–$2007     $0008      NES PPU registers
+/// $2008–$3FFF     $1FF8      Mirrors of $2000–$2007 (repeats every 8 bytes)
+/// ```
+pub const REG_HI: Word = 0x3FFF;
+
+/// ```text
+/// Address range    Size      Device
+/// $2000–$2007     $0008      NES PPU registers
+/// $2008–$3FFF     $1FF8      Mirrors of $2000–$2007 (repeats every 8 bytes)
+/// ```
+pub const REG_MASK: Word = 0x0007;
+
 pub const WIDTH: Word = 256;
 pub const HEIGHT: Word = 240;
 
 #[allow(unused)]
 mod cycles {
     use crate::Word;
+
+    /// Vertical blanking lines (241-260)
+    ///
+    /// The VBlank flag of the PPU is set at tick 1 (the second tick) of
+    /// scanline 241, where the VBlank NMI also occurs. The PPU makes no memory
+    /// accesses during these scanlines, so PPU memory can be freely accessed by
+    /// the program.
+    pub const VB_NOTIFY: Word = 1;
 
     /// # Cycle 0
     ///
@@ -388,10 +417,21 @@ impl Palette {
     pub const HEIGHT: usize = 128;
 }
 
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct PpuState {
     pub scanline: u16,
     pub cycle: u16,
+    pub even_frame: bool,
+}
+
+impl Default for PpuState {
+    fn default() -> Self {
+        Self {
+            scanline: 0,
+            cycle: 0,
+            even_frame: true,
+        }
+    }
 }
 
 pub type PpuRef<PpuBus> = Rc<RefCell<Ppu<PpuBus>>>;
@@ -401,7 +441,7 @@ const STATIC_COLORS: [Color; 2] = [Color::BLACK, Color::WHITE];
 #[derive(Debug)]
 pub struct Ppu<PpuBus: RwDevice> {
     bus: Option<PpuBus>,
-    reg: Registers,
+    reg: RefCell<Registers>,
     state: PpuState,
 }
 
@@ -411,14 +451,11 @@ impl<PpuBus: RwDevice> Ppu<PpuBus> {
     }
 
     pub fn cur_state(&self) -> PpuState {
-        PpuState {
-            scanline: self.state.scanline,
-            cycle: self.state.cycle,
-        }
+        self.state
     }
 
     pub fn is_vblank(&self) -> bool {
-        self.reg.status & Status::V == Status::V
+        self.reg.borrow().status & Status::V == Status::V
     }
 }
 
@@ -474,7 +511,7 @@ impl<PpuBus: RwDevice> Default for Ppu<PpuBus> {
     fn default() -> Self {
         Self {
             bus: None,
-            reg: Registers::default(),
+            reg: RefCell::new(Registers::default()),
             state: PpuState::default(),
         }
     }
@@ -483,34 +520,38 @@ impl<PpuBus: RwDevice> Default for Ppu<PpuBus> {
 impl<PpuBus: RwDevice> DisplayClocked for Ppu<PpuBus> {
     type Item = PpuState;
     fn clock(&mut self, display: &mut dyn DisplayDevice) -> Option<Self::Item> {
-        if self.state.cycle > cycles::HB_FINAL_HI {
-            self.state.cycle = 0;
-            self.state.scanline += 1;
+        let PpuState {
+            scanline,
+            cycle,
+            even_frame,
+        } = &mut self.state;
 
-            if self.state.scanline == scanlines::VB_LO {
-                self.reg.status |= Status::V;
-                if self.reg.ctrl & Ctrl::V == Ctrl::V {
-                    todo!("Should trigger NMI interrupt")
-                }
-            }
-
-            if self.state.scanline > scanlines::PRE {
-                self.state.scanline = 0;
-                self.reg.status &= !Status::V;
+        if *scanline == scanlines::VB_LO && *cycle == cycles::VB_NOTIFY {
+            self.reg.borrow_mut().status |= Status::V;
+            if self.reg.borrow().ctrl & Ctrl::V == Ctrl::V {
+                todo!("Should trigger NMI interrupt")
             }
         }
 
-        if self.state.scanline <= scanlines::VIS_HI {
-            let scanline = self.state.scanline;
-            let cycle = self.state.cycle;
+        if *scanline <= scanlines::VIS_HI {
             // let idx =
             //     (((scanline * WIDTH + cycle) as f32).sin().signum() == -1.0) as usize;
-            let idx = scanline & 0x01;
-            let idx = ((scanline * cycles::VIS_HI + cycle + idx) & 0x01) as usize;
-            display.write(cycle, scanline, STATIC_COLORS[idx]);
+            let idx = *scanline & 0x01;
+            let idx = ((*scanline * cycles::VIS_HI + *cycle + idx) & 0x01) as usize;
+            display.write(*cycle, *scanline, STATIC_COLORS[idx]);
         }
 
-        self.state.cycle += 1;
+        *cycle += 1;
+        if *cycle > cycles::HB_FINAL_HI {
+            *cycle = 0;
+            *scanline += 1;
+        }
+
+        if *scanline > scanlines::PRE {
+            *even_frame = !*even_frame;
+            *scanline = 0;
+            self.reg.borrow_mut().status &= !Status::V;
+        }
 
         Some(self.state)
     }
@@ -521,17 +562,87 @@ impl<PpuBus: RwDevice> RwDevice for Ppu<PpuBus> {}
 impl<PpuBus: RwDevice> ReadDevice for Ppu<PpuBus> {
     fn read(&self, addr: Word) -> Byte {
         if let Some(bus) = &self.bus {
-            bus.read(addr)
+            let masked = addr & REG_MASK;
+            match masked {
+                0x0002 => {
+                    let tmp =
+                        Byte::from(self.reg.borrow().status & (Status::V | Status::S | Status::O));
+
+                    let tmp = tmp | self.reg.borrow().data_buffer & 0x1F;
+                    self.reg.borrow_mut().status.set(Status::V, false);
+                    self.reg.borrow_mut().addr_latch = 0;
+
+                    tmp
+                }
+                0x0007 => {
+                    let mut tmp = self.reg.borrow().data_buffer;
+                    let addr = self.reg.borrow().addr_lo | self.reg.borrow().addr_hi;
+                    self.reg.borrow_mut().data_buffer = bus.read(addr);
+
+                    if addr > 0x3F00 {
+                        tmp = self.reg.borrow().data_buffer;
+                    }
+                    let new_addr = addr.wrapping_add(1);
+                    self.reg.borrow_mut().addr_lo = new_addr & 0x00FF;
+                    self.reg.borrow_mut().addr_hi = new_addr & 0xFF00;
+
+                    tmp
+                }
+                _ => 0,
+            }
         } else {
             0
         }
     }
 }
 
+impl<PpuBus: RwDevice> ReadOnlyDevice for Ppu<PpuBus> {
+    fn read_only(&self, addr: Word) -> Byte {
+        let masked = addr & REG_MASK;
+        match masked {
+            0x0000 => self.reg.borrow().ctrl.into(),
+            0x0001 => self.reg.borrow().mask.into(),
+            0x0002 => self.reg.borrow().status.into(),
+            _ => 0,
+        }
+    }
+}
+
 impl<PpuBus: RwDevice> WriteDevice for Ppu<PpuBus> {
     fn write(&mut self, addr: Word, data: Byte) -> Byte {
+        let masked = addr & REG_MASK;
         if let Some(bus) = &mut self.bus {
-            bus.write(addr, data)
+            match masked {
+                0x0000 => {
+                    self.reg.borrow_mut().ctrl = Ctrl::new(data);
+                    self.reg.borrow().ctrl.into()
+                }
+                0x0001 => {
+                    self.reg.borrow_mut().mask = Mask::new(data);
+                    self.reg.borrow().mask.into()
+                }
+                0x0006 => {
+                    if self.reg.borrow().addr_latch == 0 {
+                        self.reg.borrow_mut().addr_hi = (data as Word) << 8;
+                        self.reg.borrow_mut().addr_latch = 1;
+                    } else {
+                        self.reg.borrow_mut().addr_lo = data as Word;
+                        self.reg.borrow_mut().addr_latch = 0;
+                    }
+
+                    0
+                }
+                0x0007 => {
+                    let ppu_addr = self.reg.borrow().addr_lo | self.reg.borrow().addr_hi;
+                    bus.write(ppu_addr, data);
+
+                    let new_addr = ppu_addr.wrapping_add(1);
+                    self.reg.borrow_mut().addr_hi = new_addr & 0xFF00;
+                    self.reg.borrow_mut().addr_lo = new_addr & 0x00FF;
+                    self.reg.borrow().ctrl.into()
+                }
+                _ => 0,
+            }
         } else {
             0
         }

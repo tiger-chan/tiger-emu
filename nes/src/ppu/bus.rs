@@ -32,7 +32,7 @@ pub struct Bus {
 impl Bus {
     #[allow(dead_code)]
     pub fn new(cpu: RwDeviceRef, mpr: MapperRef) -> Self {
-        use crate::cart::MemoryMapper;
+        use crate::mem_map::PpuMemoryMapper;
 
         let mut value = Self {
             cpu,
@@ -59,7 +59,7 @@ impl Bus {
         value
             .mpr
             .borrow()
-            .map_mem(&mut value.mem_map, &value.nametables);
+            .map_ppu(&mut value.mem_map, &value.nametables);
 
         value
     }
