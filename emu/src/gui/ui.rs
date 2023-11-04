@@ -6,12 +6,14 @@ use std::{
 
 use egui::{Color32, Context, FontId, Key, Modifiers, RichText, TextureOptions, Ui};
 
+use crate::assembly::Assembly;
+
 use super::Message;
 use nes::prelude::*;
 
 pub const ENABLED: Color32 = Color32::GREEN;
 pub const DISABLED: Color32 = Color32::RED;
-//pub const CURSOR: Color32 = Color32::LIGHT_BLUE;
+pub const CURSOR: Color32 = Color32::LIGHT_BLUE;
 pub const DIAGNOSTIC_FONT: FontId = FontId::monospace(12.0);
 
 pub const PATTERN_UPDATE_INTERVAL: Duration = Duration::from_secs(1);
@@ -134,6 +136,7 @@ pub struct MainGui {
     ppu_palette_idx: u16,
 
     cpu_state: cpu::InstructionState,
+    cpu_asm: Assembly,
     ppu_palette_last: u16,
     ppu_palettes: [[ppu::Palette; 8]; 2],
     ppu_pattern_imgs: [egui::ColorImage; 2],
@@ -153,6 +156,7 @@ impl Default for MainGui {
             ppu_palette_idx: u16::default(),
 
             cpu_state: cpu::InstructionState::default(),
+            cpu_asm: Assembly::with_capacity(25),
             ppu_palette_last: u16::MAX,
             ppu_palettes: <[[ppu::Palette; 8]; 2]>::default(),
             ppu_pattern_imgs: [
@@ -281,8 +285,27 @@ impl MainGui {
 
             egui::Window::new("Instructions")
                 .open(&mut self.cpu_instructions)
-                .show(ctx, |_ui| {
-                    //self.cpu_instructions.draw(ui);
+                .show(ctx, |ui| {
+                    const INSTRUCTION_COUNT: i8 = 26;
+
+                    ui.vertical(|ui| {
+                        let asm = &self.cpu_asm;
+                        let reg = &self.cpu_state.reg;
+                        let half = INSTRUCTION_COUNT / 2;
+                        let range = asm.get_range(reg.pc, -(half + 1));
+                        for str in range.iter().skip(1) {
+                            ui.label(RichText::new(*str).font(DIAGNOSTIC_FONT));
+                        }
+
+                        if let Some(str) = asm.get(reg.pc) {
+                            ui.label(RichText::new(str).font(DIAGNOSTIC_FONT).color(CURSOR));
+                        }
+
+                        let range = asm.get_range(reg.pc, half + 1);
+                        for str in range.iter().skip(1) {
+                            ui.label(RichText::new(*str).font(DIAGNOSTIC_FONT));
+                        }
+                    });
                 });
 
             egui::Window::new("Memory")
@@ -363,5 +386,9 @@ impl MainGui {
         let tbl = (tbl & 0x01) as usize;
         let palette = (palette & 0x07) as usize;
         self.ppu_palettes[tbl][palette] = data;
+    }
+
+    pub fn update_asm(&mut self, asm: Vec<Byte>) {
+        self.cpu_asm = Assembly::from(asm.as_slice());
     }
 }

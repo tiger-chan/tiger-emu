@@ -91,6 +91,7 @@ pub mod prelude {
     pub mod cpu {
         pub use crate::cpu::{
             AddrMode, AddrModeData, InstructionState, OperData, OperType, Registers, Status,
+            ADDR_MODE, INSTRUCTION_TYPE,
         };
     }
 

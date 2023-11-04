@@ -14,6 +14,12 @@ pub enum Access {
 }
 
 #[derive(Debug)]
+pub struct OpenEntry {
+    pub lo: Word,
+    pub hi: Word,
+}
+
+#[derive(Debug)]
 pub struct TableEntry {
     pub lo: Word,
     pub hi: Word,
@@ -32,6 +38,8 @@ pub trait CpuMemoryMapper {
 #[derive(Debug, Default)]
 pub struct MemoryMap {
     spaces: Vec<TableEntry>,
+    open_ranges: Vec<OpenEntry>,
+    last_read: RefCell<Byte>,
 }
 
 impl MemoryMap {
@@ -48,6 +56,17 @@ impl MemoryMap {
             self.spaces.sort_by(|a, b| a.hi.cmp(&b.lo));
         }
     }
+
+    pub fn register_open(&mut self, lo: Word, hi: Word) {
+        if self.spaces.iter().any(|s| s.lo <= lo && hi <= s.hi) {
+            log::error!("Duplicate registration of memory for {lo} to {hi} (Open)");
+        } else if self.open_ranges.iter().any(|s| s.lo <= lo && hi <= s.hi) {
+            log::error!("Duplicate registration of memory for {lo} to {hi} (Open)");
+        } else {
+            self.open_ranges.push(OpenEntry { lo, hi });
+            self.open_ranges.sort_by(|a, b| a.hi.cmp(&b.lo));
+        }
+    }
 }
 
 impl RwDevice for MemoryMap {}
@@ -56,7 +75,13 @@ impl ReadDevice for MemoryMap {
     fn read(&self, addr: Word) -> Byte {
         for space in self.spaces.iter() {
             if space.lo <= addr && addr <= space.hi && space.access != Access::Write {
-                return space.device.borrow().read(addr);
+                *self.last_read.borrow_mut() = space.device.borrow().read(addr);
+                return *self.last_read.borrow();
+            }
+        }
+        for space in self.open_ranges.iter() {
+            if space.lo <= addr && addr <= space.hi {
+                return *self.last_read.borrow();
             }
         }
         log::warn!("unmapped region is being read {addr:>04X}");

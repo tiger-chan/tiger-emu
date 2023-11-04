@@ -17,11 +17,13 @@ impl Default for Buffer {
 
 pub enum EmuQuery {
     CpuRegisters,
+    CpuAsm(Word, Word),
     PpuPalette(Word, Word),
 }
 
 pub enum GuiResult {
     CpuRegister(cpu::InstructionState),
+    CpuAsm(Vec<Byte>),
     PpuPalette(Word, Word, ppu::Palette),
     PlayState(bool),
 }
@@ -40,6 +42,7 @@ pub enum EmulatorMessage {
 }
 
 pub enum GuiMessage {
+    Loaded,
     QueryResult(GuiResult),
 }
 

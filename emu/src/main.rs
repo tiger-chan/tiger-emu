@@ -1,3 +1,4 @@
+mod assembly;
 mod gui;
 mod thread_nes;
 mod triple_buffer;

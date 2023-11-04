@@ -13,16 +13,14 @@ pub use bus::{Bus, CpuCtrl};
 pub use registers::Registers;
 pub use status_reg::Status;
 
-pub use instruction::{AddrMode, AddrModeData, OperData, OperType};
+pub use instruction::{AddrMode, AddrModeData, OperData, OperType, ADDR_MODE, INSTRUCTION_TYPE};
 
-use instruction::{InstructionIterator, INSTRUCTION_TYPE};
+use instruction::{InstructionIterator, OPER};
 
 use crate::{
     io::{ReadDevice, WriteDevice},
     Clocked,
 };
-
-use self::instruction::{ADDR_MODE, OPER};
 
 use super::{io::RwDevice, Byte, Word};
 

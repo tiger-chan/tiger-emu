@@ -72,6 +72,9 @@ pub fn ui_thread(
         prev_instant = cur_instant;
         while let Ok(msg) = receiver.try_recv() {
             match msg {
+                GuiMessage::Loaded => {
+                    let _ = sender.send(EmulatorMessage::Query(EmuQuery::CpuAsm(0x0000, 0xFFFF)));
+                }
                 GuiMessage::QueryResult(msg) => match msg {
                     GuiResult::CpuRegister(reg) => {
                         framework.gui.update_cpu_status(reg);
@@ -81,6 +84,9 @@ pub fn ui_thread(
                     }
                     GuiResult::PlayState(state) => {
                         is_running = state;
+                    }
+                    GuiResult::CpuAsm(asm) => {
+                        framework.gui.update_asm(asm);
                     }
                 },
             }

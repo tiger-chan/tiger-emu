@@ -63,8 +63,11 @@ pub fn emu_thread(
                     emu_processing = EmulationStepMethod::None;
                     let path = Path::new(&cart_location);
                     match Cartridge::try_from(path) {
-                        Ok(cart) => nes = Nes::default().with_cart(cart),
-                        Err(err) => log::error!("{}", err)
+                        Ok(cart) => {
+                            nes = Nes::default().with_cart(cart);
+                            let _ = sender.send(GuiMessage::Loaded);
+                        }
+                        Err(err) => log::error!("{}", err),
                     }
                 }
                 EmulatorMessage::Play => {
@@ -100,6 +103,13 @@ pub fn emu_thread(
                             let msg = GuiResult::PpuPalette(idx, palette, data);
                             let _ = sender.send(GuiMessage::QueryResult(msg));
                         }
+                    }
+                    EmuQuery::CpuAsm(start, end) => {
+                        let mut data = vec![0; (end - start) as usize];
+                        nes.read_slice(start, data.as_mut_slice());
+
+                        let msg = GuiResult::CpuAsm(data);
+                        let _ = sender.send(GuiMessage::QueryResult(msg));
                     }
                 },
                 EmulatorMessage::Irq => {
