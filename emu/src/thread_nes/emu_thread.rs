@@ -134,7 +134,7 @@ pub fn emu_thread(
 
                     let end_frame = Instant::now();
                     let dur = end_frame.duration_since(frame).as_secs_f32();
-                    log::debug!("Instruction request {dur}");
+                    log::trace!("Instruction request {dur}");
 
                     emu_processing = EmulationStepMethod::None;
                 }
@@ -152,7 +152,7 @@ pub fn emu_thread(
 
                     let end_frame = Instant::now();
                     let dur = end_frame.duration_since(frame).as_secs_f32();
-                    log::debug!("Frame request {dur}");
+                    log::trace!("Frame request {dur}");
 
                     emu_processing = EmulationStepMethod::None;
                 }
@@ -184,7 +184,7 @@ pub fn emu_thread(
 
                         let end_frame = Instant::now();
                         let dur = end_frame.duration_since(frame).as_secs_f32();
-                        log::debug!("Standard running took {dur} and clocked: {count}");
+                        log::trace!("Standard running took {dur} and clocked: {count}");
                     }
                 }
             }

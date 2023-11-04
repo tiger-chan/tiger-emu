@@ -1,5 +1,6 @@
 mod bus;
 mod color;
+mod color_palette;
 mod nametable;
 mod palette;
 mod pattern;
@@ -8,11 +9,15 @@ mod registers;
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
+    cpu::Message,
     io::{DisplayDevice, ReadOnlyDevice},
-    DisplayClocked, cpu::Message,
+    DisplayClocked,
 };
 
-use self::bus::CpuSignal;
+use self::{
+    bus::CpuSignal,
+    color_palette::{create_palette, X2C02, X2C07},
+};
 
 use super::{
     io::{ReadDevice, RwDevice, WriteDevice},
@@ -438,13 +443,12 @@ impl Default for PpuState {
 
 pub type PpuRef<PpuBus> = Rc<RefCell<Ppu<PpuBus>>>;
 
-const STATIC_COLORS: [Color; 2] = [Color::BLACK, Color::WHITE];
-
 #[derive(Debug)]
 pub struct Ppu<PpuBus: RwDevice> {
     bus: Option<PpuBus>,
     reg: RefCell<Registers>,
     state: PpuState,
+    col_palette: [Color; 64],
 }
 
 impl<PpuBus: RwDevice> Ppu<PpuBus> {
@@ -459,6 +463,16 @@ impl<PpuBus: RwDevice> Ppu<PpuBus> {
     pub fn is_vblank(&self) -> bool {
         self.reg.borrow().status & Status::V == Status::V
     }
+
+    #[allow(unused)]
+    pub fn set_palette_ntsc(&mut self) {
+        self.col_palette = create_palette(X2C02);
+    }
+
+    #[allow(unused)]
+    pub fn set_palette_pal(&mut self) {
+        self.col_palette = create_palette(X2C07);
+    }
 }
 
 impl<PpuBus: RwDevice + ReadOnlyDevice> Ppu<PpuBus> {
@@ -467,9 +481,17 @@ impl<PpuBus: RwDevice + ReadOnlyDevice> Ppu<PpuBus> {
 
         let color_from_palette = |bus: &PpuBus, palette: Word, pixel: Word| -> Color {
             let addr = 0x3F00 + palette.overflowing_shl(2).0 + pixel;
-            let _addr = bus.read_only(addr) & 0x3F;
-            //self.memory.borrow().col_palette[addr as usize]
-            Color::WHITE
+            let col_addr = bus.read_only(addr) & 0x3F;
+            self.col_palette[col_addr as usize]
+        };
+
+        let mut set_pixel = |x, y, v| {
+            let x = x as usize;
+            let y = y as usize;
+            let (w, h) = (Palette::WIDTH, Palette::HEIGHT);
+            if x < w && y < h {
+                pixels.0[(y * w) + x] = v;
+            }
         };
 
         for y in 0..16 as Word {
@@ -490,14 +512,6 @@ impl<PpuBus: RwDevice + ReadOnlyDevice> Ppu<PpuBus> {
 
                             let color = color_from_palette(bus, palette, pixel);
 
-                            let mut set_pixel = |x, y, v| {
-                                let x = x as usize;
-                                let y = y as usize;
-                                let (w, h) = (Palette::WIDTH, Palette::HEIGHT);
-                                if x < w && y < h {
-                                    pixels.0[(y * w) + x] = v;
-                                }
-                            };
                             set_pixel(x, y, color);
                         }
                     }
@@ -515,6 +529,7 @@ impl<PpuBus: RwDevice> Default for Ppu<PpuBus> {
             bus: None,
             reg: RefCell::new(Registers::default()),
             state: PpuState::default(),
+            col_palette: create_palette(X2C02),
         }
     }
 }
@@ -539,9 +554,12 @@ impl<PpuBus: RwDevice + CpuSignal> DisplayClocked for Ppu<PpuBus> {
             if *scanline <= scanlines::VIS_HI {
                 // let idx =
                 //     (((scanline * WIDTH + cycle) as f32).sin().signum() == -1.0) as usize;
-                let idx = *scanline & 0x01;
-                let idx = ((*scanline * cycles::VIS_HI + *cycle + idx) & 0x01) as usize;
-                display.write(*cycle, *scanline, STATIC_COLORS[idx]);
+
+                // let idx = *scanline & 0x01;
+                // let idx = ((*scanline * cycles::VIS_HI + *cycle + idx) & 0x01) as usize;
+
+                let idx = if rand::random() { 0x3F } else { 0x30 };
+                display.write(*cycle, *scanline, self.col_palette[idx]);
             }
         }
 
@@ -618,12 +636,14 @@ impl<PpuBus: RwDevice> WriteDevice for Ppu<PpuBus> {
         if let Some(bus) = &mut self.bus {
             match masked {
                 0x0000 => {
+                    let tmp = self.reg.borrow().ctrl.into();
                     self.reg.borrow_mut().ctrl = Ctrl::new(data);
-                    self.reg.borrow().ctrl.into()
+                    tmp
                 }
                 0x0001 => {
+                    let tmp = self.reg.borrow().mask.into();
                     self.reg.borrow_mut().mask = Mask::new(data);
-                    self.reg.borrow().mask.into()
+                    tmp
                 }
                 0x0006 => {
                     if self.reg.borrow().addr_latch == 0 {
@@ -638,12 +658,12 @@ impl<PpuBus: RwDevice> WriteDevice for Ppu<PpuBus> {
                 }
                 0x0007 => {
                     let ppu_addr = self.reg.borrow().addr_lo | self.reg.borrow().addr_hi;
-                    bus.write(ppu_addr, data);
+                    let tmp = bus.write(ppu_addr, data);
 
                     let new_addr = ppu_addr.wrapping_add(1);
                     self.reg.borrow_mut().addr_hi = new_addr & 0xFF00;
                     self.reg.borrow_mut().addr_lo = new_addr & 0x00FF;
-                    self.reg.borrow().ctrl.into()
+                    tmp
                 }
                 _ => 0,
             }

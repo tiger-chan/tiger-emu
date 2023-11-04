@@ -5,10 +5,8 @@ use std::{cell::RefCell, rc::Rc};
 pub use nrom::Nrom;
 
 use crate::{
-    io::RwMapper,
     mem_map::{CpuMemoryMapper, MemoryMap, PpuMemoryMapper},
     ppu::NameTable,
-    Byte, Word,
 };
 
 use super::Cartridge;
@@ -67,27 +65,8 @@ macro_rules! as_t_impl {
 }
 
 impl Mapper {
-    as_t_impl!(as_rw, as_rw_mut, RwMapper);
     as_t_impl!(as_mm, as_mm_mut, PpuMemoryMapper);
     as_t_impl!(as_cpu_mm, as_cpu_mm_mut, CpuMemoryMapper);
-}
-
-impl RwMapper for Mapper {
-    fn read_chr(&self, addr: Word) -> Byte {
-        self.as_rw().read_chr(addr)
-    }
-
-    fn read_prg(&self, addr: Word) -> Byte {
-        self.as_rw().read_prg(addr)
-    }
-
-    fn write_chr(&mut self, addr: Word, data: Byte) -> Byte {
-        self.as_rw_mut().write_chr(addr, data)
-    }
-
-    fn write_prg(&mut self, addr: Word, data: Byte) -> Byte {
-        self.as_rw_mut().write_prg(addr, data)
-    }
 }
 
 impl PpuMemoryMapper for Mapper {

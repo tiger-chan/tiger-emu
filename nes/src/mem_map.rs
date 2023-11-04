@@ -36,13 +36,17 @@ pub struct MemoryMap {
 
 impl MemoryMap {
     pub fn register(&mut self, lo: Word, hi: Word, table: RwDeviceRef, access: Access) {
-        self.spaces.push(TableEntry {
-            lo,
-            hi,
-            device: table,
-            access,
-        });
-        self.spaces.sort_by(|a, b| a.hi.cmp(&b.lo));
+        if self.spaces.iter().any(|s| s.lo <= lo && hi <= s.hi) {
+            log::error!("Duplicate registration of memory for {lo} to {hi}");
+        } else {
+            self.spaces.push(TableEntry {
+                lo,
+                hi,
+                device: table,
+                access,
+            });
+            self.spaces.sort_by(|a, b| a.hi.cmp(&b.lo));
+        }
     }
 }
 

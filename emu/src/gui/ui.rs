@@ -1,4 +1,8 @@
-use std::{ops::Add, sync::mpsc::Sender};
+use std::{
+    ops::Add,
+    sync::mpsc::Sender,
+    time::{Duration, Instant},
+};
 
 use egui::{Color32, Context, FontId, Key, Modifiers, RichText, TextureOptions, Ui};
 
@@ -9,6 +13,8 @@ pub const ENABLED: Color32 = Color32::GREEN;
 pub const DISABLED: Color32 = Color32::RED;
 //pub const CURSOR: Color32 = Color32::LIGHT_BLUE;
 pub const DIAGNOSTIC_FONT: FontId = FontId::monospace(12.0);
+
+pub const PATTERN_UPDATE_INTERVAL: Duration = Duration::from_secs(1);
 
 trait DrawCpuStatus {
     fn draw(&self, ui: &mut Ui);
@@ -132,6 +138,7 @@ pub struct MainGui {
     ppu_palettes: [[ppu::Palette; 8]; 2],
     ppu_pattern_imgs: [egui::ColorImage; 2],
     ppu_pattern_textures: [Option<egui::TextureHandle>; 2],
+    ppu_last_pattern_req: Instant,
 }
 
 impl Default for MainGui {
@@ -153,6 +160,7 @@ impl Default for MainGui {
                 egui::ColorImage::new([128, 128], egui::Color32::GREEN),
             ],
             ppu_pattern_textures: <[Option<egui::TextureHandle>; 2]>::default(),
+            ppu_last_pattern_req: Instant::now(),
         }
     }
 }
@@ -297,7 +305,11 @@ impl MainGui {
             egui::Window::new("PPU: Patern Tables")
                 .open(&mut self.ppu_palette_tbl)
                 .show(ctx, |ui| {
-                    if self.ppu_palette_idx != self.ppu_palette_last {
+                    let cur = Instant::now();
+                    if self.ppu_palette_idx != self.ppu_palette_last
+                        || cur.duration_since(self.ppu_last_pattern_req) >= PATTERN_UPDATE_INTERVAL
+                    {
+                        self.ppu_last_pattern_req = cur;
                         self.ppu_palette_last = self.ppu_palette_idx;
                         let _ = sender.send(Message::QueryPalette(0, self.ppu_palette_idx));
                         let _ = sender.send(Message::QueryPalette(1, self.ppu_palette_idx));

@@ -2,21 +2,14 @@ use std::{cell::RefCell, rc::Rc, sync::mpsc::Sender};
 
 use crate::{
     cart::MapperRef,
+    cpu::Message,
     io::{ReadDevice, ReadOnlyDevice, RwDevice, RwDeviceRef, WriteDevice},
     mem_map::{Access, MemoryMap},
     ppu::palette,
-    Byte, Word, cpu::Message,
+    Byte, Word,
 };
 
-use super::{nametable::NameTable, palette::PaletteTable, pattern::PatternTable};
-
-pub(crate) mod addr {
-    // https://www.nesdev.org/wiki/PPU_memory_map
-    use crate::Word;
-
-    pub const PATTERN_LO: Word = 0x0000;
-    pub const PATTERN_HI: Word = 0x1FFF;
-}
+use super::{nametable::NameTable, palette::PaletteTable};
 
 pub trait CpuSignal {
     fn signal(&self) -> &Sender<Message>;
@@ -27,7 +20,6 @@ pub struct Bus {
     #[allow(unused)]
     cpu: RwDeviceRef,
     mpr: MapperRef,
-    pattern: Rc<RefCell<PatternTable>>,
     nametables: [Rc<RefCell<NameTable>>; 2],
     palette: Rc<RefCell<PaletteTable>>,
     mem_map: MemoryMap,
@@ -41,19 +33,12 @@ impl Bus {
         let mut value = Self {
             cpu,
             mpr,
-            pattern: Rc::new(RefCell::new(PatternTable::default())),
             nametables: [Rc::default(), Rc::default()],
             palette: Rc::new(RefCell::new(PaletteTable::default())),
             mem_map: MemoryMap::default(),
             cpu_sig,
         };
 
-        value.mem_map.register(
-            addr::PATTERN_LO,
-            addr::PATTERN_HI,
-            value.pattern.clone(),
-            Access::ReadWrite,
-        );
         value.mem_map.register(
             palette::RAM_LO,
             palette::RAM_HI,
