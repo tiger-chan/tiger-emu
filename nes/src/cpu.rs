@@ -232,24 +232,25 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
     }
 
     fn process_messages(&mut self) {
-        while let Ok(msg) = self.msg_rcv.try_recv() {
+        if let Ok(msg) = self.msg_rcv.try_recv() {
             match msg {
                 Message::Pc(pc) => {
                     self.reg.pc = pc;
                 }
                 Message::Irq => {
                     self.irq();
-                    return;
                 }
                 Message::Reset => {
                     self.reset();
-                    return;
                 }
                 Message::Nmi => {
                     self.nmi();
-                    return;
                 }
             }
+        }
+
+        while self.msg_rcv.try_recv().is_ok() {
+            // Do nothing
         }
     }
 

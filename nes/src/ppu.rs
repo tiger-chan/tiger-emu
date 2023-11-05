@@ -539,6 +539,7 @@ impl<PpuBus: RwDevice + CpuSignal> DisplayClocked for Ppu<PpuBus> {
         if let Some(bus) = self.bus.as_mut() {
             if *scanline == scanlines::VB_LO && *cycle == cycles::VB_SIG {
                 self.reg.borrow_mut().status |= Status::V;
+
                 if self.reg.borrow().ctrl & Ctrl::V == Ctrl::V {
                     let _ = bus.signal().send(Message::Nmi);
                 }

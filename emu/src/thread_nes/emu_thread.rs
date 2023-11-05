@@ -165,8 +165,6 @@ pub fn emu_thread(
                     let end_frame = Instant::now();
                     let dur = end_frame.duration_since(frame).as_secs_f32();
                     log::trace!("Frame request {dur}");
-
-                    emu_processing = EmulationStepMethod::None;
                 }
                 EmulationStepMethod::Standard => {
                     if residual_time > 0.0 {
@@ -207,9 +205,20 @@ pub fn emu_thread(
             let _ = sender.send(GuiMessage::QueryResult(GuiResult::PlayState(is_running)));
         }
 
-        if emu_processing != EmulationStepMethod::None && nes.is_vblank() {
-            frame_buffer.submit();
-        }
+        match emu_processing {
+            EmulationStepMethod::Standard => {
+                if nes.is_vblank() {
+                    frame_buffer.submit();
+                }
+            }
+            EmulationStepMethod::Frame => {
+                if nes.is_vblank() {
+                    frame_buffer.submit();
+                }
+                emu_processing = EmulationStepMethod::None;
+            }
+            _ => {}
+        };
     }
 
     Ok(())

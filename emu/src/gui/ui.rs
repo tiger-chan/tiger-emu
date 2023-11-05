@@ -292,16 +292,29 @@ impl MainGui {
                         let asm = &self.cpu_asm;
                         let reg = &self.cpu_state.reg;
                         let half = INSTRUCTION_COUNT / 2;
-                        let range = asm.get_range(reg.pc, -(half + 1));
+                        let mut range = asm.get_range(reg.pc, -(half + 1));
+                        for _ in 0..(((half + 1) as usize) - range.len()) {
+                            range.insert(0, "Out of range");
+                        }
+
                         for str in range.iter().skip(1) {
                             ui.label(RichText::new(*str).font(DIAGNOSTIC_FONT));
                         }
 
                         if let Some(str) = asm.get(reg.pc) {
                             ui.label(RichText::new(str).font(DIAGNOSTIC_FONT).color(CURSOR));
+                        } else {
+                            ui.label(
+                                RichText::new("Out of range")
+                                    .font(DIAGNOSTIC_FONT)
+                                    .color(CURSOR),
+                            );
                         }
 
-                        let range = asm.get_range(reg.pc, half + 1);
+                        let mut range = asm.get_range(reg.pc, half + 1);
+                        for _ in 0..(((half + 1) as usize) - range.len()) {
+                            range.insert(0, "Out of range");
+                        }
                         for str in range.iter().skip(1) {
                             ui.label(RichText::new(*str).font(DIAGNOSTIC_FONT));
                         }
@@ -388,7 +401,7 @@ impl MainGui {
         self.ppu_palettes[tbl][palette] = data;
     }
 
-    pub fn update_asm(&mut self, asm: Vec<Byte>) {
-        self.cpu_asm = Assembly::from(asm.as_slice());
+    pub fn update_asm(&mut self, asm: Vec<Byte>, start: Word) {
+        self.cpu_asm = Assembly::from((asm.as_slice(), start as usize));
     }
 }

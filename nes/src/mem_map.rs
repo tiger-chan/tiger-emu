@@ -95,13 +95,6 @@ impl ReadDevice for MemoryMap {
                 return space.device.borrow().read_only(addr);
             }
         }
-
-        for space in self.open_ranges.iter() {
-            if space.lo <= addr && addr <= space.hi {
-                return *self.last_read.borrow();
-            }
-        }
-        log::warn!("unmapped region is being read {addr:>04X}");
         0
     }
 }

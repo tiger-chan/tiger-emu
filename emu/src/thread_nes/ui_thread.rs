@@ -73,7 +73,7 @@ pub fn ui_thread(
         while let Ok(msg) = receiver.try_recv() {
             match msg {
                 GuiMessage::Loaded => {
-                    let _ = sender.send(EmulatorMessage::Query(EmuQuery::CpuAsm(0x0000, 0xFFFF)));
+                    let _ = sender.send(EmulatorMessage::Query(EmuQuery::CpuAsm(0x8000, 0xFFFF)));
                 }
                 GuiMessage::QueryResult(msg) => match msg {
                     GuiResult::CpuRegister(reg) => {
@@ -86,7 +86,7 @@ pub fn ui_thread(
                         is_running = state;
                     }
                     GuiResult::CpuAsm(asm) => {
-                        framework.gui.update_asm(asm);
+                        framework.gui.update_asm(asm, 0x8000);
                     }
                 },
             }
