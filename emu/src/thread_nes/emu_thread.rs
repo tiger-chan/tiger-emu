@@ -106,7 +106,7 @@ pub fn emu_thread(
                     }
                     EmuQuery::CpuAsm(start, end) => {
                         let mut data = vec![0; (end - start) as usize];
-                        nes.read_slice(start, data.as_mut_slice());
+                        nes.read_only_slice(start, data.as_mut_slice());
 
                         let msg = GuiResult::CpuAsm(data);
                         let _ = sender.send(GuiMessage::QueryResult(msg));

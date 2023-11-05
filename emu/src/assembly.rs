@@ -77,16 +77,16 @@ impl From<&[Byte]> for Assembly {
 
             let line = match am {
                 A => {
-                    format!("${:>04X}: {:?} A            {{{:?}}}", ln_addr, op, am)
+                    format!("${:>04X}: {:} A            {{{:}}}", ln_addr, op, am)
                 }
                 IMP => {
-                    format!("${:>04X}: {:?}              {{{:?}}}", ln_addr, op, am)
+                    format!("${:>04X}: {:}              {{{:}}}", ln_addr, op, am)
                 }
                 IMM => {
                     let lo = value[addr as usize];
                     addr += 1;
                     format!(
-                        "${:>04X}: {:?} #${:>02X}         {{{:?}}}",
+                        "${:>04X}: {:} #${:>02X}         {{{:}}}",
                         ln_addr, op, lo, am
                     )
                 }
@@ -94,7 +94,7 @@ impl From<&[Byte]> for Assembly {
                     let lo = value[addr as usize];
                     addr += 1;
                     format!(
-                        "${:>04X}: {:?} ${:>02X}          {{{:?}}}",
+                        "${:>04X}: {:} ${:>02X}          {{{:}}}",
                         ln_addr, op, lo, am
                     )
                 }
@@ -102,7 +102,7 @@ impl From<&[Byte]> for Assembly {
                     let lo = value[addr as usize];
                     addr += 1;
                     format!(
-                        "${:>04X}: {:?} ${:>02X},X        {{{:?}}}",
+                        "${:>04X}: {:} ${:>02X},X        {{{:}}}",
                         ln_addr, op, lo, am
                     )
                 }
@@ -110,7 +110,7 @@ impl From<&[Byte]> for Assembly {
                     let lo = value[addr as usize];
                     addr += 1;
                     format!(
-                        "${:>04X}: {:?} ${:>02X},Y         {{{:?}}}",
+                        "${:>04X}: {:} ${:>02X},Y         {{{:}}}",
                         ln_addr, op, lo, am
                     )
                 }
@@ -118,7 +118,7 @@ impl From<&[Byte]> for Assembly {
                     let lo = value[addr as usize];
                     addr += 1;
                     format!(
-                        "${:>04X}: {:?} (${:>02X},X)     {{{:?}}}",
+                        "${:>04X}: {:} (${:>02X},X)      {{{:}}}",
                         ln_addr, op, lo, am
                     )
                 }
@@ -126,7 +126,7 @@ impl From<&[Byte]> for Assembly {
                     let lo = value[addr as usize];
                     addr += 1;
                     format!(
-                        "${:>04X}: {:?} (${:>02X}),Y      {{{:?}}}",
+                        "${:>04X}: {:} (${:>02X}),Y      {{{:}}}",
                         ln_addr, op, lo, am
                     )
                 }
@@ -137,7 +137,7 @@ impl From<&[Byte]> for Assembly {
                     addr += 1;
                     let val = hi | lo;
                     format!(
-                        "${:>04X}: {:?} ${:>04X}        {{{:?}}}",
+                        "${:>04X}: {:} ${:>04X}        {{{:}}}",
                         ln_addr, op, val, am
                     )
                 }

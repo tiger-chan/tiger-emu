@@ -10,18 +10,13 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     cpu::Message,
-    io::{DisplayDevice, ReadOnlyDevice},
-    DisplayClocked,
+    io::{DisplayDevice, ReadDevice, RwDevice, WriteDevice},
+    Byte, DisplayClocked, Word,
 };
 
 use self::{
     bus::CpuSignal,
     color_palette::{create_palette, X2C02, X2C07},
-};
-
-use super::{
-    io::{ReadDevice, RwDevice, WriteDevice},
-    Byte, Word,
 };
 
 pub use bus::Bus;
@@ -473,9 +468,7 @@ impl<PpuBus: RwDevice> Ppu<PpuBus> {
     pub fn set_palette_pal(&mut self) {
         self.col_palette = create_palette(X2C07);
     }
-}
 
-impl<PpuBus: RwDevice + ReadOnlyDevice> Ppu<PpuBus> {
     pub fn read_palette(&self, tbl: Word, palette: Word) -> Palette {
         let mut pixels = Palette::default();
 
@@ -616,9 +609,7 @@ impl<PpuBus: RwDevice> ReadDevice for Ppu<PpuBus> {
             0
         }
     }
-}
 
-impl<PpuBus: RwDevice> ReadOnlyDevice for Ppu<PpuBus> {
     fn read_only(&self, addr: Word) -> Byte {
         let masked = addr & REG_MASK;
         match masked {

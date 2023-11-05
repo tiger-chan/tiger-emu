@@ -79,6 +79,23 @@ impl ReadDevice for MemoryMap {
                 return *self.last_read.borrow();
             }
         }
+
+        for space in self.open_ranges.iter() {
+            if space.lo <= addr && addr <= space.hi {
+                return *self.last_read.borrow();
+            }
+        }
+        log::warn!("unmapped region is being read {addr:>04X}");
+        0
+    }
+
+    fn read_only(&self, addr: Word) -> Byte {
+        for space in self.spaces.iter() {
+            if space.lo <= addr && addr <= space.hi && space.access != Access::Write {
+                return space.device.borrow().read_only(addr);
+            }
+        }
+
         for space in self.open_ranges.iter() {
             if space.lo <= addr && addr <= space.hi {
                 return *self.last_read.borrow();

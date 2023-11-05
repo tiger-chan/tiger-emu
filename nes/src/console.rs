@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
-    io::{DisplayDevice, VoidDisplay},
+    io::{DisplayDevice, ReadDevice, VoidDisplay},
     ppu::Palette,
     Clocked, DisplayClocked,
 };
@@ -53,7 +53,11 @@ impl Nes {
         self.mpr = Rc::new(RefCell::new(Mapper::from(cart)));
         let cpu_bus = CpuBus::new(self.ppu.clone(), self.mpr.clone());
         self.cpu.borrow_mut().configure_bus(cpu_bus);
-        let ppu_bus = PpuBus::new(self.cpu.clone(), self.cpu.borrow().signal(), self.mpr.clone());
+        let ppu_bus = PpuBus::new(
+            self.cpu.clone(),
+            self.cpu.borrow().signal(),
+            self.mpr.clone(),
+        );
         self.ppu.borrow_mut().configure_bus(ppu_bus);
         self
     }
@@ -163,10 +167,9 @@ impl Nes {
         self.cpu.borrow().read(addr)
     }
 
-    #[allow(unused)]
-    pub fn read_slice(&self, addr: Word, out: &mut [Byte]) {
+    pub fn read_only_slice(&self, addr: Word, out: &mut [Byte]) {
         for (i, v) in out.iter_mut().enumerate() {
-            *v = self.cpu.borrow().read(addr + i as Word)
+            *v = self.cpu.borrow().read_only(addr + i as Word)
         }
     }
 
