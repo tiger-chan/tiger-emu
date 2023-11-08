@@ -5,6 +5,8 @@ use crate::{
 
 const NAMETABLE: usize = 0x0400;
 const NAMETABLE_MASK: Word = 0x3FF;
+pub const LO: Word = 0x2000;
+pub const ATTR_LO: Word = 0x23C0;
 
 #[derive(Debug)]
 pub struct NameTable(pub [Byte; NAMETABLE]);

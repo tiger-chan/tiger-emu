@@ -6,12 +6,15 @@ mod palette;
 mod pattern;
 mod registers;
 
-use std::{cell::RefCell, rc::Rc};
+use std::{
+    cell::{Ref, RefCell, RefMut},
+    rc::Rc,
+};
 
 use crate::{
     cpu::Message,
     io::{DisplayDevice, ReadDevice, RwDevice, WriteDevice},
-    Byte, DisplayClocked, Word,
+    Byte, DisplayClocked, Word, HI_MASK,
 };
 
 use self::{
@@ -405,6 +408,11 @@ mod scanlines {
     pub const VB_HI: Word = VB_LO + VBLANK;
 }
 
+fn color_idx<PpuBus: RwDevice>(bus: &PpuBus, palette: Word, pixel: Word) -> usize {
+    let addr = 0x3F00 + palette.overflowing_shl(2).0 + pixel;
+    (bus.read_only(addr) & 0x3F) as usize
+}
+
 #[derive(Debug, Clone)]
 pub struct Palette(pub Box<[Color; 128 * 128]>);
 
@@ -419,20 +427,50 @@ impl Palette {
     pub const HEIGHT: usize = 128;
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct PpuState {
     pub scanline: u16,
     pub cycle: u16,
-    pub even_frame: bool,
+    pub frame: u64,
 }
 
-impl Default for PpuState {
-    fn default() -> Self {
-        Self {
-            scanline: 0,
-            cycle: 0,
-            even_frame: true,
+#[derive(Debug, Default, Clone, Copy)]
+pub struct PpuInternalState {
+    pub v_ram: Loopy,
+    pub tmp_ram: Loopy,
+    pub w_fine_x: Byte,
+
+    pub tile_id: Byte,
+    pub tile_attr: Byte,
+    pub tile_lsb: Byte,
+    pub tile_msb: Byte,
+
+    pub attr_lo: Word,
+    pub attr_hi: Word,
+
+    pub ptrn_lo: Word,
+    pub ptrn_hi: Word,
+}
+
+impl PpuInternalState {
+    pub fn shift(&mut self, mask: Mask) {
+        if mask & Mask::BG != 0 {
+            // Shifting background pattern row
+            self.ptrn_lo <<= 1;
+            self.ptrn_hi <<= 1;
+
+            // Shifting palette attributes by 1
+            self.attr_lo <<= 1;
+            self.attr_hi <<= 1;
         }
+    }
+
+    pub fn load_shifter(&mut self) {
+        self.ptrn_lo = (self.ptrn_lo & HI_MASK) | self.tile_lsb as Word;
+        self.ptrn_hi = (self.ptrn_hi & HI_MASK) | self.tile_msb as Word;
+
+        self.attr_lo = (self.attr_lo & HI_MASK) | ((self.tile_attr as Word & 0b01) * 0xFF);
+        self.attr_hi = (self.attr_hi & HI_MASK) | (((self.tile_attr as Word & 0b10) >> 1) * 0xFF);
     }
 }
 
@@ -443,6 +481,7 @@ pub struct Ppu<PpuBus: RwDevice> {
     bus: Option<PpuBus>,
     reg: RefCell<Registers>,
     state: PpuState,
+    internal: RefCell<PpuInternalState>,
     col_palette: [Color; 64],
 }
 
@@ -473,9 +512,7 @@ impl<PpuBus: RwDevice> Ppu<PpuBus> {
         let mut pixels = Palette::default();
 
         let color_from_palette = |bus: &PpuBus, palette: Word, pixel: Word| -> Color {
-            let addr = 0x3F00 + palette.overflowing_shl(2).0 + pixel;
-            let col_addr = bus.read_only(addr) & 0x3F;
-            self.col_palette[col_addr as usize]
+            self.col_palette[color_idx(bus, palette, pixel)]
         };
 
         let mut set_pixel = |x, y, v| {
@@ -522,6 +559,7 @@ impl<PpuBus: RwDevice> Default for Ppu<PpuBus> {
             bus: None,
             reg: RefCell::new(Registers::default()),
             state: PpuState::default(),
+            internal: RefCell::default(),
             col_palette: create_palette(X2C02),
         }
     }
@@ -533,7 +571,7 @@ impl<PpuBus: RwDevice + CpuSignal> DisplayClocked for Ppu<PpuBus> {
         let PpuState {
             scanline,
             cycle,
-            even_frame,
+            frame,
         } = &mut self.state;
 
         if let Some(bus) = self.bus.as_mut() {
@@ -545,15 +583,187 @@ impl<PpuBus: RwDevice + CpuSignal> DisplayClocked for Ppu<PpuBus> {
                 }
             }
 
-            if *scanline <= scanlines::VIS_HI {
-                // let idx =
-                //     (((scanline * WIDTH + cycle) as f32).sin().signum() == -1.0) as usize;
+            let update_tiles = |cycle: u16,
+                                bus: &mut PpuBus,
+                                mut internal: RefMut<PpuInternalState>,
+                                reg: Ref<Registers>| {
+                match cycle & 0x07 {
+                    0 => internal.v_ram.inc_x(reg.mask),
+                    1 => {
+                        internal.load_shifter();
 
-                // let idx = *scanline & 0x01;
-                // let idx = ((*scanline * cycles::VIS_HI + *cycle + idx) & 0x01) as usize;
+                        let addr = internal.v_ram.nt();
+                        internal.tile_id = bus.read(addr);
+                    }
+                    3 => {
+                        let addr = internal.v_ram.attr();
+                        internal.tile_attr = bus.read(addr);
 
-                let idx = if rand::random() { 0x3F } else { 0x30 };
-                display.write(*cycle, *scanline, self.col_palette[idx]);
+                        let v_ram = internal.v_ram;
+                        if (v_ram.coarse_y() & 0x02) > 0 {
+                            internal.tile_attr >>= 4
+                        };
+                        if (v_ram.coarse_x() & 0x02) > 0 {
+                            internal.tile_attr >>= 2
+                        };
+                        internal.tile_attr &= 0x03;
+                    }
+                    5 => {
+                        let ctrl = reg.ctrl;
+                        let bg = ((ctrl & Ctrl::B) == Ctrl::B) as Word * 0x1000;
+                        let tile = (internal.tile_id as Word) << 4;
+                        let fine_y = internal.v_ram.fine_y();
+
+                        internal.tile_lsb = bus.read(bg + tile + fine_y);
+                    }
+                    7 => {
+                        let ctrl = reg.ctrl;
+                        let bg = ((ctrl & Ctrl::B) == Ctrl::B) as Word * 0x1000;
+                        let tile = (internal.tile_id as Word) << 4;
+                        let fine_y = internal.v_ram.fine_y() + 8;
+
+                        internal.tile_lsb = bus.read(bg + tile + fine_y);
+                    }
+
+                    _ => {}
+                }
+            };
+
+            let calc_pixel = |internal: Ref<PpuInternalState>| {
+                let mux = 0x8000 >> (internal.w_fine_x & !Loopy::W);
+                let p0 = ((internal.ptrn_lo & mux) > 0) as Word;
+                let p1 = ((internal.ptrn_hi & mux) > 0) as Word;
+                let bg_pixel = (p1 << 1) | p0;
+
+                let p0 = ((internal.attr_lo & mux) > 0) as Word;
+                let p1 = ((internal.attr_hi & mux) > 0) as Word;
+                let bg_palette = (p1 << 1) | p0;
+
+                (bg_pixel, bg_palette)
+            };
+
+            match *scanline {
+                scanlines::VIS_LO..=scanlines::VIS_HI => {
+                    let cycle = *cycle;
+                    match cycle {
+                        cycles::VIS_LO..=cycles::VIS_HI => {
+                            self.internal.borrow_mut().shift(self.reg.borrow().mask);
+
+                            // Draw to display
+                            let mask = self.reg.borrow().mask;
+                            if mask & Mask::BG == Mask::BG {
+                                let (pixel, palette) = calc_pixel(self.internal.borrow());
+
+                                let color = self.col_palette[color_idx(bus, palette, pixel)];
+
+                                display.write(cycle, *scanline, color);
+                            }
+
+                            // load tiles
+                            update_tiles(cycle, bus, self.internal.borrow_mut(), self.reg.borrow());
+
+                            if cycle == cycles::VIS_HI {
+                                self.internal
+                                    .borrow_mut()
+                                    .v_ram
+                                    .inc_y(self.reg.borrow().mask);
+                            }
+                        }
+                        cycles::HB_GC_LO => {
+                            self.internal.borrow_mut().load_shifter();
+
+                            let tmp_ram = self.internal.borrow().tmp_ram;
+                            self.internal
+                                .borrow_mut()
+                                .v_ram
+                                .copy_x(tmp_ram, self.reg.borrow().mask);
+
+                            // TODO Evaluate sprites
+                        }
+                        cycles::HB_FETCH_LO..=cycles::HB_FETCH_HI => {
+                            // Fetch next 2 scanline tiles
+
+                            update_tiles(cycle, bus, self.internal.borrow_mut(), self.reg.borrow());
+
+                            if cycle & 0x07 == 0 {
+                                self.internal
+                                    .borrow_mut()
+                                    .v_ram
+                                    .inc_x(self.reg.borrow().mask);
+                            }
+                        }
+                        cycles::HB_FINAL_LO..=cycles::HB_FINAL_HI => {
+                            if cycle & 0x01 == 0x01 {
+                                // Unused nametable fetches
+                                let nt = self.internal.borrow().v_ram.nt();
+                                self.internal.borrow_mut().tile_id = bus.read(nt);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                scanlines::PRE => {
+                    let cycle = *cycle;
+                    match cycle {
+                        cycles::VB_SIG => {
+                            self.reg.borrow_mut().status &= !Status::V;
+                        }
+                        cycles::VIS_LO..=cycles::VIS_HI => {
+                            update_tiles(cycle, bus, self.internal.borrow_mut(), self.reg.borrow());
+
+                            if cycle & 0x07 == 0 {
+                                self.internal
+                                    .borrow_mut()
+                                    .v_ram
+                                    .inc_x(self.reg.borrow().mask);
+                            }
+
+                            if cycle == cycles::VIS_HI {
+                                self.internal
+                                    .borrow_mut()
+                                    .v_ram
+                                    .inc_y(self.reg.borrow().mask);
+                            }
+                        }
+                        cycles::HB_GC_LO => {
+                            self.internal.borrow_mut().load_shifter();
+
+                            let tmp_ram = self.internal.borrow().tmp_ram;
+                            self.internal
+                                .borrow_mut()
+                                .v_ram
+                                .copy_x(tmp_ram, self.reg.borrow().mask);
+                        }
+                        280..=304 => {
+                            let tmp_ram = self.internal.borrow().tmp_ram;
+                            self.internal
+                                .borrow_mut()
+                                .v_ram
+                                .copy_y(tmp_ram, self.reg.borrow().mask);
+                        }
+                        cycles::HB_FETCH_LO..=cycles::HB_FETCH_HI => {
+                            // Fetch next 2 scanline tiles
+
+                            update_tiles(cycle, bus, self.internal.borrow_mut(), self.reg.borrow());
+
+                            if cycle & 0x07 == 0 {
+                                self.internal
+                                    .borrow_mut()
+                                    .v_ram
+                                    .inc_x(self.reg.borrow().mask);
+                            }
+                        }
+                        cycles::HB_FINAL_LO..=cycles::HB_FINAL_HI => {
+                            if cycle & 0x01 == 0x01 {
+                                // Unused nametable fetches
+                                let nt = self.internal.borrow().v_ram.nt();
+                                self.internal.borrow_mut().tile_id = bus.read(nt);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                _ => {}
             }
         }
 
@@ -564,9 +774,8 @@ impl<PpuBus: RwDevice + CpuSignal> DisplayClocked for Ppu<PpuBus> {
         }
 
         if *scanline > scanlines::PRE {
-            *even_frame = !*even_frame;
+            *frame = frame.wrapping_add(1);
             *scanline = 0;
-            self.reg.borrow_mut().status &= !Status::V;
         }
 
         Some(self.state)
@@ -586,21 +795,21 @@ impl<PpuBus: RwDevice> ReadDevice for Ppu<PpuBus> {
 
                     let tmp = tmp | self.reg.borrow().data_buffer & 0x1F;
                     self.reg.borrow_mut().status.set(Status::V, false);
-                    self.reg.borrow_mut().addr_latch = 0;
+                    self.internal.borrow_mut().w_fine_x &= !Loopy::W;
 
                     tmp
                 }
                 0x0007 => {
                     let mut tmp = self.reg.borrow().data_buffer;
-                    let addr = self.reg.borrow().addr_lo | self.reg.borrow().addr_hi;
+                    let addr = self.internal.borrow().v_ram.into();
                     self.reg.borrow_mut().data_buffer = bus.read(addr);
 
                     if addr > 0x3F00 {
                         tmp = self.reg.borrow().data_buffer;
                     }
-                    let new_addr = addr.wrapping_add(1);
-                    self.reg.borrow_mut().addr_lo = new_addr & 0x00FF;
-                    self.reg.borrow_mut().addr_hi = new_addr & 0xFF00;
+
+                    let new_addr = self.reg.borrow().ctrl.increment(addr);
+                    self.internal.borrow_mut().v_ram = new_addr.into();
 
                     tmp
                 }
@@ -629,7 +838,12 @@ impl<PpuBus: RwDevice> WriteDevice for Ppu<PpuBus> {
             match masked {
                 0x0000 => {
                     let tmp = self.reg.borrow().ctrl.into();
-                    self.reg.borrow_mut().ctrl = Ctrl::new(data);
+                    let new = Ctrl::new(data);
+                    self.reg.borrow_mut().ctrl = new;
+
+                    let mut tmp_ram = self.internal.borrow().tmp_ram;
+                    tmp_ram.set_nt_select(data as Word);
+                    self.internal.borrow_mut().tmp_ram = tmp_ram;
                     tmp
                 }
                 0x0001 => {
@@ -637,24 +851,50 @@ impl<PpuBus: RwDevice> WriteDevice for Ppu<PpuBus> {
                     self.reg.borrow_mut().mask = Mask::new(data);
                     tmp
                 }
-                0x0006 => {
-                    if self.reg.borrow().addr_latch == 0 {
-                        self.reg.borrow_mut().addr_hi = (data as Word) << 8;
-                        self.reg.borrow_mut().addr_latch = 1;
+                0x0005 => {
+                    let mut tmp_ram = self.internal.borrow().tmp_ram;
+                    let mut w_fine_x = self.internal.borrow().w_fine_x;
+                    if w_fine_x & Loopy::W == 0 {
+                        tmp_ram = (tmp_ram & !Loopy::COARSE_X) | Loopy::from((data >> 3) as Word);
+                        w_fine_x = Loopy::W | (data & Loopy::FINE_X);
                     } else {
-                        self.reg.borrow_mut().addr_lo = data as Word;
-                        self.reg.borrow_mut().addr_latch = 0;
+                        let d = data as Word;
+                        let (fine_y, course_y): (Word, Word) =
+                            (d & Loopy::FINE_Y, (d & Loopy::COARSE_Y) >> 3);
+                        tmp_ram.set_fine_y(fine_y);
+                        tmp_ram.set_coarse_y(course_y);
+                        w_fine_x &= !Loopy::W;
                     }
+
+                    self.internal.borrow_mut().tmp_ram = tmp_ram;
+                    self.internal.borrow_mut().w_fine_x = w_fine_x;
+
+                    0
+                }
+                0x0006 => {
+                    let mut tmp_ram = self.internal.borrow().tmp_ram;
+                    let mut w_fine_x = self.internal.borrow().w_fine_x;
+                    if w_fine_x & Loopy::W == 0 {
+                        let d = ((data & 0x3F) as Word) << 8;
+                        tmp_ram = (tmp_ram & !Loopy::from(0x3F00)) | Loopy::from(d);
+                        w_fine_x |= Loopy::W;
+                    } else {
+                        tmp_ram = (tmp_ram & Loopy::from(0xFF00)) | Loopy::from(data as Word);
+                        w_fine_x &= !Loopy::W;
+                        self.internal.borrow_mut().v_ram = tmp_ram;
+                    }
+
+                    self.internal.borrow_mut().tmp_ram = tmp_ram;
+                    self.internal.borrow_mut().w_fine_x = w_fine_x;
 
                     0
                 }
                 0x0007 => {
-                    let ppu_addr = self.reg.borrow().addr_lo | self.reg.borrow().addr_hi;
+                    let ppu_addr = self.internal.borrow().v_ram.into();
                     let tmp = bus.write(ppu_addr, data);
 
-                    let new_addr = ppu_addr.wrapping_add(1);
-                    self.reg.borrow_mut().addr_hi = new_addr & 0xFF00;
-                    self.reg.borrow_mut().addr_lo = new_addr & 0x00FF;
+                    let new_addr = self.reg.borrow().ctrl.increment(ppu_addr);
+                    self.internal.borrow_mut().v_ram = new_addr.into();
                     tmp
                 }
                 _ => 0,
