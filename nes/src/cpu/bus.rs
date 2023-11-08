@@ -73,7 +73,7 @@ mod apu {
 
     impl ReadDevice for Ram {
         fn read(&self, addr: Word) -> Byte {
-            log::warn!("Unimplemented region @ {addr:<04X}");
+            log::warn!("Unimplemented region @ {addr:<04X} is being read");
             let masked = (addr & IO_MASK) as usize;
             self.0[masked]
         }
@@ -81,7 +81,7 @@ mod apu {
 
     impl WriteDevice for Ram {
         fn write(&mut self, addr: Word, data: Byte) -> Byte {
-            log::warn!("Unimplemented region @ {addr:<04X}");
+            log::warn!("Unimplemented region @ {addr:<04X} is being written");
             let masked = (addr & IO_MASK) as usize;
             let tmp = self.0[masked];
             self.0[masked] = data;
