@@ -68,6 +68,7 @@ impl Nes {
             self.clock(&mut display);
         }
         self.tcc = 0;
+        self.ppu.borrow_mut().reset();
         self.cpu.borrow_mut().reset();
     }
 

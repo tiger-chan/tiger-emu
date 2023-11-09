@@ -508,6 +508,12 @@ impl<PpuBus: RwDevice> Ppu<PpuBus> {
         self.col_palette = create_palette(X2C07);
     }
 
+    pub fn reset(&mut self) {
+        *self.internal.borrow_mut() = PpuInternalState::default();
+        *self.reg.borrow_mut() = Registers::default();
+        self.state = PpuState::default();
+    }
+
     pub fn read_palette(&self, tbl: Word, palette: Word) -> Palette {
         let mut pixels = Palette::default();
 
@@ -654,7 +660,14 @@ impl<PpuBus: RwDevice + CpuSignal> DisplayClocked for Ppu<PpuBus> {
                             if mask & Mask::BG == Mask::BG {
                                 let (pixel, palette) = calc_pixel(self.internal.borrow());
 
-                                let color = self.col_palette[color_idx(bus, palette, pixel)];
+                                let idx = color_idx(bus, palette, pixel);
+                                let mask = if (mask & Mask::GRAY) == Mask::GRAY {
+                                    0x30
+                                } else {
+                                    0x3F
+                                };
+
+                                let color = self.col_palette[idx & mask];
 
                                 display.write(cycle, *scanline, color);
                             }
