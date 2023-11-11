@@ -57,6 +57,7 @@ pub fn emu_thread(
 
         let mut sent_registers = false;
         let mut sent_palettes = [false, false];
+        let mut sent_nametables = [false, false, false, false];
         while let Ok(msg) = receiver.try_recv() {
             match msg {
                 EmulatorMessage::Load(cart_location) => {
@@ -101,6 +102,15 @@ pub fn emu_thread(
                             sent_palettes[pal] = true;
                             let data = nes.read_palette(idx, palette);
                             let msg = GuiResult::PpuPalette(idx, palette, data);
+                            let _ = sender.send(GuiMessage::QueryResult(msg));
+                        }
+                    }
+                    EmuQuery::PpuNametable(idx) => {
+                        let pal = (idx & 0x01) as usize;
+                        if !sent_nametables[pal] {
+                            sent_nametables[pal] = true;
+                            let data = nes.read_nametable(idx);
+                            let msg = GuiResult::PpuNametable(idx, data);
                             let _ = sender.send(GuiMessage::QueryResult(msg));
                         }
                     }

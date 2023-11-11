@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     io::{DisplayDevice, ReadDevice, VoidDisplay},
-    ppu::Palette,
+    ppu::{self, Palette},
     Clocked, DisplayClocked,
 };
 
@@ -176,6 +176,10 @@ impl Nes {
 
     pub fn read_palette(&self, tbl: Word, palette: Word) -> Palette {
         self.ppu.borrow().read_palette(tbl, palette)
+    }
+
+    pub fn read_nametable(&self, tbl: Word) -> ppu::DebugNametable {
+        self.ppu.borrow().read_nametable(tbl)
     }
 
     pub fn is_fetching_instr(&self) -> bool {

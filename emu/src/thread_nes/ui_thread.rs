@@ -82,6 +82,9 @@ pub fn ui_thread(
                     GuiResult::PpuPalette(idx, palette, data) => {
                         framework.gui.update_ppu_palette(idx, palette, data);
                     }
+                    GuiResult::PpuNametable(idx, data) => {
+                        framework.gui.update_ppu_nametable(idx, data);
+                    }
                     GuiResult::PlayState(state) => {
                         is_running = state;
                     }
@@ -206,6 +209,11 @@ pub fn ui_thread(
                         Message::QueryPalette(tbl, palette) => {
                             sender
                                 .send(EmulatorMessage::Query(EmuQuery::PpuPalette(tbl, palette)))
+                                .unwrap();
+                        }
+                        Message::QueryNametable(tbl) => {
+                            sender
+                                .send(EmulatorMessage::Query(EmuQuery::PpuNametable(tbl)))
                                 .unwrap();
                         }
                     }

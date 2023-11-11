@@ -427,6 +427,20 @@ impl Palette {
     pub const HEIGHT: usize = 128;
 }
 
+#[derive(Debug, Clone)]
+pub struct DebugNametable(pub Box<[Byte; 256 * 240]>);
+
+impl Default for DebugNametable {
+    fn default() -> Self {
+        Self(Box::new([Byte::default(); 256 * 240]))
+    }
+}
+
+impl DebugNametable {
+    pub const WIDTH: usize = 256;
+    pub const HEIGHT: usize = 240;
+}
+
 #[derive(Debug, Default, Clone, Copy)]
 pub struct PpuState {
     pub scanline: u16,
@@ -556,6 +570,58 @@ impl<PpuBus: RwDevice> Ppu<PpuBus> {
         }
 
         pixels
+    }
+
+    pub fn read_nametable(&self, tbl: Word) -> DebugNametable {
+        let mut nametable = DebugNametable::default();
+
+        let start = nametable::LO + tbl * nametable::SIZE;
+        let start_attr = nametable::ATTR_LO + tbl * nametable::SIZE;
+
+        let get_pixel_color = |bus: &PpuBus, id: Byte, attr: Byte, x: Byte, y: Byte| -> u8 {
+            let attr = attr as Word;
+            let tile_addr = id as Word * 16;
+            let tx = x as Word;
+            let ty = y as Word;
+
+            let d_lo = bus.read_only(tile_addr + ty * 2) as Word;
+            let d_hi = bus.read_only(tile_addr + ty * 2 + 1) as Word;
+
+            let bit_idx = 7 - tx;
+
+            let p_bits = (((d_hi >> bit_idx) & 0x01) << 1) | ((d_lo >> bit_idx) & 0x01);
+            let y_idx = ((y >> 2) << 1) + (x >> 2);
+            let y_idx = y_idx & 0x03;
+            let p_select = (attr >> y_idx) << 2;
+
+            bus.read_only(0x3F00 + p_select + p_bits) & 0x3F
+        };
+
+        if let Some(bus) = self.bus.as_ref() {
+            for y in 0..30 {
+                for x in 0..32 {
+                    let ay = y >> 2;
+                    let ax = x >> 2;
+                    let cell_ns_addr = start + y * 32 + x;
+                    let cell_attr_addr = start_attr + (ay * 8) + ax;
+
+                    let cell_tile_id = bus.read_only(cell_ns_addr); // Read tile ID
+                    let cell_attributes = bus.read_only(cell_attr_addr); // Read attribute byte
+                    for ty in 0..8 {
+                        for tx in 0..8 {
+                            let pixel_color =
+                                get_pixel_color(bus, cell_tile_id, cell_attributes, tx, ty);
+                            let screen_x = x * 8 + tx as Word;
+                            let screen_y = y * 8 + ty as Word;
+                            let idx = ((screen_y * 256) + screen_x) as usize;
+                            nametable.0[idx] = pixel_color;
+                        }
+                    }
+                }
+            }
+        }
+
+        nametable
     }
 }
 

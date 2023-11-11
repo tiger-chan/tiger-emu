@@ -3,17 +3,18 @@ use crate::{
     Byte, Word,
 };
 
-const NAMETABLE: usize = 0x0400;
+const NAMETABLE_SIZE: usize = 0x0400;
 const NAMETABLE_MASK: Word = 0x3FF;
+pub const SIZE: Word = 0x0400;
 pub const LO: Word = 0x2000;
 pub const ATTR_LO: Word = 0x23C0;
 
 #[derive(Debug)]
-pub struct NameTable(pub [Byte; NAMETABLE]);
+pub struct NameTable(pub [Byte; NAMETABLE_SIZE]);
 
 impl Default for NameTable {
     fn default() -> Self {
-        Self([0; NAMETABLE])
+        Self([0; NAMETABLE_SIZE])
     }
 }
 

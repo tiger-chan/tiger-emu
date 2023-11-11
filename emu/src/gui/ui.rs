@@ -1,14 +1,10 @@
-use std::{
-    ops::Add,
-    sync::mpsc::Sender,
-    time::{Duration, Instant},
-};
+use std::sync::mpsc::Sender;
 
-use egui::{Color32, Context, FontId, Key, Modifiers, RichText, TextureOptions, Ui};
+use egui::{Color32, Context, FontId, Key, Modifiers, RichText, Ui};
 
 use crate::assembly::Assembly;
 
-use super::Message;
+use super::{ppu::PpuGui, Message};
 use nes::prelude::*;
 
 pub const ENABLED: Color32 = Color32::GREEN;
@@ -16,13 +12,8 @@ pub const DISABLED: Color32 = Color32::RED;
 pub const CURSOR: Color32 = Color32::LIGHT_BLUE;
 pub const DIAGNOSTIC_FONT: FontId = FontId::monospace(12.0);
 
-pub const PATTERN_UPDATE_INTERVAL: Duration = Duration::from_secs(1);
-
 trait DrawCpuStatus {
     fn draw(&self, ui: &mut Ui);
-}
-trait DrawPpuPattern {
-    fn draw(&self, ui: &mut Ui, img: &mut egui::ColorImage, texture: &mut egui::TextureHandle);
 }
 
 impl DrawCpuStatus for cpu::Registers {
@@ -103,20 +94,7 @@ impl DrawCpuStatus for cpu::Registers {
     }
 }
 
-impl DrawPpuPattern for ppu::Palette {
-    fn draw(&self, ui: &mut Ui, img: &mut egui::ColorImage, texture: &mut egui::TextureHandle) {
-        for (i, v) in self.0.iter().enumerate() {
-            img.pixels[i] = egui::Color32::from_color(v);
-        }
-
-        texture.set(egui::ImageData::Color(img.clone()), TextureOptions::LINEAR);
-
-        let size = texture.size_vec2();
-        ui.image(texture, size);
-    }
-}
-
-trait FromColor {
+pub trait FromColor {
     fn from_color(value: &ppu::Color) -> Self;
 }
 
@@ -132,16 +110,10 @@ pub struct MainGui {
     cpu_memory_page: u16,
     cpu_instructions: bool,
 
-    ppu_palette_tbl: bool,
-    ppu_palette_idx: u16,
+    ppu: PpuGui,
 
     cpu_state: cpu::InstructionState,
     cpu_asm: Assembly,
-    ppu_palette_last: u16,
-    ppu_palettes: [[ppu::Palette; 8]; 2],
-    ppu_pattern_imgs: [egui::ColorImage; 2],
-    ppu_pattern_textures: [Option<egui::TextureHandle>; 2],
-    ppu_last_pattern_req: Instant,
 }
 
 impl Default for MainGui {
@@ -152,19 +124,10 @@ impl Default for MainGui {
             cpu_memory_page: u16::default(),
             cpu_instructions: bool::default(),
 
-            ppu_palette_tbl: bool::default(),
-            ppu_palette_idx: u16::default(),
-
             cpu_state: cpu::InstructionState::default(),
             cpu_asm: Assembly::with_capacity(25),
-            ppu_palette_last: u16::MAX,
-            ppu_palettes: <[[ppu::Palette; 8]; 2]>::default(),
-            ppu_pattern_imgs: [
-                egui::ColorImage::new([128, 128], egui::Color32::GREEN),
-                egui::ColorImage::new([128, 128], egui::Color32::GREEN),
-            ],
-            ppu_pattern_textures: <[Option<egui::TextureHandle>; 2]>::default(),
-            ppu_last_pattern_req: Instant::now(),
+
+            ppu: PpuGui::default(),
         }
     }
 }
@@ -235,10 +198,7 @@ impl MainGui {
                         }
                     });
 
-                    if ui.button("PPU").clicked() {
-                        self.ppu_palette_tbl = !self.ppu_palette_tbl;
-                        ui.close_menu();
-                    }
+                    self.ppu.draw_diagnostics_submenu(ui);
 
                     ui.separator();
 
@@ -337,58 +297,7 @@ impl MainGui {
         }
 
         // PPU diagnostic views
-        {
-            egui::Window::new("PPU: Patern Tables")
-                .open(&mut self.ppu_palette_tbl)
-                .show(ctx, |ui| {
-                    let cur = Instant::now();
-                    if self.ppu_palette_idx != self.ppu_palette_last
-                        || cur.duration_since(self.ppu_last_pattern_req) >= PATTERN_UPDATE_INTERVAL
-                    {
-                        self.ppu_last_pattern_req = cur;
-                        self.ppu_palette_last = self.ppu_palette_idx;
-                        let _ = sender.send(Message::QueryPalette(0, self.ppu_palette_idx));
-                        let _ = sender.send(Message::QueryPalette(1, self.ppu_palette_idx));
-
-                        if self.ppu_pattern_textures[0].is_none() {
-                            let name = "ppu_pattern_0".to_owned();
-                            self.ppu_pattern_textures[0] = Some(ui.ctx().load_texture(
-                                name,
-                                egui::ColorImage::new([256, 240], egui::Color32::GRAY),
-                                TextureOptions::LINEAR,
-                            ));
-                        }
-
-                        if self.ppu_pattern_textures[1].is_none() {
-                            let name = "ppu_pattern_1".to_owned();
-                            self.ppu_pattern_textures[1] = Some(ui.ctx().load_texture(
-                                name,
-                                egui::ColorImage::new([256, 240], egui::Color32::GRAY),
-                                TextureOptions::LINEAR,
-                            ));
-                        }
-                    }
-                    ui.vertical(|ui| {
-                        ui.horizontal(|ui| {
-                            ui.label((self.ppu_palette_idx + 1).to_string());
-                            if ui.button("Switch").clicked() {
-                                self.ppu_palette_idx = self.ppu_palette_idx.add(1) & 0x07;
-                            }
-                        });
-                        ui.horizontal(|ui| {
-                            let left_img = &mut self.ppu_pattern_imgs[0];
-                            let left_texture = self.ppu_pattern_textures[0].as_mut().unwrap();
-                            let left = &self.ppu_palettes[0][self.ppu_palette_idx as usize];
-                            left.draw(ui, left_img, left_texture);
-
-                            let right_img = &mut self.ppu_pattern_imgs[1];
-                            let right_texture = self.ppu_pattern_textures[1].as_mut().unwrap();
-                            let right = &self.ppu_palettes[1][self.ppu_palette_idx as usize];
-                            right.draw(ui, right_img, right_texture);
-                        });
-                    })
-                });
-        }
+        self.ppu.draw_diagnostics(ctx, sender);
     }
 
     pub fn update_cpu_status(&mut self, state: cpu::InstructionState) {
@@ -396,9 +305,11 @@ impl MainGui {
     }
 
     pub fn update_ppu_palette(&mut self, tbl: Word, palette: Word, data: ppu::Palette) {
-        let tbl = (tbl & 0x01) as usize;
-        let palette = (palette & 0x07) as usize;
-        self.ppu_palettes[tbl][palette] = data;
+        self.ppu.update_ppu_palette(tbl, palette, data);
+    }
+
+    pub fn update_ppu_nametable(&mut self, tbl: Word, data: ppu::DebugNametable) {
+        self.ppu.update_ppu_nametable(tbl, data);
     }
 
     pub fn update_asm(&mut self, asm: Vec<Byte>, start: Word) {
