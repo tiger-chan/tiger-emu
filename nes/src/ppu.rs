@@ -441,6 +441,19 @@ impl DebugNametable {
     pub const HEIGHT: usize = 240;
 }
 
+#[derive(Debug, Clone)]
+pub struct ColorPalette(pub Box<[Color; 64]>);
+
+impl Default for ColorPalette {
+    fn default() -> Self {
+        Self(Box::new([Color::default(); 64]))
+    }
+}
+
+impl ColorPalette {
+    pub const WIDTH: usize = 4;
+}
+
 #[derive(Debug, Default, Clone, Copy)]
 pub struct PpuState {
     pub scanline: u16,
@@ -622,6 +635,10 @@ impl<PpuBus: RwDevice> Ppu<PpuBus> {
         }
 
         nametable
+    }
+
+    pub fn read_col_palette(&self) -> ColorPalette {
+        ColorPalette(Box::new(self.col_palette))
     }
 }
 

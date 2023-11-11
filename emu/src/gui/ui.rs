@@ -304,6 +304,10 @@ impl MainGui {
         self.cpu_state = state;
     }
 
+    pub fn update_ppu_col_palette(&mut self, data: ppu::ColorPalette) {
+        self.ppu.update_ppu_col_palette(data);
+    }
+
     pub fn update_ppu_palette(&mut self, tbl: Word, palette: Word, data: ppu::Palette) {
         self.ppu.update_ppu_palette(tbl, palette, data);
     }

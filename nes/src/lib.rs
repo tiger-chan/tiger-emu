@@ -96,6 +96,6 @@ pub mod prelude {
     }
 
     pub mod ppu {
-        pub use crate::ppu::{Color, DebugNametable, Palette};
+        pub use crate::ppu::{Color, ColorPalette, DebugNametable, Palette};
     }
 }

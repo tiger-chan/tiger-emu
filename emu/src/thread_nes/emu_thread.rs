@@ -67,6 +67,9 @@ pub fn emu_thread(
                         Ok(cart) => {
                             nes = Nes::default().with_cart(cart);
                             let _ = sender.send(GuiMessage::Loaded);
+                            let _ = sender.send(GuiMessage::QueryResult(
+                                GuiResult::PpuColorPalette(nes.read_col_palette()),
+                            ));
                         }
                         Err(err) => log::error!("{}", err),
                     }

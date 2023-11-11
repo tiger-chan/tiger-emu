@@ -182,6 +182,10 @@ impl Nes {
         self.ppu.borrow().read_nametable(tbl)
     }
 
+    pub fn read_col_palette(&self) -> ppu::ColorPalette {
+        self.ppu.borrow().read_col_palette()
+    }
+
     pub fn is_fetching_instr(&self) -> bool {
         self.cpu.borrow().waiting()
     }

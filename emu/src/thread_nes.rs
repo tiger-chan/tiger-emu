@@ -25,6 +25,7 @@ pub enum EmuQuery {
 pub enum GuiResult {
     CpuRegister(cpu::InstructionState),
     CpuAsm(Vec<Byte>),
+    PpuColorPalette(ppu::ColorPalette),
     PpuPalette(Word, Word, ppu::Palette),
     PpuNametable(Word, ppu::DebugNametable),
     PlayState(bool),

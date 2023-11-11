@@ -15,7 +15,13 @@ pub trait DrawPpuPattern {
 }
 
 pub trait DrawPpuNametable {
-    fn draw(&self, ui: &mut Ui, img: &mut egui::ColorImage, texture: &mut egui::TextureHandle);
+    fn draw(
+        &self,
+        ui: &mut Ui,
+        img: &mut egui::ColorImage,
+        texture: &mut egui::TextureHandle,
+        colors: &ppu::ColorPalette,
+    );
 }
 
 impl DrawPpuPattern for ppu::Palette {
@@ -32,14 +38,15 @@ impl DrawPpuPattern for ppu::Palette {
 }
 
 impl DrawPpuNametable for ppu::DebugNametable {
-    fn draw(&self, ui: &mut Ui, img: &mut egui::ColorImage, texture: &mut egui::TextureHandle) {
+    fn draw(
+        &self,
+        ui: &mut Ui,
+        img: &mut egui::ColorImage,
+        texture: &mut egui::TextureHandle,
+        colors: &ppu::ColorPalette,
+    ) {
         for (i, v) in self.0.iter().enumerate() {
-            img.pixels[i] = match *v & 0x03 {
-                1 => egui::Color32::WHITE,
-                2 => egui::Color32::BLUE,
-                3 => egui::Color32::RED,
-                _ => egui::Color32::BLACK,
-            };
+            img.pixels[i] = egui::Color32::from_color(&colors.0[(*v) as usize]);
         }
 
         texture.set(egui::ImageData::Color(img.clone()), TextureOptions::LINEAR);
@@ -63,6 +70,8 @@ pub struct PpuGui {
     nametables: [ppu::DebugNametable; 4],
     nametable_imgs: [egui::ColorImage; 4],
     nametable_textures: [Option<egui::TextureHandle>; 4],
+
+    color_palette: ppu::ColorPalette,
 }
 
 impl Default for PpuGui {
@@ -89,6 +98,8 @@ impl Default for PpuGui {
                 egui::ColorImage::new([256, 240], egui::Color32::GREEN),
             ],
             nametable_textures: <[Option<egui::TextureHandle>; 4]>::default(),
+
+            color_palette: ppu::ColorPalette::default(),
         }
     }
 }
@@ -192,29 +203,33 @@ impl PpuGui {
                         let left_img = &mut self.nametable_imgs[0];
                         let left_texture = self.nametable_textures[0].as_mut().unwrap();
                         let left = &self.nametables[0];
-                        left.draw(ui, left_img, left_texture);
+                        left.draw(ui, left_img, left_texture, &self.color_palette);
 
                         let right_img = &mut self.nametable_imgs[1];
                         let right_texture = self.nametable_textures[1].as_mut().unwrap();
                         let right = &self.nametables[1];
 
-                        right.draw(ui, right_img, right_texture);
+                        right.draw(ui, right_img, right_texture, &self.color_palette);
                     });
 
                     ui.horizontal(|ui| {
                         let left_img = &mut self.nametable_imgs[2];
                         let left_texture = self.nametable_textures[2].as_mut().unwrap();
                         let left = &self.nametables[2];
-                        left.draw(ui, left_img, left_texture);
+                        left.draw(ui, left_img, left_texture, &self.color_palette);
 
                         let right_img = &mut self.nametable_imgs[3];
                         let right_texture = self.nametable_textures[3].as_mut().unwrap();
                         let right = &self.nametables[3];
 
-                        right.draw(ui, right_img, right_texture)
+                        right.draw(ui, right_img, right_texture, &self.color_palette)
                     });
                 })
             });
+    }
+
+    pub fn update_ppu_col_palette(&mut self, data: ppu::ColorPalette) {
+        self.color_palette = data;
     }
 
     pub fn update_ppu_palette(&mut self, tbl: Word, palette: Word, data: ppu::Palette) {

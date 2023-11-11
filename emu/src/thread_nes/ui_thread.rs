@@ -79,6 +79,9 @@ pub fn ui_thread(
                     GuiResult::CpuRegister(reg) => {
                         framework.gui.update_cpu_status(reg);
                     }
+                    GuiResult::PpuColorPalette(data) => {
+                        framework.gui.update_ppu_col_palette(data);
+                    }
                     GuiResult::PpuPalette(idx, palette, data) => {
                         framework.gui.update_ppu_palette(idx, palette, data);
                     }
