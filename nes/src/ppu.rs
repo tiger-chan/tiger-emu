@@ -591,42 +591,55 @@ impl<PpuBus: RwDevice> Ppu<PpuBus> {
         let start = nametable::LO + tbl * nametable::SIZE;
         let start_attr = nametable::ATTR_LO + tbl * nametable::SIZE;
 
-        let get_pixel_color = |bus: &PpuBus, id: Byte, attr: Byte, x: Byte, y: Byte| -> u8 {
-            let attr = attr as Word;
-            let tile_addr = id as Word * 16;
-            let tx = x as Word;
-            let ty = y as Word;
+        let get_pixel_color =
+            |bus: &PpuBus, ns_byte: Byte, attr_byte: Byte, x: Byte, y: Byte| -> u8 {
+                let attr = attr_byte as Word;
+                let base = (ns_byte as Word) << 4;
+                let dy = y as Word;
 
-            let d_lo = bus.read_only(tile_addr + ty * 2) as Word;
-            let d_hi = bus.read_only(tile_addr + ty * 2 + 1) as Word;
+                let addr = base + dy;
+                let d_lo = bus.read_only(addr) as Word;
+                let d_hi = bus.read_only(addr + 8) as Word;
 
-            let bit_idx = 7 - tx;
+                let bit_idx = 7 - x;
+                let p_bits = (((d_hi >> bit_idx) & 0x01) << 1) | ((d_lo >> bit_idx) & 0x01);
 
-            let p_bits = (((d_hi >> bit_idx) & 0x01) << 1) | ((d_lo >> bit_idx) & 0x01);
-            let y_idx = ((y >> 2) << 1) + (x >> 2);
-            let y_idx = y_idx & 0x03;
-            let p_select = (attr >> y_idx) << 2;
-
-            bus.read_only(0x3F00 + p_select + p_bits) & 0x3F
-        };
+                bus.read_only(0x3F00 + attr + p_bits) & 0x3F
+            };
 
         if let Some(bus) = self.bus.as_ref() {
             for y in 0..30 {
+                let base_sy = (y * 8) * 256;
                 for x in 0..32 {
+                    let base_sx = (x * 8) as Word;
+                    let cell_ns_addr = start + y * 32 + x;
+
                     let ay = y >> 2;
                     let ax = x >> 2;
-                    let cell_ns_addr = start + y * 32 + x;
                     let cell_attr_addr = start_attr + (ay * 8) + ax;
 
                     let cell_tile_id = bus.read_only(cell_ns_addr); // Read tile ID
-                    let cell_attributes = bus.read_only(cell_attr_addr); // Read attribute byte
+
+                    let p_select = {
+                        let ax = (x & 0x03) >> 1;
+                        let ay = y & 0x02;
+                        let shft = (ax + ay) << 1;
+                        let cell_attributes = bus.read_only(cell_attr_addr); // Read attribute byte
+                        (cell_attributes >> shft) & 0x03
+                    };
+
                     for ty in 0..8 {
+                        let screen_y = base_sy + ty as Word * 256;
                         for tx in 0..8 {
-                            let pixel_color =
-                                get_pixel_color(bus, cell_tile_id, cell_attributes, tx, ty);
-                            let screen_x = x * 8 + tx as Word;
-                            let screen_y = y * 8 + ty as Word;
-                            let idx = ((screen_y * 256) + screen_x) as usize;
+                            let pixel_color = get_pixel_color(
+                                bus,
+                                cell_tile_id,
+                                p_select,
+                                tx as Byte,
+                                ty as Byte,
+                            );
+                            let screen_x = base_sx + tx as Word;
+                            let idx = (screen_y + screen_x) as usize;
                             nametable.0[idx] = pixel_color;
                         }
                     }

@@ -32,7 +32,7 @@ impl DrawPpuPattern for ppu::Palette {
 
         texture.set(egui::ImageData::Color(img.clone()), TextureOptions::LINEAR);
 
-        let size = texture.size_vec2() * 1.5;
+        let size = texture.size_vec2(); // * 1.5;
         ui.image(texture, size);
     }
 }
@@ -45,13 +45,27 @@ impl DrawPpuNametable for ppu::DebugNametable {
         texture: &mut egui::TextureHandle,
         colors: &ppu::ColorPalette,
     ) {
+        // // For a text dump uncomment this block.
+        // const DIAGNOSTIC_FONT: egui::FontId = egui::FontId::monospace(6.0);
+        // ui.vertical(|ui| {
+        //     let mut s = String::with_capacity(3 * 256 * 240);
+        //     for row in self.0.chunks_exact(256) {
+        //         for x in row {
+        //             s.push_str(&format!("{:>02X} ", x));
+        //         }
+        //         s.push('\n');
+        //     }
+        //     //ui.label(egui::RichText::new(s).font(DIAGNOSTIC_FONT));
+        //     ui.text_edit_multiline(&mut s);
+        // });
+
         for (i, v) in self.0.iter().enumerate() {
             img.pixels[i] = egui::Color32::from_color(&colors.0[(*v) as usize]);
         }
 
         texture.set(egui::ImageData::Color(img.clone()), TextureOptions::LINEAR);
 
-        let size = texture.size_vec2();
+        let size = texture.size_vec2() * 1.5;
         ui.image(texture, size);
     }
 }
