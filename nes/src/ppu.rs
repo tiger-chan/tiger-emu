@@ -899,10 +899,11 @@ impl<PpuBus: RwDevice> ReadDevice for Ppu<PpuBus> {
             let masked = addr & REG_MASK;
             match masked {
                 0x0002 => {
-                    let tmp =
-                        Byte::from(self.reg.borrow().status & (Status::V | Status::S | Status::O));
+                    let status_mask: Status = Status::V | Status::S | Status::O;
+                    let tmp = Byte::from(self.reg.borrow().status & status_mask);
+                    let buffer = self.reg.borrow().data_buffer & 0x1F;
 
-                    let tmp = tmp | self.reg.borrow().data_buffer & 0x1F;
+                    let tmp = tmp | buffer;
                     self.reg.borrow_mut().status.set(Status::V, false);
                     self.internal.borrow_mut().w_fine_x &= !Loopy::W;
 
@@ -911,10 +912,11 @@ impl<PpuBus: RwDevice> ReadDevice for Ppu<PpuBus> {
                 0x0007 => {
                     let mut tmp = self.reg.borrow().data_buffer;
                     let addr = self.internal.borrow().v_ram.into();
-                    self.reg.borrow_mut().data_buffer = bus.read(addr);
+                    let new_buffer = bus.read(addr);
 
-                    if addr > 0x3F00 {
-                        tmp = self.reg.borrow().data_buffer;
+                    self.reg.borrow_mut().data_buffer = new_buffer;
+                    if addr >= 0x3F00 {
+                        tmp = new_buffer;
                     }
 
                     let new_addr = self.reg.borrow().ctrl.increment(addr);
@@ -951,7 +953,8 @@ impl<PpuBus: RwDevice> WriteDevice for Ppu<PpuBus> {
                     self.reg.borrow_mut().ctrl = new;
 
                     let mut tmp_ram = self.internal.borrow().tmp_ram;
-                    tmp_ram.set_nt_select(data as Word);
+                    let nt_mask = Ctrl::X | Ctrl::Y;
+                    tmp_ram.set_nt_select((new & nt_mask).into());
                     self.internal.borrow_mut().tmp_ram = tmp_ram;
                     tmp
                 }
@@ -964,12 +967,12 @@ impl<PpuBus: RwDevice> WriteDevice for Ppu<PpuBus> {
                     let mut tmp_ram = self.internal.borrow().tmp_ram;
                     let mut w_fine_x = self.internal.borrow().w_fine_x;
                     if w_fine_x & Loopy::W == 0 {
-                        tmp_ram = (tmp_ram & !Loopy::COARSE_X) | Loopy::from((data >> 3) as Word);
-                        w_fine_x = Loopy::W | (data & Loopy::FINE_X);
+                        tmp_ram.set_coarse_x((data >> 3) as Word);
+                        w_fine_x = Loopy::W | (data & Loopy::FINE_N);
                     } else {
                         let d = data as Word;
                         let (fine_y, course_y): (Word, Word) =
-                            (d & Loopy::FINE_Y, (d & Loopy::COARSE_Y) >> 3);
+                            ((data & Loopy::FINE_N) as Word, (d & Loopy::COARSE_Y) >> 3);
                         tmp_ram.set_fine_y(fine_y);
                         tmp_ram.set_coarse_y(course_y);
                         w_fine_x &= !Loopy::W;
@@ -984,11 +987,10 @@ impl<PpuBus: RwDevice> WriteDevice for Ppu<PpuBus> {
                     let mut tmp_ram = self.internal.borrow().tmp_ram;
                     let mut w_fine_x = self.internal.borrow().w_fine_x;
                     if w_fine_x & Loopy::W == 0 {
-                        let d = ((data & 0x3F) as Word) << 8;
-                        tmp_ram = (tmp_ram & !Loopy::from(0x3F00)) | Loopy::from(d);
+                        tmp_ram.write_addr_lo(data);
                         w_fine_x |= Loopy::W;
                     } else {
-                        tmp_ram = (tmp_ram & Loopy::from(0xFF00)) | Loopy::from(data as Word);
+                        tmp_ram.write_addr_hi(data);
                         w_fine_x &= !Loopy::W;
                         self.internal.borrow_mut().v_ram = tmp_ram;
                     }

@@ -1,6 +1,6 @@
 use crate::{
     registers::{bit_and, bit_or, bit_xor, display, not, partial_eq, reg_add_impl, reg_from_impl},
-    Byte, Word,
+    Byte, Word, HI_MASK, LO_MASK,
 };
 use core::fmt;
 use std::ops::{Add, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not};
@@ -371,7 +371,7 @@ impl Loopy {
 
     pub fn set_coarse_y(&mut self, val: Word) {
         let val = (val << Self::COARSE_Y_LSH) & Self::COARSE_Y;
-        self.0 = self.0 & !Self::COARSE_Y | val;
+        self.0 = (self.0 & !Self::COARSE_Y) | val;
     }
 
     pub fn coarse_y(&self) -> Word {
@@ -380,7 +380,7 @@ impl Loopy {
 
     pub fn set_fine_y(&mut self, val: Word) {
         let val = (val << Self::FINE_Y_LSH) & Self::FINE_Y;
-        self.0 = self.0 & !Self::FINE_Y | val;
+        self.0 = (self.0 & !Self::FINE_Y) | val;
     }
 
     pub fn fine_y(&self) -> Word {
@@ -449,6 +449,31 @@ impl Loopy {
         }
     }
 
+    /// # $2006 first write (w is 0)
+    ///```text
+    /// t: .CDEFGH ........ <- d: ..CDEFGH
+    ///        <unused>     <- d: AB......
+    /// t: Z...... ........ <- 0 (bit Z is cleared)
+    /// w:                  <- 1
+    /// ```
+    pub fn write_addr_lo(&mut self, data: Byte) {
+        let d = data & 0x3F;
+        let tmp = (d as Word) << 8;
+        self.0 &= LO_MASK;
+        self.0 |= tmp;
+    }
+
+    /// # $2006 second write (w is 1)
+    ///```text
+    /// t: ....... ABCDEFGH <- d: ABCDEFGH
+    /// v: <...all bits...> <- t: <...all bits...>
+    /// w:                  <- 0
+    /// ```
+    pub fn write_addr_hi(&mut self, data: Byte) {
+        self.0 &= HI_MASK;
+        self.0 |= data as Word;
+    }
+
     /// https://www.nesdev.org/wiki/PPU_scrolling#Tile_and_attribute_fetching
     pub fn nt(&self) -> Word {
         nametable::LO | (self.0 & 0x0FFF)
@@ -484,6 +509,8 @@ impl Loopy {
     pub const W: Byte = 0x80;
 
     pub const FINE_X: Byte = 0x07;
+
+    pub const FINE_N: Byte = 0x07;
 }
 
 not!(Loopy);
