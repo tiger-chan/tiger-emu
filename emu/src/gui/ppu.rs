@@ -74,6 +74,7 @@ pub struct PpuGui {
     palette_tbl: bool,
     palette_idx: u16,
     nametable: bool,
+    nametable_idx: u16,
 
     palette_last: u16,
     palettes: [[ppu::Palette; 8]; 2],
@@ -94,6 +95,7 @@ impl Default for PpuGui {
             palette_tbl: bool::default(),
             palette_idx: u16::default(),
             nametable: bool::default(),
+            nametable_idx: u16::default(),
 
             palette_last: u16::MAX,
             palettes: <[[ppu::Palette; 8]; 2]>::default(),
@@ -189,10 +191,7 @@ impl PpuGui {
             .open(&mut self.nametable)
             .show(ctx, |ui| {
                 {
-                    let _ = sender.send(Message::QueryNametable(0));
-                    let _ = sender.send(Message::QueryNametable(1));
-                    let _ = sender.send(Message::QueryNametable(2));
-                    let _ = sender.send(Message::QueryNametable(3));
+                    let _ = sender.send(Message::QueryNametable(self.nametable_idx));
 
                     let create_nametable_texture =
                         |tbls: &mut [Option<TextureHandle>; 4], ui: &mut Ui, idx: usize| {
@@ -214,30 +213,17 @@ impl PpuGui {
 
                 ui.vertical(|ui| {
                     ui.horizontal(|ui| {
-                        let left_img = &mut self.nametable_imgs[0];
-                        let left_texture = self.nametable_textures[0].as_mut().unwrap();
-                        let left = &self.nametables[0];
-                        left.draw(ui, left_img, left_texture, &self.color_palette);
-
-                        let right_img = &mut self.nametable_imgs[1];
-                        let right_texture = self.nametable_textures[1].as_mut().unwrap();
-                        let right = &self.nametables[1];
-
-                        right.draw(ui, right_img, right_texture, &self.color_palette);
+                        ui.label((self.nametable_idx + 1).to_string());
+                        if ui.button("Switch").clicked() {
+                            self.nametable_idx = self.nametable_idx.add(1) & 0x03;
+                        }
                     });
 
-                    ui.horizontal(|ui| {
-                        let left_img = &mut self.nametable_imgs[2];
-                        let left_texture = self.nametable_textures[2].as_mut().unwrap();
-                        let left = &self.nametables[2];
-                        left.draw(ui, left_img, left_texture, &self.color_palette);
-
-                        let right_img = &mut self.nametable_imgs[3];
-                        let right_texture = self.nametable_textures[3].as_mut().unwrap();
-                        let right = &self.nametables[3];
-
-                        right.draw(ui, right_img, right_texture, &self.color_palette)
-                    });
+                    let idx = self.nametable_idx as usize;
+                    let nametable_img = &mut self.nametable_imgs[idx];
+                    let nametable_texture = self.nametable_textures[idx].as_mut().unwrap();
+                    let nametable = &self.nametables[idx];
+                    nametable.draw(ui, nametable_img, nametable_texture, &self.color_palette);
                 })
             });
     }
