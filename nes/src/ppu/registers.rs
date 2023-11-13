@@ -395,7 +395,7 @@ impl Loopy {
                 self.0 ^= Self::NT_X;
             } else {
                 // Incrementing is fine since we know we aren't going to
-                // overflow in to coarse y
+                // overflow in to coarse x
                 self.0 += 1;
             }
         }
@@ -403,13 +403,10 @@ impl Loopy {
 
     pub fn inc_y(&mut self, mask: Mask) {
         if mask & (Mask::BG | Mask::SPR) != 0 {
-            let fine_y = (self.0 & Self::FINE_Y) >> Self::FINE_Y_LSH;
-            if fine_y < 7 {
-                // Simple increment since we haven't
-                let fine_y = fine_y + 1;
-                self.0 = (self.0 & !Self::FINE_Y) | fine_y << Self::FINE_Y_LSH;
+            if self.0 & Self::FINE_Y != Self::FINE_Y {
+                // Reset fine y (since we are reseting or incrementing)
+                self.0 += 0x1000;
             } else {
-                // Reset fine since we wrapped
                 self.0 &= !Self::FINE_Y;
                 let mut coarse_y = (self.0 & Self::COARSE_Y) >> Self::COARSE_Y_LSH;
                 match coarse_y {
@@ -428,24 +425,30 @@ impl Loopy {
                         coarse_y += 1;
                     }
                 }
-                self.0 = (self.0 & !Self::COARSE_Y) | coarse_y << Self::COARSE_Y_LSH;
+                self.0 &= !Self::COARSE_Y;
+                coarse_y <<= Self::COARSE_Y_LSH;
+                self.0 |= coarse_y;
             }
         }
     }
 
+    /// https://www.nesdev.org/wiki/PPU_scrolling#At_dot_257_of_each_scanline
     pub fn copy_x(&mut self, tmp: Self, mask: Mask) {
         if mask & (Mask::BG | Mask::SPR) != 0 {
             // NT_X | COARSE_X;
             const X_MASK: Word = 0x0400 | 0x001F;
-            self.0 = (self.0 & !X_MASK) | (tmp.0 & X_MASK);
+            self.0 &= !X_MASK;
+            self.0 |= tmp.0 & X_MASK;
         }
     }
 
+    /// https://www.nesdev.org/wiki/PPU_scrolling#During_dots_280_to_304_of_the_pre-render_scanline_(end_of_vblank)
     pub fn copy_y(&mut self, tmp: Self, mask: Mask) {
         if mask & (Mask::BG | Mask::SPR) != 0 {
             // FINE_Y | NT_Y | COARSE_Y;
             const Y_MASK: Word = 0x7000 | 0x0800 | 0x03E0;
-            self.0 = (self.0 & !Y_MASK) | (tmp.0 & Y_MASK);
+            self.0 &= !Y_MASK;
+            self.0 |= tmp.0 & Y_MASK;
         }
     }
 

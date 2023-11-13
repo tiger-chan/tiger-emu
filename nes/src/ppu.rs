@@ -493,11 +493,24 @@ impl PpuInternalState {
     }
 
     pub fn load_shifter(&mut self) {
-        self.ptrn_lo = (self.ptrn_lo & HI_MASK) | self.tile_lsb as Word;
-        self.ptrn_hi = (self.ptrn_hi & HI_MASK) | self.tile_msb as Word;
+        self.ptrn_lo &= HI_MASK;
+        self.ptrn_lo |= self.tile_lsb as Word;
+        self.ptrn_hi &= HI_MASK;
+        self.ptrn_hi |= self.tile_msb as Word;
 
-        self.attr_lo = (self.attr_lo & HI_MASK) | ((self.tile_attr as Word & 0b01) * 0xFF);
-        self.attr_hi = (self.attr_hi & HI_MASK) | (((self.tile_attr as Word & 0b10) >> 1) * 0xFF);
+        self.attr_lo &= HI_MASK;
+        self.attr_lo |= if (self.tile_attr & 0x01) == 0x01 {
+            0xFF
+        } else {
+            0x00
+        };
+
+        self.attr_hi &= HI_MASK;
+        self.attr_hi |= if (self.tile_attr & 0x02) == 0x02 {
+            0xFF
+        } else {
+            0x00
+        };
     }
 }
 
@@ -732,16 +745,16 @@ impl<PpuBus: RwDevice + CpuSignal> DisplayClocked for Ppu<PpuBus> {
             };
 
             let calc_pixel = |internal: Ref<PpuInternalState>| {
-                let mux = 0x8000 >> (internal.w_fine_x & !Loopy::W);
-                let p0 = ((internal.ptrn_lo & mux) > 0) as Word;
-                let p1 = ((internal.ptrn_hi & mux) > 0) as Word;
-                let bg_pixel = (p1 << 1) | p0;
+                let mux = 0x8000 >> (internal.w_fine_x & Loopy::FINE_X);
+                let p_lo = Word::from(internal.ptrn_lo & mux > 0);
+                let p_hi = Word::from(internal.ptrn_hi & mux > 0);
+                let bg_pixel = (p_hi << 1) | p_lo;
 
-                let p0 = ((internal.attr_lo & mux) > 0) as Word;
-                let p1 = ((internal.attr_hi & mux) > 0) as Word;
-                let bg_palette = (p1 << 1) | p0;
+                let p_lo = Word::from(internal.attr_lo & mux > 0);
+                let p_hi = Word::from(internal.attr_hi & mux > 0);
+                let bg_palette = (p_hi << 1) | p_lo;
 
-                (bg_pixel, bg_palette)
+                (bg_palette << 2) | bg_pixel
             };
 
             match *scanline {
@@ -754,9 +767,9 @@ impl<PpuBus: RwDevice + CpuSignal> DisplayClocked for Ppu<PpuBus> {
                             // Draw to display
                             let mask = self.reg.borrow().mask;
                             if mask & Mask::BG == Mask::BG {
-                                let (pixel, palette) = calc_pixel(self.internal.borrow());
+                                let pixel = calc_pixel(self.internal.borrow());
 
-                                let idx = color_idx(bus, palette, pixel);
+                                let idx = usize::from(bus.read(0x3F00 | pixel) & 0x3F);
                                 let mask = if (mask & Mask::GRAY) == Mask::GRAY {
                                     0x30
                                 } else {
@@ -814,10 +827,11 @@ impl<PpuBus: RwDevice + CpuSignal> DisplayClocked for Ppu<PpuBus> {
                 scanlines::PRE => {
                     let cycle = *cycle;
                     match cycle {
-                        cycles::VB_SIG => {
-                            self.reg.borrow_mut().status &= !Status::V;
-                        }
                         cycles::VIS_LO..=cycles::VIS_HI => {
+                            if cycle == cycles::VB_SIG {
+                                self.reg.borrow_mut().status &= !Status::V;
+                            }
+
                             update_tiles(cycle, bus, self.internal.borrow_mut(), self.reg.borrow());
 
                             if cycle & 0x07 == 0 {
@@ -877,6 +891,11 @@ impl<PpuBus: RwDevice + CpuSignal> DisplayClocked for Ppu<PpuBus> {
         }
 
         *cycle += 1;
+        if *scanline > scanlines::PRE && cycle == &339 && (*frame & 0x01) == 0x01 {
+            *scanline = 0;
+            *cycle = 1;
+        }
+
         if *cycle > cycles::HB_FINAL_HI {
             *cycle = 0;
             *scanline += 1;
