@@ -767,16 +767,23 @@ impl<PpuBus: RwDevice + CpuSignal> DisplayClocked for Ppu<PpuBus> {
                             // Draw to display
                             let mask = self.reg.borrow().mask;
                             if mask & Mask::BG == Mask::BG {
-                                let pixel = calc_pixel(self.internal.borrow());
-
-                                let idx = usize::from(bus.read(0x3F00 | pixel) & 0x3F);
-                                let mask = if (mask & Mask::GRAY) == Mask::GRAY {
-                                    0x30
+                                let v_ram: Word = self.internal.borrow().v_ram.into();
+                                let idx = if v_ram & 0x3F00 == 0x3F00 {
+                                    usize::from(v_ram & 0x3F00)
                                 } else {
-                                    0x3F
+                                    let pixel = calc_pixel(self.internal.borrow());
+
+                                    let idx = usize::from(bus.read(0x3F00 | pixel) & 0x3F);
+                                    let mask = if (mask & Mask::GRAY) == Mask::GRAY {
+                                        0x30
+                                    } else {
+                                        0x3F
+                                    };
+
+                                    idx & mask
                                 };
 
-                                let color = self.col_palette[idx & mask];
+                                let color = self.col_palette[idx];
 
                                 display.write(cycle, *scanline, color);
                             }
