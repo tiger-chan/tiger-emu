@@ -322,24 +322,27 @@ impl<CpuBus: RwDevice + CpuCtrl> Clocked for Cpu<CpuBus> {
             }
             None => {
                 self.process_messages();
-
-                if let Some(bus) = self.bus.as_ref() {
-                    let opc = bus.read(self.reg.pc) as usize;
-
-                    self.reg.p.set(Status::U, true);
-
-                    self.prev = InstructionState {
-                        reg: self.reg,
-                        tcc: self.tcc.wrapping_sub(1),
-                        opcode: opc as u8,
-                        op: INSTRUCTION_TYPE[opc],
-                        am: ADDR_MODE[opc],
-                        ..Default::default()
-                    };
-
-                    self.reg.pc = self.reg.pc.wrapping_add(1);
-                    self.instruction = OPER[opc]();
+                
+                if self.instruction.waiting() {
+                    if let Some(bus) = self.bus.as_ref() {
+                        let opc = bus.read(self.reg.pc) as usize;
+                        
+                        self.reg.p.set(Status::U, true);
+                        
+                        self.prev = InstructionState {
+                            reg: self.reg,
+                            tcc: self.tcc.wrapping_sub(1),
+                            opcode: opc as u8,
+                            op: INSTRUCTION_TYPE[opc],
+                            am: ADDR_MODE[opc],
+                            ..Default::default()
+                        };
+                        
+                        self.reg.pc = self.reg.pc.wrapping_add(1);
+                        self.instruction = OPER[opc]();
+                    }
                 }
+
                 None
             }
         }

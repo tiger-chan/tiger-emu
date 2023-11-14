@@ -122,6 +122,10 @@ impl Ctrl {
         }
     }
 
+    pub fn nmi(&self) -> bool {
+        *self & Ctrl::V == Ctrl::V
+    }
+
     /// Add 256 to the X scroll position
     pub const X: Ctrl = Ctrl::new(1 << 0);
 

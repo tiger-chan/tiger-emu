@@ -164,18 +164,21 @@ impl Bus {
             apu: Rc::new(RefCell::new(apu::Ram::default())),
             mem_map: MemoryMap::default(),
         };
+        value.mem_map.name = "CPU Bus".to_owned();
 
-        value
-            .mem_map
-            .register(CPU_RAM_LO, CPU_RAM_HI, value.ram.clone(), ReadWrite);
-        value
-            .mem_map
-            .register(ppu::REG_LO, ppu::REG_HI, ppu, ReadWrite);
-        value
-            .mem_map
-            .register(apu::IO_LO, apu::IO_HI, value.apu.clone(), ReadWrite);
-        mpr.borrow().map_cpu(&mut value.mem_map);
-
+        // https://www.nesdev.org/wiki/CPU_memory_map
+        {
+            value
+                .mem_map
+                .register(CPU_RAM_LO, CPU_RAM_HI, value.ram.clone(), ReadWrite);
+            value
+                .mem_map
+                .register(ppu::REG_LO, ppu::REG_HI, ppu, ReadWrite);
+            value
+                .mem_map
+                .register(apu::IO_LO, apu::IO_HI, value.apu.clone(), ReadWrite);
+            mpr.borrow().map_cpu(&mut value.mem_map);
+        }
         value
     }
 }

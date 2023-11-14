@@ -39,6 +39,8 @@ impl Bus {
             cpu_sig,
         };
 
+        value.mem_map.name = "PPU Bus".to_owned();
+
         value.mem_map.register(
             palette::RAM_LO,
             palette::RAM_HI,
