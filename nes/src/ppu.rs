@@ -465,7 +465,8 @@ pub struct PpuState {
 pub struct PpuInternalState {
     pub v_ram: Loopy,
     pub tmp_ram: Loopy,
-    pub w_fine_x: Byte,
+    pub fine_x: Byte,
+    pub w: bool,
 
     pub tile_id: Byte,
     pub tile_attr: Byte,
@@ -511,6 +512,14 @@ impl PpuInternalState {
         } else {
             0x00
         };
+    }
+
+    pub fn reset_latch(&mut self) {
+        self.w = false;
+    }
+
+    pub fn flip_latch(&mut self) {
+        self.w = !self.w;
     }
 }
 
@@ -745,7 +754,7 @@ impl<PpuBus: RwDevice + CpuSignal> DisplayClocked for Ppu<PpuBus> {
             };
 
             let calc_pixel = |internal: Ref<PpuInternalState>| {
-                let mux = 0x8000 >> (internal.w_fine_x & Loopy::FINE_X);
+                let mux = 0x8000 >> (internal.fine_x & Loopy::FINE_X);
                 let p_lo = Word::from(internal.ptrn_lo & mux > 0);
                 let p_hi = Word::from(internal.ptrn_hi & mux > 0);
                 let bg_pixel = (p_hi << 1) | p_lo;
@@ -936,7 +945,7 @@ impl<PpuBus: RwDevice> ReadDevice for Ppu<PpuBus> {
 
                     let tmp = tmp | buffer;
                     self.reg.borrow_mut().status.set(Status::V, false);
-                    self.internal.borrow_mut().w_fine_x &= !Loopy::W;
+                    self.internal.borrow_mut().reset_latch();
 
                     tmp
                 }
@@ -984,8 +993,7 @@ impl<PpuBus: RwDevice> WriteDevice for Ppu<PpuBus> {
                     self.reg.borrow_mut().ctrl = new;
 
                     let mut tmp_ram = self.internal.borrow().tmp_ram;
-                    let nt_mask = Ctrl::X | Ctrl::Y;
-                    tmp_ram.set_nt_select((new & nt_mask).into());
+                    tmp_ram.set_nt_select(data.into());
                     self.internal.borrow_mut().tmp_ram = tmp_ram;
                     tmp
                 }
@@ -996,38 +1004,35 @@ impl<PpuBus: RwDevice> WriteDevice for Ppu<PpuBus> {
                 }
                 0x0005 => {
                     let mut tmp_ram = self.internal.borrow().tmp_ram;
-                    let mut w_fine_x = self.internal.borrow().w_fine_x;
-                    if w_fine_x & Loopy::W == 0 {
+                    let mut fine_x = self.internal.borrow().fine_x;
+                    if !self.internal.borrow().w {
                         tmp_ram.set_coarse_x((data >> 3) as Word);
-                        w_fine_x = Loopy::W | (data & Loopy::FINE_N);
+                        fine_x = data & Loopy::FINE_N;
                     } else {
                         let d = data as Word;
                         let (fine_y, course_y): (Word, Word) =
                             ((data & Loopy::FINE_N) as Word, (d & Loopy::COARSE_Y) >> 3);
                         tmp_ram.set_fine_y(fine_y);
                         tmp_ram.set_coarse_y(course_y);
-                        w_fine_x &= !Loopy::W;
                     }
 
+                    self.internal.borrow_mut().flip_latch();
                     self.internal.borrow_mut().tmp_ram = tmp_ram;
-                    self.internal.borrow_mut().w_fine_x = w_fine_x;
+                    self.internal.borrow_mut().fine_x = fine_x;
 
                     0
                 }
                 0x0006 => {
                     let mut tmp_ram = self.internal.borrow().tmp_ram;
-                    let mut w_fine_x = self.internal.borrow().w_fine_x;
-                    if w_fine_x & Loopy::W == 0 {
+                    if !self.internal.borrow().w {
                         tmp_ram.write_addr_lo(data);
-                        w_fine_x |= Loopy::W;
                     } else {
                         tmp_ram.write_addr_hi(data);
-                        w_fine_x &= !Loopy::W;
                         self.internal.borrow_mut().v_ram = tmp_ram;
                     }
 
                     self.internal.borrow_mut().tmp_ram = tmp_ram;
-                    self.internal.borrow_mut().w_fine_x = w_fine_x;
+                    self.internal.borrow_mut().flip_latch();
 
                     0
                 }

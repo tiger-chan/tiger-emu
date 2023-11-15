@@ -361,8 +361,9 @@ pub struct Loopy(Word);
 
 impl Loopy {
     pub fn set_nt_select(&mut self, val: Word) {
-        let val = (val << Self::NT_LSH) & Self::NT_SELECT;
-        self.0 = self.0 & !Self::NT_SELECT | val;
+        let shft = val << Self::NT_LSH;
+        let new_val = shft & Self::NT_SELECT;
+        self.0 = (self.0 & !Self::NT_SELECT) | new_val;
     }
 
     pub fn set_coarse_x(&mut self, val: Word) {

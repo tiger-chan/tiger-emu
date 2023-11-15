@@ -158,7 +158,13 @@ impl PpuMemoryMapper for Nrom {
         use super::name_tbl::*;
         use Access::*;
 
-        mem_map.register(CHR_LO, CHR_HI, self.chr.clone(), Read);
+        let chr_access = if self.chr_bnk == 0 {
+            ReadWrite
+        } else {
+            Read
+        };
+
+        mem_map.register(CHR_LO, CHR_HI, self.chr.clone(), chr_access);
         match self.mirror {
             Mirror::Horizontal => {
                 mem_map.register(NAMETABLE_0_LO, NAMETABLE_0_HI, nt[0].clone(), ReadWrite);

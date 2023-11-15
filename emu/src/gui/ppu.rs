@@ -32,7 +32,7 @@ impl DrawPpuPattern for ppu::Palette {
 
         texture.set(egui::ImageData::Color(img.clone()), TextureOptions::LINEAR);
 
-        let size = texture.size_vec2(); // * 1.5;
+        let size = texture.size_vec2() * 1.5;
         ui.image(texture, size);
     }
 }
