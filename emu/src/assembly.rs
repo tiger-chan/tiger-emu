@@ -46,31 +46,35 @@ impl Assembly {
     }
 
     pub fn get_range(&self, addr: u16, dist: i8) -> Vec<&str> {
-        if (addr as usize) < self.offset {
+        let idx = addr as usize;
+        if idx < self.offset {
             vec![]
-        } else if (addr as usize) - self.offset < self.mapping.len() + self.offset {
-            let origin = self.mapping[addr as usize - self.offset];
-            let (start, end) = if dist.is_negative() {
-                (
-                    origin.saturating_sub(-dist as usize).min(self.offset),
-                    origin,
-                )
-            } else {
-                (
-                    origin,
-                    origin.saturating_add(dist as usize).min(self.offset),
-                )
-            };
-            let vec: Vec<&str> = self
-                .lines
-                .iter()
-                .skip(start)
-                .take(end - start)
-                .map(|x| x.as_str())
-                .collect();
-            vec
         } else {
-            vec![]
+            let off = idx - self.offset;
+            if off < self.mapping.len() {
+                let origin = self.mapping[off];
+                let (start, end) = if dist.is_negative() {
+                    (
+                        origin.saturating_sub(-dist as usize).min(self.offset),
+                        origin,
+                    )
+                } else {
+                    (
+                        origin,
+                        origin.saturating_add(dist as usize).min(self.offset),
+                    )
+                };
+                let vec: Vec<&str> = self
+                    .lines
+                    .iter()
+                    .skip(start)
+                    .take(end - start)
+                    .map(|x| x.as_str())
+                    .collect();
+                vec
+            } else {
+                vec![]
+            }
         }
     }
 }

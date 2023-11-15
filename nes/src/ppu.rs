@@ -767,10 +767,7 @@ impl<PpuBus: RwDevice + CpuSignal> DisplayClocked for Ppu<PpuBus> {
                             // Draw to display
                             let mask = self.reg.borrow().mask;
                             if mask & Mask::BG == Mask::BG {
-                                let v_ram: Word = self.internal.borrow().v_ram.into();
-                                let idx = if v_ram & 0x3F00 == 0x3F00 {
-                                    usize::from(v_ram & 0x3F00)
-                                } else {
+                                let idx = {
                                     let pixel = calc_pixel(self.internal.borrow());
 
                                     let idx = usize::from(bus.read(0x3F00 | pixel) & 0x3F);
@@ -786,6 +783,14 @@ impl<PpuBus: RwDevice + CpuSignal> DisplayClocked for Ppu<PpuBus> {
                                 let color = self.col_palette[idx];
 
                                 display.write(cycle, *scanline, color);
+                            } else {
+                                let v_ram: Word = self.internal.borrow().v_ram.into();
+                                if v_ram & 0x3F00 == 0x3F00 {
+                                    let idx = usize::from(v_ram & 0x01F);
+                                    let color = self.col_palette[idx];
+
+                                    display.write(cycle, *scanline, color);
+                                };
                             }
 
                             // load tiles

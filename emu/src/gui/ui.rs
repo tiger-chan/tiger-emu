@@ -272,9 +272,7 @@ impl MainGui {
                         }
 
                         let mut range = asm.get_range(reg.pc, half + 1);
-                        for _ in 0..(((half + 1) as usize) - range.len()) {
-                            range.insert(0, "Out of range");
-                        }
+                        range.resize(((half + 1) as usize) - range.len(), "Out of range");
                         for str in range.iter().skip(1) {
                             ui.label(RichText::new(*str).font(DIAGNOSTIC_FONT));
                         }
