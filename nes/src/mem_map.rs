@@ -24,7 +24,6 @@ pub struct TableEntry {
     pub lo: Word,
     pub hi: Word,
     pub device: RwDeviceRef,
-    pub access: Access,
 }
 
 pub trait PpuMemoryMapper {
@@ -37,7 +36,8 @@ pub trait CpuMemoryMapper {
 
 #[derive(Debug)]
 pub struct MemoryMap {
-    spaces: Vec<TableEntry>,
+    spaces_r: Vec<TableEntry>,
+    spaces_w: Vec<TableEntry>,
     open_ranges: Vec<OpenEntry>,
     last_read: RefCell<Byte>,
     pub name: String,
@@ -46,7 +46,8 @@ pub struct MemoryMap {
 impl Default for MemoryMap {
     fn default() -> Self {
         Self {
-            spaces: vec![],
+            spaces_r: vec![],
+            spaces_w: vec![],
             open_ranges: vec![],
             last_read: RefCell::default(),
             name: "unknown".to_owned(),
@@ -56,24 +57,33 @@ impl Default for MemoryMap {
 
 impl MemoryMap {
     pub fn register(&mut self, lo: Word, hi: Word, table: RwDeviceRef, access: Access) {
-        if self.spaces.iter().any(|s| s.lo <= lo && hi <= s.hi) {
+        if access != Access::Write {
+            Self::register_to(&mut self.spaces_r, lo, hi, table.clone(), &self.name);
+        }
+
+        if access != Access::Read {
+            Self::register_to(&mut self.spaces_w, lo, hi, table, &self.name);
+        }
+    }
+
+    fn register_to(arr: &mut Vec<TableEntry>, lo: Word, hi: Word, table: RwDeviceRef, name: &str) {
+        if arr.iter().any(|s| s.lo <= lo && hi <= s.hi) {
             log::error!(
                 "[[{}]] Duplicate registration of memory for {lo} to {hi}",
-                self.name
+                name
             );
         } else {
-            self.spaces.push(TableEntry {
+            arr.push(TableEntry {
                 lo,
                 hi,
                 device: table,
-                access,
             });
-            self.spaces.sort_by(|a, b| a.hi.cmp(&b.lo));
+            arr.sort_by(|a, b| a.hi.cmp(&b.lo));
         }
     }
 
     pub fn register_open(&mut self, lo: Word, hi: Word) {
-        if self.spaces.iter().any(|s| s.lo <= lo && hi <= s.hi) {
+        if self.spaces_r.iter().any(|s| s.lo <= lo && hi <= s.hi) {
             log::error!(
                 "[[{}]] Duplicate registration of memory for {lo} to {hi} (Open)",
                 self.name
@@ -94,8 +104,8 @@ impl RwDevice for MemoryMap {}
 
 impl ReadDevice for MemoryMap {
     fn read(&self, addr: Word) -> Byte {
-        for space in self.spaces.iter() {
-            if space.lo <= addr && addr <= space.hi && space.access != Access::Write {
+        for space in self.spaces_r.iter() {
+            if space.lo <= addr && addr <= space.hi {
                 *self.last_read.borrow_mut() = space.device.borrow().read(addr);
                 return *self.last_read.borrow();
             }
@@ -107,15 +117,15 @@ impl ReadDevice for MemoryMap {
             }
         }
         log::warn!(
-            "[[{}]] unmapped region is being read {addr:>04X}",
+            "[[{}]] unmapped region is being read ${addr:>04X}",
             self.name
         );
         0
     }
 
     fn read_only(&self, addr: Word) -> Byte {
-        for space in self.spaces.iter() {
-            if space.lo <= addr && addr <= space.hi && space.access != Access::Write {
+        for space in self.spaces_r.iter() {
+            if space.lo <= addr && addr <= space.hi {
                 return space.device.borrow().read_only(addr);
             }
         }
@@ -125,21 +135,13 @@ impl ReadDevice for MemoryMap {
 
 impl WriteDevice for MemoryMap {
     fn write(&mut self, addr: Word, data: Byte) -> Byte {
-        for space in self.spaces.iter() {
+        for space in self.spaces_w.iter() {
             if space.lo <= addr && addr <= space.hi {
-                if space.access != Access::Read {
-                    return space.device.borrow_mut().write(addr, data);
-                } else {
-                    log::warn!(
-                        "[[{}]] region is being written {addr:>04X} with wrong configuration",
-                        self.name
-                    );
-                    return 0;
-                }
+                return space.device.borrow_mut().write(addr, data);
             }
         }
         log::warn!(
-            "[[{}]] unmapped region is being written {addr:>04X}",
+            "[[{}]] unmapped region is being written ${addr:>04X}",
             self.name
         );
         0

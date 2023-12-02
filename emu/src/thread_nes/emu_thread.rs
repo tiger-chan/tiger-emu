@@ -1,11 +1,15 @@
 use std::{
+    cell::RefCell,
     path::Path,
+    rc::Rc,
     sync::{mpsc::*, RwLockWriteGuard},
     time::Instant,
 };
 
 use crate::{thread_nes::FRAME_TIME, triple_buffer::TripleBuffer};
-use nes::{cart::Cartridge, io::DisplayDevice, prelude::*, DisplayClocked, HEIGHT, WIDTH};
+use nes::{
+    cart::Cartridge, io::DisplayDevice, prelude::*, DisplayClocked, Standard, HEIGHT, WIDTH,
+};
 
 use super::{Buffer, EmuQuery, EmulatorMessage, GuiMessage, GuiResult};
 
@@ -42,7 +46,11 @@ pub fn emu_thread(
     receiver: Receiver<EmulatorMessage>,
     mut frame_buffer: TripleBuffer<Buffer>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let p1 = Rc::<RefCell<Standard>>::default();
+    let p2 = Rc::<RefCell<Standard>>::default();
     let mut nes = Nes::default();
+    nes.connect_joypad(0, p1.clone());
+    nes.connect_joypad(1, p2.clone());
 
     let mut residual_time = 0.0;
     let mut prev_instant = Instant::now();
@@ -66,6 +74,8 @@ pub fn emu_thread(
                     match Cartridge::try_from(path) {
                         Ok(cart) => {
                             nes = Nes::default().with_cart(cart);
+                            nes.connect_joypad(0, p1.clone());
+                            nes.connect_joypad(1, p2.clone());
                             let _ = sender.send(GuiMessage::Loaded);
                             let _ = sender.send(GuiMessage::QueryResult(
                                 GuiResult::PpuColorPalette(nes.read_col_palette()),

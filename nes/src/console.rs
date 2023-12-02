@@ -1,6 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
+    hid::{HidRef, Joypad},
     io::{DisplayDevice, ReadDevice, VoidDisplay},
     ppu::{self, Palette},
     Clocked, DisplayClocked,
@@ -25,6 +26,7 @@ pub struct Nes {
     cpu: CpuRef<CpuBus>,
     ppu: PpuRef<PpuBus>,
     mpr: MapperRef,
+    hid: HidRef,
     seq: ClockSeq,
     tcc: u64,
     state: NesState,
@@ -48,10 +50,9 @@ impl Nes {
         self
     }
 
-    #[allow(unused)]
     pub fn insert_cart(&mut self, cart: Cartridge) -> &mut Self {
         self.mpr = Rc::new(RefCell::new(Mapper::from(cart)));
-        let cpu_bus = CpuBus::new(self.ppu.clone(), self.mpr.clone());
+        let cpu_bus = CpuBus::new(self.ppu.clone(), self.mpr.clone(), self.hid.clone());
         self.cpu.borrow_mut().configure_bus(cpu_bus);
         let ppu_bus = PpuBus::new(
             self.cpu.clone(),
@@ -60,6 +61,10 @@ impl Nes {
         );
         self.ppu.borrow_mut().configure_bus(ppu_bus);
         self
+    }
+
+    pub fn connect_joypad(&mut self, port: usize, joypad: Rc<RefCell<dyn Joypad>>) {
+        self.hid.borrow_mut().connect(port, joypad);
     }
 
     pub fn reset(&mut self) {
@@ -201,6 +206,7 @@ impl Default for Nes {
             cpu: CpuRef::default(),
             ppu: PpuRef::default(),
             mpr: MapperRef::default(),
+            hid: HidRef::default(),
             seq: NTSC_SEQ,
             tcc: 0,
             state: NesState::default(),

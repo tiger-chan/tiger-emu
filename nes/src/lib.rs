@@ -2,6 +2,7 @@ pub mod cart;
 mod clock_counter;
 mod console;
 mod cpu;
+mod hid;
 pub mod io;
 mod mem_map;
 mod ppu;
@@ -9,10 +10,15 @@ mod registers;
 
 use clock_counter::*;
 pub use console::*;
-pub use cpu::{Cpu, CpuCtrl, Registers, Status};
+pub use cpu::{
+    AddrMode, AddrModeData, Cpu, CpuCtrl, InstructionState, OperData, OperType, Registers, Status,
+    ADDR_MODE, INSTRUCTION_TYPE,
+};
 
-pub use ppu::{HEIGHT, WIDTH};
+pub use ppu::{Color, ColorPalette, DebugNametable, Palette, HEIGHT, WIDTH};
 use prelude::io::DisplayDevice;
+
+pub use hid::{Joypad, Standard, StandardButton};
 
 pub trait Clocked {
     type Item;
@@ -97,5 +103,9 @@ pub mod prelude {
 
     pub mod ppu {
         pub use crate::ppu::{Color, ColorPalette, DebugNametable, Palette};
+    }
+
+    pub mod hid {
+        pub use crate::hid::{Joypad, Standard, StandardButton};
     }
 }
