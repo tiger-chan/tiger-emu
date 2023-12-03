@@ -27,7 +27,6 @@ impl Default for InstructionIterator {
 }
 
 impl InstructionIterator {
-    #[allow(unused)]
     pub fn new(am: &[Operation], ops: &[Operation]) -> Self {
         let mut operations: [Operation; 9] = [spin; 9];
 
@@ -48,7 +47,6 @@ impl InstructionIterator {
         }
     }
 
-    #[allow(unused)]
     pub fn clock(&mut self, reg: &mut Registers, bus: &mut dyn RwDevice) -> InstructionResult {
         self.cc = self.cc.wrapping_add(1);
         let oper = &self.operations[(self.cur - 1) as usize];
@@ -72,13 +70,13 @@ impl InstructionIterator {
 
         let len = self.len as i8;
         match self.cur {
-            x if x >= len - 1 => InstructionResult::Result(self.state.addr_data, self.state.oper),
+            x if x == len => InstructionResult::Result(self.state.addr_data, self.state.oper),
             _ => InstructionResult::Clock,
         }
     }
 
     pub fn waiting(&self) -> bool {
-        self.cur >= self.len as i8
+        self.cur >= (self.len as i8)
     }
 }
 
@@ -91,6 +89,7 @@ impl Iterator for InstructionIterator {
                 self.cur += 1;
                 Some(())
             }
+            x if x == len => None,
             _ => None,
         }
     }

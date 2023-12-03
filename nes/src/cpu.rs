@@ -192,14 +192,13 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
         self.reg = reg;
     }
 
-    #[allow(unused)]
     pub fn run_pc(&mut self, addr: Word) -> CpuState {
         let mut state;
         if self.cur_pc() != addr {
+            self.queue_pc(addr);
             while !self.waiting() {
                 self.clock();
             }
-            self.pc(addr);
         }
 
         state = self.clock();
@@ -210,7 +209,6 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
         state.unwrap()
     }
 
-    #[allow(unused)]
     pub fn run_until(&mut self, addr: Word) -> CpuState {
         let mut pc = self.cur_pc();
         let mut state = Some(CpuState::OperComplete(self.prev));
@@ -264,9 +262,8 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
         }
 
         let mut addr = self.reg.pc;
-        for item in msgs.iter().take(idx + 1) {
+        for item in msgs.iter().take(idx) {
             if let Message::Pc(pc) = item {
-                println!("Peeked PC from queue {} to {}", self.reg.pc, pc);
                 addr = *pc;
             }
             let _ = self.msg_snd.send(*item);
@@ -322,13 +319,13 @@ impl<CpuBus: RwDevice + CpuCtrl> Clocked for Cpu<CpuBus> {
             }
             None => {
                 self.process_messages();
-                
+
                 if self.instruction.waiting() {
                     if let Some(bus) = self.bus.as_ref() {
                         let opc = bus.read(self.reg.pc) as usize;
-                        
+
                         self.reg.p.set(Status::U, true);
-                        
+
                         self.prev = InstructionState {
                             reg: self.reg,
                             tcc: self.tcc.wrapping_sub(1),
@@ -337,7 +334,7 @@ impl<CpuBus: RwDevice + CpuCtrl> Clocked for Cpu<CpuBus> {
                             am: ADDR_MODE[opc],
                             ..Default::default()
                         };
-                        
+
                         self.reg.pc = self.reg.pc.wrapping_add(1);
                         self.instruction = OPER[opc]();
                     }
