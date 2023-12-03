@@ -93,6 +93,15 @@ pub fn emu_thread(
                 EmulatorMessage::Frame => {
                     emu_processing = EmulationStepMethod::Frame;
                 }
+                EmulatorMessage::Input(port, data) => {
+                    let ctrl = match port {
+                        0 => &p1,
+                        1 => &p2,
+                        _ => &p1,
+                    };
+                    
+                    ctrl.borrow_mut().btns = data;
+                }
                 EmulatorMessage::Step => {
                     emu_processing = EmulationStepMethod::Instruction;
                 }

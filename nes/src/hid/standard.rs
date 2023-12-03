@@ -1,9 +1,9 @@
 use crate::Byte;
-use std::ops::{BitAnd, BitOr, Not};
+use std::ops::{BitAnd, BitOr, Not, BitOrAssign, BitAndAssign};
 
 use super::Joypad;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub enum StandardButton {
     #[default]
     None = 0,
@@ -31,10 +31,22 @@ impl BitOr<StandardButton> for Byte {
     }
 }
 
+impl BitOrAssign<StandardButton> for Byte {
+    fn bitor_assign(&mut self, rhs: StandardButton) {
+        *self |= rhs as Self
+    }
+}
+
 impl BitAnd<StandardButton> for Byte {
     type Output = Byte;
     fn bitand(self, rhs: StandardButton) -> Self::Output {
         self & (rhs as Self)
+    }
+}
+
+impl BitAndAssign<StandardButton> for Byte {
+    fn bitand_assign(&mut self, rhs: StandardButton) {
+        *self &= rhs as Self
     }
 }
 

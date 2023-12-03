@@ -36,6 +36,7 @@ pub enum EmulatorMessage {
     Play,
     Pause,
     Frame,
+    Input(usize, Byte),
     Step,
     Reset,
     Irq,

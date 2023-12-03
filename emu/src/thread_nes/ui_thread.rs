@@ -3,6 +3,7 @@ use std::time::Instant;
 
 use error_iter::ErrorIter;
 
+use nes::StandardButton;
 use pixels::{Error, Pixels, SurfaceTexture};
 
 use winit::dpi::LogicalSize;
@@ -131,6 +132,8 @@ pub fn ui_thread(
             return;
         }
 
+        let mut p1_btns = 0;
+        let mut p2_btns = 0;
         // Handle input events
         if input.update(&event) {
             // Close events
@@ -141,6 +144,39 @@ pub fn ui_thread(
                 let _ = sender.send(EmulatorMessage::Quit);
                 return;
             }
+
+            const P1_KEYS: &[(VirtualKeyCode, StandardButton)] = &[
+                (VirtualKeyCode::Numpad1, StandardButton::B),
+                (VirtualKeyCode::Numpad2, StandardButton::A),
+                (VirtualKeyCode::Return, StandardButton::Start),
+                (VirtualKeyCode::RShift, StandardButton::Select),
+                (VirtualKeyCode::Left, StandardButton::Left),
+                (VirtualKeyCode::Right, StandardButton::Right),
+                (VirtualKeyCode::Up, StandardButton::Up),
+                (VirtualKeyCode::Down, StandardButton::Down),
+            ];
+
+            const P2_KEYS: &[(VirtualKeyCode, StandardButton)] = &[
+                (VirtualKeyCode::G, StandardButton::B),
+                (VirtualKeyCode::H, StandardButton::A),
+                (VirtualKeyCode::Tab, StandardButton::Start),
+                (VirtualKeyCode::Capital, StandardButton::Select),
+                (VirtualKeyCode::A, StandardButton::Left),
+                (VirtualKeyCode::D, StandardButton::Right),
+                (VirtualKeyCode::W, StandardButton::Up),
+                (VirtualKeyCode::S, StandardButton::Down),
+            ];
+
+            let p_input = |btns: &mut u8, keys: &[(VirtualKeyCode, StandardButton)]| {
+                for (code, btn) in keys {
+                    if input.key_pressed(*code) || input.key_held(*code) {
+                        *btns |= *btn;
+                    }
+                }
+            };
+
+            p_input(&mut p1_btns, P1_KEYS);
+            p_input(&mut p2_btns, P2_KEYS);
 
             // Update the scale factor
             if let Some(scale_factor) = input.scale_factor() {
@@ -164,6 +200,9 @@ pub fn ui_thread(
             //world.update();
             window.request_redraw();
         }
+
+        let _ = sender.send(EmulatorMessage::Input(0, p1_btns));
+        let _ = sender.send(EmulatorMessage::Input(1, p2_btns));
 
         match event {
             Event::WindowEvent { event, .. } => {
