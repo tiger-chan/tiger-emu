@@ -48,6 +48,8 @@ pub const REG_HI: Word = 0x3FFF;
 /// ```
 pub const REG_MASK: Word = 0x0007;
 
+pub const VRAM_MASK: Word = 0x3FFF;
+
 pub const WIDTH: Word = 256;
 pub const HEIGHT: Word = 240;
 
@@ -1042,7 +1044,7 @@ impl<PpuBus: RwDevice> WriteDevice for Ppu<PpuBus> {
                 }
                 0x0007 => {
                     let ppu_addr = self.internal.borrow().v_ram.into();
-                    let tmp = bus.write(ppu_addr, data);
+                    let tmp = bus.write(ppu_addr & VRAM_MASK, data);
 
                     let new_addr = self.reg.borrow().ctrl.increment(ppu_addr);
                     self.internal.borrow_mut().v_ram = new_addr.into();

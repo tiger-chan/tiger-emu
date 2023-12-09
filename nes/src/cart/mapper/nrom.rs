@@ -18,8 +18,8 @@ const CART_SPACE: Word = 0x4020;
 // external switch
 const RAM_LO: Word = 0x6000;
 const RAM_HI: Word = 0x7FFF;
-// const RAM_MASK: Word = 0x1FFF;
-// const RAM_SIZE: usize = 0x2000;
+const RAM_MASK: Word = 0x1FFF;
+const RAM_SIZE: usize = 0x2000;
 
 // CPU $8000-$BFFF: First 16 KB of ROM.
 // CPU $C000-$FFFF: Last 16 KB of ROM (NROM-256) or mirror of
@@ -69,9 +69,9 @@ impl WriteDevice for ChrMem {
 }
 
 #[derive(Debug, Default, Clone, PartialEq, PartialOrd)]
-struct PrgMem(pub ProgramMemory, pub usize);
+struct PrgRom(pub ProgramMemory, pub usize);
 
-impl PrgMem {
+impl PrgRom {
     fn new(mem: ProgramMemory, bnks: usize) -> Self {
         Self(mem, bnks)
     }
@@ -82,9 +82,9 @@ impl PrgMem {
     }
 }
 
-impl RwDevice for PrgMem {}
+impl RwDevice for PrgRom {}
 
-impl ReadDevice for PrgMem {
+impl ReadDevice for PrgRom {
     fn read(&self, addr: Word) -> Byte {
         let masked = (addr
             & if self.1 > 1 {
@@ -96,7 +96,7 @@ impl ReadDevice for PrgMem {
     }
 }
 
-impl WriteDevice for PrgMem {
+impl WriteDevice for PrgRom {
     fn write(&mut self, addr: Word, data: Byte) -> Byte {
         let masked = (addr
             & if self.1 > 1 {
@@ -111,9 +111,36 @@ impl WriteDevice for PrgMem {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
+struct PrgRam(pub ProgramMemory);
+
+impl Default for PrgRam {
+    fn default() -> Self {
+        Self(vec![0; RAM_SIZE])
+    }
+}
+
+impl RwDevice for PrgRam {}
+
+impl ReadDevice for PrgRam {
+    fn read(&self, addr: Word) -> Byte {
+        let masked = (addr & RAM_MASK) as usize;
+        self.0[masked]
+    }
+}
+
+impl WriteDevice for PrgRam {
+    fn write(&mut self, addr: Word, data: Byte) -> Byte {
+        let masked = (addr & RAM_MASK) as usize;
+        let tmp = self.0[masked];
+        self.0[masked] = data;
+        tmp
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct Nrom {
-    //ram: ProgramMemory,
-    prg: Rc<RefCell<PrgMem>>,
+    ram: Rc<RefCell<PrgRam>>,
+    prg: Rc<RefCell<PrgRom>>,
     chr: Rc<RefCell<ChrMem>>,
     prg_bnk: u8,
     chr_bnk: u8,
@@ -123,7 +150,7 @@ pub struct Nrom {
 impl Default for Nrom {
     fn default() -> Self {
         Self {
-            //ram: vec![0; RAM_SIZE],
+            ram: Rc::default(),
             prg: Rc::default(),
             chr: Rc::new(RefCell::new(ChrMem::with_capacity(CHR_SIZE))),
             prg_bnk: 0,
@@ -142,9 +169,10 @@ impl From<Cartridge> for Nrom {
         };
 
         Self {
+            ram: Rc::default(),
             chr: Rc::new(RefCell::new(ChrMem::new(value.chr, value.chr_bnk as usize))),
             chr_bnk: value.chr_bnk,
-            prg: Rc::new(RefCell::new(PrgMem::new(value.prg, value.prg_bnk as usize))),
+            prg: Rc::new(RefCell::new(PrgRom::new(value.prg, value.prg_bnk as usize))),
             prg_bnk: value.prg_bnk,
             //ram: vec![0; RAM_SIZE],
             mirror,
@@ -191,7 +219,7 @@ impl CpuMemoryMapper for Nrom {
     fn map_cpu(&self, mem_map: &mut MemoryMap) {
         use Access::*;
         mem_map.register_open(CART_SPACE, RAM_LO - 1);
-        mem_map.register_open(RAM_LO, RAM_HI);
+        mem_map.register(RAM_LO, RAM_HI, self.ram.clone(), ReadWrite);
         mem_map.register(PRG_LO, PRG_HI, self.prg.clone(), Read);
     }
 }

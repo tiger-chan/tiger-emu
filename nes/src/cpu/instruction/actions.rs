@@ -1489,7 +1489,7 @@ pub mod act {
             bus: &mut dyn RwDevice,
             _: &mut InstructionState,
         ) -> OperationResult {
-            bus.write(PS.wrapping_add(reg.sp as Word), ((reg.pc + 1) >> 8) as Byte);
+            bus.write(PS.wrapping_add(reg.sp as Word), (reg.pc.wrapping_add(1) >> 8) as Byte);
             reg.sp = reg.sp.wrapping_sub(1);
             OperationResult::None
         }
@@ -2512,7 +2512,7 @@ pub mod act {
             bus: &mut dyn RwDevice,
             state: &mut InstructionState,
         ) -> OperationResult {
-            bus.write(PS.wrapping_add(reg.sp as Word), (reg.pc + 1) as Byte);
+            bus.write(PS.wrapping_add(reg.sp as Word), reg.pc.wrapping_add(1) as Byte);
             reg.sp = reg.sp.wrapping_sub(1);
             state.tmp = NMI_LO;
             OperationResult::None
