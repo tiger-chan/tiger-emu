@@ -2,7 +2,7 @@ use std::{
     cell::RefCell,
     path::Path,
     rc::Rc,
-    sync::{mpsc::*, RwLockWriteGuard},
+    sync::{mpsc::*, Arc, RwLock, RwLockWriteGuard},
     time::Instant,
 };
 
@@ -45,6 +45,7 @@ pub fn emu_thread(
     sender: Sender<GuiMessage>,
     receiver: Receiver<EmulatorMessage>,
     mut frame_buffer: TripleBuffer<Buffer>,
+    shr_buffer: Arc<RwLock<[u8; 64]>>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let p1 = Rc::<RefCell<Standard>>::default();
     let p2 = Rc::<RefCell<Standard>>::default();
@@ -92,15 +93,6 @@ pub fn emu_thread(
                 }
                 EmulatorMessage::Frame => {
                     emu_processing = EmulationStepMethod::Frame;
-                }
-                EmulatorMessage::Input(port, data) => {
-                    let ctrl = match port {
-                        0 => &p1,
-                        1 => &p2,
-                        _ => &p1,
-                    };
-                    
-                    ctrl.borrow_mut().btns = data;
                 }
                 EmulatorMessage::Step => {
                     emu_processing = EmulationStepMethod::Instruction;
@@ -216,11 +208,23 @@ pub fn emu_thread(
 
                         while nes.is_vblank() {
                             count += 1;
+                            if nes.is_hblank() {
+                                if let Ok(read) = shr_buffer.read() {
+                                    p1.borrow_mut().btns = read[0];
+                                    p2.borrow_mut().btns = read[1];
+                                }
+                            }
                             nes.clock(&mut display);
                         }
 
                         while !nes.is_vblank() {
                             count += 1;
+                            if nes.is_hblank() {
+                                if let Ok(read) = shr_buffer.read() {
+                                    p1.borrow_mut().btns = read[0];
+                                    p2.borrow_mut().btns = read[1];
+                                }
+                            }
                             nes.clock(&mut display);
                         }
 

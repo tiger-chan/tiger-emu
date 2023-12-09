@@ -1,5 +1,5 @@
 use crate::Byte;
-use std::ops::{BitAnd, BitOr, Not, BitOrAssign, BitAndAssign};
+use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, Not};
 
 use super::Joypad;
 
@@ -84,6 +84,7 @@ impl Joypad for Standard {
     fn read_mut(&mut self) -> Byte {
         let val = self.shft & 0x01;
         self.shft >>= 1;
+        self.shft |= 0x8;
         val
     }
 

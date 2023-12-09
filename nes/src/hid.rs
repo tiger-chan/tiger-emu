@@ -43,9 +43,6 @@ impl ReadDevice for Hid {
         let masked = (addr & 0x01) as usize;
         if let Some(pad) = self.joy[masked].as_ref() {
             let mut pad = pad.borrow_mut();
-            if self.strobe {
-                pad.reset();
-            }
             pad.read_mut()
         } else {
             0
@@ -66,6 +63,11 @@ impl WriteDevice for Hid {
     fn write(&mut self, addr: Word, data: Byte) -> Byte {
         if addr & 0x01 == 0 {
             self.strobe = data > 0;
+            if self.strobe {
+                for pad in self.joy.iter().flatten() {
+                    pad.borrow_mut().reset();
+                }
+            }
         }
         0
     }

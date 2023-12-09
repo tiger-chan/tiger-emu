@@ -547,6 +547,10 @@ impl<PpuBus: RwDevice> Ppu<PpuBus> {
         self.reg.borrow().status & Status::V == Status::V
     }
 
+    pub fn is_hblank(&self) -> bool {
+        self.state.cycle >= cycles::HB_GC_LO
+    }
+
     #[allow(unused)]
     pub fn set_palette_ntsc(&mut self) {
         self.col_palette = create_palette(X2C02);

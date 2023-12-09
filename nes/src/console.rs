@@ -198,6 +198,10 @@ impl Nes {
     pub fn is_vblank(&self) -> bool {
         self.ppu.borrow().is_vblank()
     }
+
+    pub fn is_hblank(&self) -> bool {
+        self.ppu.borrow().is_hblank()
+    }
 }
 
 impl Default for Nes {

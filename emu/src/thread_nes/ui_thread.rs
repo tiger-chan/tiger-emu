@@ -1,4 +1,5 @@
 use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
 use error_iter::ErrorIter;
@@ -29,6 +30,7 @@ pub fn ui_thread(
     sender: Sender<EmulatorMessage>,
     receiver: Receiver<GuiMessage>,
     mut frame_buffer: TripleBuffer<Buffer>,
+    shr_buffer: Arc<RwLock<[u8; 64]>>,
 ) -> Result<(), Error> {
     let mut input = WinitInputHelper::new();
     let evt_loop = EventLoop::default();
@@ -201,8 +203,10 @@ pub fn ui_thread(
             window.request_redraw();
         }
 
-        let _ = sender.send(EmulatorMessage::Input(0, p1_btns));
-        let _ = sender.send(EmulatorMessage::Input(1, p2_btns));
+        if let Ok(mut write) = shr_buffer.write() {
+            write[0] = p1_btns;
+            write[1] = p2_btns;
+        }
 
         match event {
             Event::WindowEvent { event, .. } => {
