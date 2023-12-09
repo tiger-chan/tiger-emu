@@ -12,11 +12,12 @@ use crate::{
 
 use super::{Mirror, PpuMemoryMapper};
 
+const CART_SPACE: Word = 0x4020;
 // CPU $6000-$7FFF: Family Basic only: PRG RAM, mirrored as
 // necessary to fill entire 8 KiB window, write protectable with an
 // external switch
-// const RAM_LO: Word = 0x6000;
-// const RAM_HI: Word = 0x7FFF;
+const RAM_LO: Word = 0x6000;
+const RAM_HI: Word = 0x7FFF;
 // const RAM_MASK: Word = 0x1FFF;
 // const RAM_SIZE: usize = 0x2000;
 
@@ -157,7 +158,13 @@ impl PpuMemoryMapper for Nrom {
         use super::name_tbl::*;
         use Access::*;
 
-        mem_map.register(CHR_LO, CHR_HI, self.chr.clone(), Read);
+        let chr_access = if self.chr_bnk == 0 {
+            ReadWrite
+        } else {
+            Read
+        };
+
+        mem_map.register(CHR_LO, CHR_HI, self.chr.clone(), chr_access);
         match self.mirror {
             Mirror::Horizontal => {
                 mem_map.register(NAMETABLE_0_LO, NAMETABLE_0_HI, nt[0].clone(), ReadWrite);
@@ -183,7 +190,8 @@ impl PpuMemoryMapper for Nrom {
 impl CpuMemoryMapper for Nrom {
     fn map_cpu(&self, mem_map: &mut MemoryMap) {
         use Access::*;
-        //mem_map.register(RAM_LO, RAM_HI, self.ram.clone(), ReadWrite);
+        mem_map.register_open(CART_SPACE, RAM_LO - 1);
+        mem_map.register_open(RAM_LO, RAM_HI);
         mem_map.register(PRG_LO, PRG_HI, self.prg.clone(), Read);
     }
 }

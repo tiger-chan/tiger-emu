@@ -1,8 +1,10 @@
 use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
 use error_iter::ErrorIter;
 
+use nes::StandardButton;
 use pixels::{Error, Pixels, SurfaceTexture};
 
 use winit::dpi::LogicalSize;
@@ -28,6 +30,7 @@ pub fn ui_thread(
     sender: Sender<EmulatorMessage>,
     receiver: Receiver<GuiMessage>,
     mut frame_buffer: TripleBuffer<Buffer>,
+    shr_buffer: Arc<RwLock<[u8; 64]>>,
 ) -> Result<(), Error> {
     let mut input = WinitInputHelper::new();
     let evt_loop = EventLoop::default();
@@ -72,15 +75,27 @@ pub fn ui_thread(
         prev_instant = cur_instant;
         while let Ok(msg) = receiver.try_recv() {
             match msg {
+                GuiMessage::Loaded => {
+                    let _ = sender.send(EmulatorMessage::Query(EmuQuery::CpuAsm(0x8000, 0xFFFF)));
+                }
                 GuiMessage::QueryResult(msg) => match msg {
                     GuiResult::CpuRegister(reg) => {
                         framework.gui.update_cpu_status(reg);
                     }
+                    GuiResult::PpuColorPalette(data) => {
+                        framework.gui.update_ppu_col_palette(data);
+                    }
                     GuiResult::PpuPalette(idx, palette, data) => {
                         framework.gui.update_ppu_palette(idx, palette, data);
                     }
+                    GuiResult::PpuNametable(idx, data) => {
+                        framework.gui.update_ppu_nametable(idx, data);
+                    }
                     GuiResult::PlayState(state) => {
                         is_running = state;
+                    }
+                    GuiResult::CpuAsm(asm) => {
+                        framework.gui.update_asm(asm, 0x8000);
                     }
                 },
             }
@@ -119,6 +134,8 @@ pub fn ui_thread(
             return;
         }
 
+        let mut p1_btns = 0;
+        let mut p2_btns = 0;
         // Handle input events
         if input.update(&event) {
             // Close events
@@ -129,6 +146,39 @@ pub fn ui_thread(
                 let _ = sender.send(EmulatorMessage::Quit);
                 return;
             }
+
+            const P1_KEYS: &[(VirtualKeyCode, StandardButton)] = &[
+                (VirtualKeyCode::Numpad1, StandardButton::B),
+                (VirtualKeyCode::Numpad2, StandardButton::A),
+                (VirtualKeyCode::Return, StandardButton::Start),
+                (VirtualKeyCode::RShift, StandardButton::Select),
+                (VirtualKeyCode::Left, StandardButton::Left),
+                (VirtualKeyCode::Right, StandardButton::Right),
+                (VirtualKeyCode::Up, StandardButton::Up),
+                (VirtualKeyCode::Down, StandardButton::Down),
+            ];
+
+            const P2_KEYS: &[(VirtualKeyCode, StandardButton)] = &[
+                (VirtualKeyCode::G, StandardButton::B),
+                (VirtualKeyCode::H, StandardButton::A),
+                (VirtualKeyCode::Tab, StandardButton::Start),
+                (VirtualKeyCode::Capital, StandardButton::Select),
+                (VirtualKeyCode::A, StandardButton::Left),
+                (VirtualKeyCode::D, StandardButton::Right),
+                (VirtualKeyCode::W, StandardButton::Up),
+                (VirtualKeyCode::S, StandardButton::Down),
+            ];
+
+            let p_input = |btns: &mut u8, keys: &[(VirtualKeyCode, StandardButton)]| {
+                for (code, btn) in keys {
+                    if input.key_pressed(*code) || input.key_held(*code) {
+                        *btns |= *btn;
+                    }
+                }
+            };
+
+            p_input(&mut p1_btns, P1_KEYS);
+            p_input(&mut p2_btns, P2_KEYS);
 
             // Update the scale factor
             if let Some(scale_factor) = input.scale_factor() {
@@ -151,6 +201,11 @@ pub fn ui_thread(
             // Update internal state and request a redraw
             //world.update();
             window.request_redraw();
+        }
+
+        if let Ok(mut write) = shr_buffer.write() {
+            write[0] = p1_btns;
+            write[1] = p2_btns;
         }
 
         match event {
@@ -200,6 +255,11 @@ pub fn ui_thread(
                         Message::QueryPalette(tbl, palette) => {
                             sender
                                 .send(EmulatorMessage::Query(EmuQuery::PpuPalette(tbl, palette)))
+                                .unwrap();
+                        }
+                        Message::QueryNametable(tbl) => {
+                            sender
+                                .send(EmulatorMessage::Query(EmuQuery::PpuNametable(tbl)))
                                 .unwrap();
                         }
                     }

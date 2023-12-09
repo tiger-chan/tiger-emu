@@ -1,8 +1,9 @@
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
-    io::{DisplayDevice, VoidDisplay},
-    ppu::Palette,
+    hid::{HidRef, Joypad},
+    io::{DisplayDevice, ReadDevice, VoidDisplay},
+    ppu::{self, Palette},
     Clocked, DisplayClocked,
 };
 
@@ -25,6 +26,7 @@ pub struct Nes {
     cpu: CpuRef<CpuBus>,
     ppu: PpuRef<PpuBus>,
     mpr: MapperRef,
+    hid: HidRef,
     seq: ClockSeq,
     tcc: u64,
     state: NesState,
@@ -48,14 +50,21 @@ impl Nes {
         self
     }
 
-    #[allow(unused)]
     pub fn insert_cart(&mut self, cart: Cartridge) -> &mut Self {
         self.mpr = Rc::new(RefCell::new(Mapper::from(cart)));
-        let cpu_bus = CpuBus::new(self.ppu.clone(), self.mpr.clone());
+        let cpu_bus = CpuBus::new(self.ppu.clone(), self.mpr.clone(), self.hid.clone());
         self.cpu.borrow_mut().configure_bus(cpu_bus);
-        let ppu_bus = PpuBus::new(self.cpu.clone(), self.cpu.borrow().signal(), self.mpr.clone());
+        let ppu_bus = PpuBus::new(
+            self.cpu.clone(),
+            self.cpu.borrow().signal(),
+            self.mpr.clone(),
+        );
         self.ppu.borrow_mut().configure_bus(ppu_bus);
         self
+    }
+
+    pub fn connect_joypad(&mut self, port: usize, joypad: Rc<RefCell<dyn Joypad>>) {
+        self.hid.borrow_mut().connect(port, joypad);
     }
 
     pub fn reset(&mut self) {
@@ -64,6 +73,7 @@ impl Nes {
             self.clock(&mut display);
         }
         self.tcc = 0;
+        self.ppu.borrow_mut().reset();
         self.cpu.borrow_mut().reset();
     }
 
@@ -163,15 +173,22 @@ impl Nes {
         self.cpu.borrow().read(addr)
     }
 
-    #[allow(unused)]
-    pub fn read_slice(&self, addr: Word, out: &mut [Byte]) {
+    pub fn read_only_slice(&self, addr: Word, out: &mut [Byte]) {
         for (i, v) in out.iter_mut().enumerate() {
-            *v = self.cpu.borrow().read(addr + i as Word)
+            *v = self.cpu.borrow().read_only(addr + i as Word)
         }
     }
 
     pub fn read_palette(&self, tbl: Word, palette: Word) -> Palette {
         self.ppu.borrow().read_palette(tbl, palette)
+    }
+
+    pub fn read_nametable(&self, tbl: Word) -> ppu::DebugNametable {
+        self.ppu.borrow().read_nametable(tbl)
+    }
+
+    pub fn read_col_palette(&self) -> ppu::ColorPalette {
+        self.ppu.borrow().read_col_palette()
     }
 
     pub fn is_fetching_instr(&self) -> bool {
@@ -181,6 +198,10 @@ impl Nes {
     pub fn is_vblank(&self) -> bool {
         self.ppu.borrow().is_vblank()
     }
+
+    pub fn is_hblank(&self) -> bool {
+        self.ppu.borrow().is_hblank()
+    }
 }
 
 impl Default for Nes {
@@ -189,6 +210,7 @@ impl Default for Nes {
             cpu: CpuRef::default(),
             ppu: PpuRef::default(),
             mpr: MapperRef::default(),
+            hid: HidRef::default(),
             seq: NTSC_SEQ,
             tcc: 0,
             state: NesState::default(),

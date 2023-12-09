@@ -18,6 +18,7 @@ pub enum Message {
     Irq,
     Nmi,
     QueryPalette(Word, Word),
+    QueryNametable(Word),
 }
 
 pub struct Framework {

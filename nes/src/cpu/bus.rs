@@ -4,6 +4,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     cart::MapperRef,
+    hid::HidRef,
     io::{ReadDevice, RwDevice, RwDeviceRef, WriteDevice},
     mem_map::MemoryMap,
     ppu, Byte, Word, CPU_RAM,
@@ -56,6 +57,62 @@ mod apu {
     /// ```
     pub const IO_HI: Word = 0x401F;
 
+    /// ```text
+    /// Address range    Size      Device
+    /// $4000–$4017     $0018      NES APU and I/O registers
+    /// $4018–$401F     $0008      APU and I/O functionality that is normally disabled. See CPU Test Mode.
+    /// ```
+    pub const IO_APU_LO: Word = IO_LO;
+
+    /// ```text
+    /// Address range    Size      Device
+    /// $4000–$4017     $0018      NES APU and I/O registers
+    /// $4018–$401F     $0008      APU and I/O functionality that is normally disabled. See CPU Test Mode.
+    /// ```
+    pub const IO_APU_HI: Word = 0x4015;
+
+    /// ```text
+    /// Address range    Size      Device
+    /// $4000–$4017     $0018      NES APU and I/O registers
+    /// $4018–$401F     $0008      APU and I/O functionality that is normally disabled. See CPU Test Mode.
+    /// ```
+    pub const IO_HID_LO: Word = 0x4016;
+
+    /// ```text
+    /// Address range    Size      Device
+    /// $4000–$4017     $0018      NES APU and I/O registers
+    /// $4018–$401F     $0008      APU and I/O functionality that is normally disabled. See CPU Test Mode.
+    /// ```
+    pub const IO_HID_HI: Word = 0x4017;
+
+    /// ```text
+    /// Address range    Size      Device
+    /// $4000–$4017     $0018      NES APU and I/O registers
+    /// $4018–$401F     $0008      APU and I/O functionality that is normally disabled. See CPU Test Mode.
+    /// ```
+    pub const IO_APU_TEST_LO: Word = 0x4018;
+
+    /// ```text
+    /// Address range    Size      Device
+    /// $4000–$4017     $0018      NES APU and I/O registers
+    /// $4018–$401F     $0008      APU and I/O functionality that is normally disabled. See CPU Test Mode.
+    /// ```
+    pub const IO_APU_TEST_HI: Word = 0x401A;
+
+    /// ```text
+    /// Address range    Size      Device
+    /// $4000–$4017     $0018      NES APU and I/O registers
+    /// $4018–$401F     $0008      APU and I/O functionality that is normally disabled. See CPU Test Mode.
+    /// ```
+    pub const IO_UNUSED_LO: Word = 0x401B;
+
+    /// ```text
+    /// Address range    Size      Device
+    /// $4000–$4017     $0018      NES APU and I/O registers
+    /// $4018–$401F     $0008      APU and I/O functionality that is normally disabled. See CPU Test Mode.
+    /// ```
+    pub const IO_UNUSED_HI: Word = IO_HI;
+
     const IO_MASK: Word = 0x001F;
 
     const MEM_SIZE: usize = (IO_HI - IO_LO) as usize + 1;
@@ -73,7 +130,7 @@ mod apu {
 
     impl ReadDevice for Ram {
         fn read(&self, addr: Word) -> Byte {
-            log::warn!("Unimplemented region @ {addr:<04X}");
+            log::warn!("Unimplemented region @ {addr:<04X} is being read");
             let masked = (addr & IO_MASK) as usize;
             self.0[masked]
         }
@@ -81,7 +138,7 @@ mod apu {
 
     impl WriteDevice for Ram {
         fn write(&mut self, addr: Word, data: Byte) -> Byte {
-            log::warn!("Unimplemented region @ {addr:<04X}");
+            log::warn!("Unimplemented region @ {addr:<04X} is being written");
             let masked = (addr & IO_MASK) as usize;
             let tmp = self.0[masked];
             self.0[masked] = data;
@@ -156,7 +213,7 @@ pub struct Bus {
 }
 
 impl Bus {
-    pub fn new(ppu: RwDeviceRef, mpr: MapperRef) -> Self {
+    pub fn new(ppu: RwDeviceRef, mpr: MapperRef, hid: HidRef) -> Self {
         use crate::mem_map::{Access::*, CpuMemoryMapper};
 
         let mut value = Self {
@@ -164,18 +221,49 @@ impl Bus {
             apu: Rc::new(RefCell::new(apu::Ram::default())),
             mem_map: MemoryMap::default(),
         };
+        value.mem_map.name = "CPU Bus".to_owned();
 
-        value
-            .mem_map
-            .register(CPU_RAM_LO, CPU_RAM_HI, value.ram.clone(), ReadWrite);
-        value
-            .mem_map
-            .register(ppu::REG_LO, ppu::REG_HI, ppu, ReadWrite);
-        value
-            .mem_map
-            .register(apu::IO_LO, apu::IO_HI, value.apu.clone(), ReadWrite);
-        mpr.borrow().map_cpu(&mut value.mem_map);
+        // https://www.nesdev.org/wiki/CPU_memory_map
+        {
+            value
+                .mem_map
+                .register(CPU_RAM_LO, CPU_RAM_HI, value.ram.clone(), ReadWrite);
+            value
+                .mem_map
+                .register(ppu::REG_LO, ppu::REG_HI, ppu, ReadWrite);
 
+            value
+                .mem_map
+                .register(apu::IO_APU_LO, apu::IO_APU_HI, value.apu.clone(), ReadWrite);
+
+            value
+                .mem_map
+                .register(apu::IO_HID_HI, apu::IO_HID_HI, value.apu.clone(), Write);
+
+            value
+                .mem_map
+                .register(apu::IO_HID_LO, apu::IO_HID_HI, hid.clone(), Read);
+
+            value
+                .mem_map
+                .register(apu::IO_HID_LO, apu::IO_HID_LO, hid.clone(), Write);
+
+            value.mem_map.register(
+                apu::IO_APU_TEST_LO,
+                apu::IO_APU_TEST_HI,
+                value.apu.clone(),
+                ReadWrite,
+            );
+
+            value.mem_map.register(
+                apu::IO_UNUSED_LO,
+                apu::IO_UNUSED_HI,
+                value.apu.clone(),
+                ReadWrite,
+            );
+
+            mpr.borrow().map_cpu(&mut value.mem_map);
+        }
         value
     }
 }

@@ -1,11 +1,15 @@
 use std::{
+    cell::RefCell,
     path::Path,
-    sync::{mpsc::*, RwLockWriteGuard},
+    rc::Rc,
+    sync::{mpsc::*, Arc, RwLock, RwLockWriteGuard},
     time::Instant,
 };
 
 use crate::{thread_nes::FRAME_TIME, triple_buffer::TripleBuffer};
-use nes::{cart::Cartridge, io::DisplayDevice, prelude::*, DisplayClocked, HEIGHT, WIDTH};
+use nes::{
+    cart::Cartridge, io::DisplayDevice, prelude::*, DisplayClocked, Standard, HEIGHT, WIDTH,
+};
 
 use super::{Buffer, EmuQuery, EmulatorMessage, GuiMessage, GuiResult};
 
@@ -41,8 +45,13 @@ pub fn emu_thread(
     sender: Sender<GuiMessage>,
     receiver: Receiver<EmulatorMessage>,
     mut frame_buffer: TripleBuffer<Buffer>,
+    shr_buffer: Arc<RwLock<[u8; 64]>>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let p1 = Rc::<RefCell<Standard>>::default();
+    let p2 = Rc::<RefCell<Standard>>::default();
     let mut nes = Nes::default();
+    nes.connect_joypad(0, p1.clone());
+    nes.connect_joypad(1, p2.clone());
 
     let mut residual_time = 0.0;
     let mut prev_instant = Instant::now();
@@ -57,14 +66,23 @@ pub fn emu_thread(
 
         let mut sent_registers = false;
         let mut sent_palettes = [false, false];
+        let mut sent_nametables = [false, false, false, false];
         while let Ok(msg) = receiver.try_recv() {
             match msg {
                 EmulatorMessage::Load(cart_location) => {
                     emu_processing = EmulationStepMethod::None;
                     let path = Path::new(&cart_location);
                     match Cartridge::try_from(path) {
-                        Ok(cart) => nes = Nes::default().with_cart(cart),
-                        Err(err) => log::error!("{}", err)
+                        Ok(cart) => {
+                            nes = Nes::default().with_cart(cart);
+                            nes.connect_joypad(0, p1.clone());
+                            nes.connect_joypad(1, p2.clone());
+                            let _ = sender.send(GuiMessage::Loaded);
+                            let _ = sender.send(GuiMessage::QueryResult(
+                                GuiResult::PpuColorPalette(nes.read_col_palette()),
+                            ));
+                        }
+                        Err(err) => log::error!("{}", err),
                     }
                 }
                 EmulatorMessage::Play => {
@@ -100,6 +118,22 @@ pub fn emu_thread(
                             let msg = GuiResult::PpuPalette(idx, palette, data);
                             let _ = sender.send(GuiMessage::QueryResult(msg));
                         }
+                    }
+                    EmuQuery::PpuNametable(idx) => {
+                        let pal = (idx & 0x01) as usize;
+                        if !sent_nametables[pal] {
+                            sent_nametables[pal] = true;
+                            let data = nes.read_nametable(idx);
+                            let msg = GuiResult::PpuNametable(idx, data);
+                            let _ = sender.send(GuiMessage::QueryResult(msg));
+                        }
+                    }
+                    EmuQuery::CpuAsm(start, end) => {
+                        let mut data = vec![0; (end - start) as usize];
+                        nes.read_only_slice(start, data.as_mut_slice());
+
+                        let msg = GuiResult::CpuAsm(data);
+                        let _ = sender.send(GuiMessage::QueryResult(msg));
                     }
                 },
                 EmulatorMessage::Irq => {
@@ -155,8 +189,6 @@ pub fn emu_thread(
                     let end_frame = Instant::now();
                     let dur = end_frame.duration_since(frame).as_secs_f32();
                     log::trace!("Frame request {dur}");
-
-                    emu_processing = EmulationStepMethod::None;
                 }
                 EmulationStepMethod::Standard => {
                     if residual_time > 0.0 {
@@ -176,11 +208,23 @@ pub fn emu_thread(
 
                         while nes.is_vblank() {
                             count += 1;
+                            if nes.is_hblank() {
+                                if let Ok(read) = shr_buffer.read() {
+                                    p1.borrow_mut().btns = read[0];
+                                    p2.borrow_mut().btns = read[1];
+                                }
+                            }
                             nes.clock(&mut display);
                         }
 
                         while !nes.is_vblank() {
                             count += 1;
+                            if nes.is_hblank() {
+                                if let Ok(read) = shr_buffer.read() {
+                                    p1.borrow_mut().btns = read[0];
+                                    p2.borrow_mut().btns = read[1];
+                                }
+                            }
                             nes.clock(&mut display);
                         }
 
@@ -197,9 +241,20 @@ pub fn emu_thread(
             let _ = sender.send(GuiMessage::QueryResult(GuiResult::PlayState(is_running)));
         }
 
-        if emu_processing != EmulationStepMethod::None && nes.is_vblank() {
-            frame_buffer.submit();
-        }
+        match emu_processing {
+            EmulationStepMethod::Standard => {
+                if nes.is_vblank() {
+                    frame_buffer.submit();
+                }
+            }
+            EmulationStepMethod::Frame => {
+                if nes.is_vblank() {
+                    frame_buffer.submit();
+                }
+                emu_processing = EmulationStepMethod::None;
+            }
+            _ => {}
+        };
     }
 
     Ok(())

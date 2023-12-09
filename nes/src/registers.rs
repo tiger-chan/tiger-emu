@@ -151,7 +151,7 @@ macro_rules! display {
     ($cls:ty [$a:tt, $b:tt, $c:tt, $d:tt, $e:tt, $f:tt, $g:tt, $h:tt]) => {
         impl fmt::Display for $cls {
             fn fmt(&self, fout: &mut fmt::Formatter<'_>) -> fmt::Result {
-                let func = |f, i, e| match self.get(f) == 1 {
+                let func = |f, i, e| match self.get(f) == f {
                     true => i,
                     false => e,
                 };
@@ -165,11 +165,7 @@ macro_rules! display {
                 let g = func(<$cls>::$g, stringify!($g), ".");
                 let h = func(<$cls>::$h, stringify!($h), ".");
 
-                write!(
-                    fout,
-                    "{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}",
-                    a, b, c, d, e, f, g, h
-                )
+                write!(fout, "{:}{:}{:}{:}{:}{:}{:}{:}", a, b, c, d, e, f, g, h)
             }
         }
     };
@@ -201,11 +197,11 @@ macro_rules! display {
     };
 }
 
-pub(crate) use reg_from_impl;
-pub(crate) use reg_add_impl;
-pub(crate) use bit_or;
 pub(crate) use bit_and;
+pub(crate) use bit_or;
 pub(crate) use bit_xor;
+pub(crate) use display;
 pub(crate) use not;
 pub(crate) use partial_eq;
-pub(crate) use display;
+pub(crate) use reg_add_impl;
+pub(crate) use reg_from_impl;

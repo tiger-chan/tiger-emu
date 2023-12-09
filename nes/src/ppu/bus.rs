@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc, sync::mpsc::Sender};
 use crate::{
     cart::MapperRef,
     cpu::Message,
-    io::{ReadDevice, ReadOnlyDevice, RwDevice, RwDeviceRef, WriteDevice},
+    io::{ReadDevice, RwDevice, RwDeviceRef, WriteDevice},
     mem_map::{Access, MemoryMap},
     ppu::palette,
     Byte, Word,
@@ -39,6 +39,8 @@ impl Bus {
             cpu_sig,
         };
 
+        value.mem_map.name = "PPU Bus".to_owned();
+
         value.mem_map.register(
             palette::RAM_LO,
             palette::RAM_HI,
@@ -67,11 +69,9 @@ impl ReadDevice for Bus {
     fn read(&self, addr: Word) -> Byte {
         self.mem_map.read(addr)
     }
-}
 
-impl ReadOnlyDevice for Bus {
     fn read_only(&self, addr: Word) -> Byte {
-        self.mem_map.read(addr)
+        self.mem_map.read_only(addr)
     }
 }
 

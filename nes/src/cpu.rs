@@ -13,16 +13,14 @@ pub use bus::{Bus, CpuCtrl};
 pub use registers::Registers;
 pub use status_reg::Status;
 
-pub use instruction::{AddrMode, AddrModeData, OperData, OperType};
+pub use instruction::{AddrMode, AddrModeData, OperData, OperType, ADDR_MODE, INSTRUCTION_TYPE};
 
-use instruction::{InstructionIterator, INSTRUCTION_TYPE};
+use instruction::{InstructionIterator, OPER};
 
 use crate::{
     io::{ReadDevice, WriteDevice},
     Clocked,
 };
-
-use self::instruction::{ADDR_MODE, OPER};
 
 use super::{io::RwDevice, Byte, Word};
 
@@ -194,14 +192,13 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
         self.reg = reg;
     }
 
-    #[allow(unused)]
     pub fn run_pc(&mut self, addr: Word) -> CpuState {
         let mut state;
         if self.cur_pc() != addr {
+            self.queue_pc(addr);
             while !self.waiting() {
                 self.clock();
             }
-            self.pc(addr);
         }
 
         state = self.clock();
@@ -212,7 +209,6 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
         state.unwrap()
     }
 
-    #[allow(unused)]
     pub fn run_until(&mut self, addr: Word) -> CpuState {
         let mut pc = self.cur_pc();
         let mut state = Some(CpuState::OperComplete(self.prev));
@@ -234,24 +230,25 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
     }
 
     fn process_messages(&mut self) {
-        while let Ok(msg) = self.msg_rcv.try_recv() {
+        if let Ok(msg) = self.msg_rcv.try_recv() {
             match msg {
                 Message::Pc(pc) => {
                     self.reg.pc = pc;
                 }
                 Message::Irq => {
                     self.irq();
-                    return;
                 }
                 Message::Reset => {
                     self.reset();
-                    return;
                 }
                 Message::Nmi => {
                     self.nmi();
-                    return;
                 }
             }
+        }
+
+        while self.msg_rcv.try_recv().is_ok() {
+            // Do nothing
         }
     }
 
@@ -265,9 +262,8 @@ impl<CpuBus: RwDevice + CpuCtrl> Cpu<CpuBus> {
         }
 
         let mut addr = self.reg.pc;
-        for item in msgs.iter().take(idx + 1) {
+        for item in msgs.iter().take(idx) {
             if let Message::Pc(pc) = item {
-                println!("Peeked PC from queue {} to {}", self.reg.pc, pc);
                 addr = *pc;
             }
             let _ = self.msg_snd.send(*item);
@@ -324,23 +320,26 @@ impl<CpuBus: RwDevice + CpuCtrl> Clocked for Cpu<CpuBus> {
             None => {
                 self.process_messages();
 
-                if let Some(bus) = self.bus.as_ref() {
-                    let opc = bus.read(self.reg.pc) as usize;
+                if self.instruction.waiting() {
+                    if let Some(bus) = self.bus.as_ref() {
+                        let opc = bus.read(self.reg.pc) as usize;
 
-                    self.reg.p.set(Status::U, true);
+                        self.reg.p.set(Status::U, true);
 
-                    self.prev = InstructionState {
-                        reg: self.reg,
-                        tcc: self.tcc.wrapping_sub(1),
-                        opcode: opc as u8,
-                        op: INSTRUCTION_TYPE[opc],
-                        am: ADDR_MODE[opc],
-                        ..Default::default()
-                    };
+                        self.prev = InstructionState {
+                            reg: self.reg,
+                            tcc: self.tcc.wrapping_sub(1),
+                            opcode: opc as u8,
+                            op: INSTRUCTION_TYPE[opc],
+                            am: ADDR_MODE[opc],
+                            ..Default::default()
+                        };
 
-                    self.reg.pc = self.reg.pc.wrapping_add(1);
-                    self.instruction = OPER[opc]();
+                        self.reg.pc = self.reg.pc.wrapping_add(1);
+                        self.instruction = OPER[opc]();
+                    }
                 }
+
                 None
             }
         }

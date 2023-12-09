@@ -1,9 +1,11 @@
 use crate::{
     registers::{bit_and, bit_or, bit_xor, display, not, partial_eq, reg_add_impl, reg_from_impl},
-    Byte, Word,
+    Byte, Word, HI_MASK, LO_MASK,
 };
 use core::fmt;
 use std::ops::{Add, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not};
+
+use super::nametable;
 
 /// # Summary
 /// ```text
@@ -65,10 +67,7 @@ pub struct Registers {
     /// pair for $2005/$2006
     pub status: Status,
 
-    pub addr_latch: Byte,
     pub data_buffer: Byte,
-    pub addr_lo: Word,
-    pub addr_hi: Word,
 }
 
 /// # Controller ($2000) > write
@@ -115,23 +114,42 @@ impl Ctrl {
         Self(self.0 & f.0)
     }
 
+    pub fn increment(&self, val: Word) -> Word {
+        if *self & Self::I == Self::I {
+            val.wrapping_add(32)
+        } else {
+            val.wrapping_add(1)
+        }
+    }
+
+    pub fn nmi(&self) -> bool {
+        *self & Ctrl::V == Ctrl::V
+    }
+
     /// Add 256 to the X scroll position
     pub const X: Ctrl = Ctrl::new(1 << 0);
+
     /// Add 240 to the Y scroll position
     pub const Y: Ctrl = Ctrl::new(1 << 1);
+
     /// VRAM address increment per CPU read/write of PPUDATA
     /// (0: add 1, going across; 1: add 32, going down)
     pub const I: Ctrl = Ctrl::new(1 << 2);
+
     /// Sprite pattern table address for 8x8 sprites
     /// (0: $0000; 1: $1000; ignored in 8x16 mode)
     pub const S: Ctrl = Ctrl::new(1 << 3);
+
     /// Background pattern table address (0: $0000; 1: $1000)
     pub const B: Ctrl = Ctrl::new(1 << 4);
+
     /// Sprite size (0: 8x8 pixels; 1: 8x16 pixels – see PPU OAM#Byte 1)
     pub const H: Ctrl = Ctrl::new(1 << 5);
+
     /// PPU master/slave select
     /// (0: read backdrop from EXT pins; 1: output color on EXT pins)
     pub const P: Ctrl = Ctrl::new(1 << 6);
+
     /// Generate an NMI at the start of the
     /// vertical blanking interval (0: off; 1: on)
     pub const V: Ctrl = Ctrl::new(1 << 7);
@@ -191,18 +209,25 @@ impl Mask {
 
     /// Greyscale (0: normal color, 1: produce a greyscale display)
     pub const GRAY: Self = Self::new(1 << 0);
+
     /// 1: Show background in leftmost 8 pixels of screen, 0: Hide
     pub const LBG: Self = Self::new(1 << 1);
+
     /// 1: Show sprites in leftmost 8 pixels of screen, 0: Hide
     pub const LSPR: Self = Self::new(1 << 2);
+
     /// 1: Show background
     pub const BG: Self = Self::new(1 << 3);
+
     /// 1: Show sprites
     pub const SPR: Self = Self::new(1 << 4);
+
     /// Emphasize red (green on PAL/Dendy)
     pub const R: Self = Self::new(1 << 5);
+
     /// Emphasize green (red on PAL/Dendy)
     pub const G: Self = Self::new(1 << 6);
+
     /// Emphasize blue
     pub const B: Self = Self::new(1 << 7);
 }
@@ -321,3 +346,185 @@ partial_eq!(Status, Byte);
 reg_from_impl!(Status, u16);
 reg_add_impl!(Status, u16);
 display!(Status [V, S, O, U, U, U, U, U], [V, S, O, -, -, -, -, -]);
+
+/// https://www.nesdev.org/wiki/PPU_scrolling
+///
+///```text
+/// yyy NN YYYYY XXXXX
+/// ||| || ||||| +++++-- coarse X scroll
+/// ||| || +++++-------- coarse Y scroll
+/// ||| ++-------------- nametable select
+/// +++----------------- fine Y scroll
+/// ```
+#[derive(Debug, Default, Clone, Copy)]
+pub struct Loopy(Word);
+
+impl Loopy {
+    pub fn set_nt_select(&mut self, val: Word) {
+        let shft = val << Self::NT_LSH;
+        let new_val = shft & Self::NT_SELECT;
+        self.0 = (self.0 & !Self::NT_SELECT) | new_val;
+    }
+
+    pub fn set_coarse_x(&mut self, val: Word) {
+        self.0 = (self.0 & !Self::COARSE_X) | val & Self::COARSE_X;
+    }
+
+    pub fn coarse_x(&self) -> Word {
+        self.0 & Self::COARSE_X
+    }
+
+    pub fn set_coarse_y(&mut self, val: Word) {
+        let val = (val << Self::COARSE_Y_LSH) & Self::COARSE_Y;
+        self.0 = (self.0 & !Self::COARSE_Y) | val;
+    }
+
+    pub fn coarse_y(&self) -> Word {
+        (self.0 & Self::COARSE_Y) >> Self::COARSE_Y_LSH
+    }
+
+    pub fn set_fine_y(&mut self, val: Word) {
+        let val = (val << Self::FINE_Y_LSH) & Self::FINE_Y;
+        self.0 = (self.0 & !Self::FINE_Y) | val;
+    }
+
+    pub fn fine_y(&self) -> Word {
+        (self.0 & Self::FINE_Y) >> Self::FINE_Y_LSH
+    }
+
+    pub fn inc_x(&mut self, mask: Mask) {
+        if mask & (Mask::BG | Mask::SPR) != 0 {
+            let coarse_x = self.0 & Self::COARSE_X;
+            if coarse_x == 31 {
+                self.0 &= !Self::COARSE_X;
+                self.0 ^= Self::NT_X;
+            } else {
+                // Incrementing is fine since we know we aren't going to
+                // overflow in to coarse x
+                self.0 += 1;
+            }
+        }
+    }
+
+    pub fn inc_y(&mut self, mask: Mask) {
+        if mask & (Mask::BG | Mask::SPR) != 0 {
+            if self.0 & Self::FINE_Y != Self::FINE_Y {
+                // Reset fine y (since we are reseting or incrementing)
+                self.0 += 0x1000;
+            } else {
+                self.0 &= !Self::FINE_Y;
+                let mut coarse_y = (self.0 & Self::COARSE_Y) >> Self::COARSE_Y_LSH;
+                match coarse_y {
+                    29 => {
+                        coarse_y = 0;
+                        self.0 ^= Self::NT_Y;
+                    }
+                    31 => {
+                        // In case the pointer is in the attribute memory, we
+                        // just wrap around the current nametable
+                        coarse_y = 0;
+                    }
+                    _ => {
+                        // We can just increment since there is nothing special
+                        // going on
+                        coarse_y += 1;
+                    }
+                }
+                self.0 &= !Self::COARSE_Y;
+                coarse_y <<= Self::COARSE_Y_LSH;
+                self.0 |= coarse_y;
+            }
+        }
+    }
+
+    /// https://www.nesdev.org/wiki/PPU_scrolling#At_dot_257_of_each_scanline
+    pub fn copy_x(&mut self, tmp: Self, mask: Mask) {
+        if mask & (Mask::BG | Mask::SPR) != 0 {
+            // NT_X | COARSE_X;
+            const X_MASK: Word = 0x0400 | 0x001F;
+            self.0 &= !X_MASK;
+            self.0 |= tmp.0 & X_MASK;
+        }
+    }
+
+    /// https://www.nesdev.org/wiki/PPU_scrolling#During_dots_280_to_304_of_the_pre-render_scanline_(end_of_vblank)
+    pub fn copy_y(&mut self, tmp: Self, mask: Mask) {
+        if mask & (Mask::BG | Mask::SPR) != 0 {
+            // FINE_Y | NT_Y | COARSE_Y;
+            const Y_MASK: Word = 0x7000 | 0x0800 | 0x03E0;
+            self.0 &= !Y_MASK;
+            self.0 |= tmp.0 & Y_MASK;
+        }
+    }
+
+    /// # $2006 first write (w is 0)
+    ///```text
+    /// t: .CDEFGH ........ <- d: ..CDEFGH
+    ///        <unused>     <- d: AB......
+    /// t: Z...... ........ <- 0 (bit Z is cleared)
+    /// w:                  <- 1
+    /// ```
+    pub fn write_addr_lo(&mut self, data: Byte) {
+        let d = data & 0x3F;
+        let tmp = (d as Word) << 8;
+        self.0 &= LO_MASK;
+        self.0 |= tmp;
+    }
+
+    /// # $2006 second write (w is 1)
+    ///```text
+    /// t: ....... ABCDEFGH <- d: ABCDEFGH
+    /// v: <...all bits...> <- t: <...all bits...>
+    /// w:                  <- 0
+    /// ```
+    pub fn write_addr_hi(&mut self, data: Byte) {
+        self.0 &= HI_MASK;
+        self.0 |= data as Word;
+    }
+
+    /// https://www.nesdev.org/wiki/PPU_scrolling#Tile_and_attribute_fetching
+    pub fn nt(&self) -> Word {
+        nametable::LO | (self.0 & 0x0FFF)
+    }
+
+    /// https://www.nesdev.org/wiki/PPU_scrolling#Tile_and_attribute_fetching
+    pub fn attr(&self) -> Word {
+        const COARSE_Y: Word = 0x38;
+        nametable::ATTR_LO
+            | (self.0 & Self::NT_SELECT)
+            | ((self.0 >> 4) & COARSE_Y)
+            | ((self.0 >> 2) & Self::FINE_X as Word)
+    }
+
+    pub const COARSE_X: Word = 0x001F;
+
+    pub const COARSE_Y: Word = 0x03E0;
+
+    pub const COARSE_Y_LSH: Word = 5;
+
+    pub const NT_X: Word = 0x0400;
+
+    pub const NT_Y: Word = 0x0800;
+
+    pub const NT_SELECT: Word = 0x0C00;
+
+    pub const NT_LSH: Word = 10;
+
+    pub const FINE_Y: Word = 0x7000;
+
+    pub const FINE_Y_LSH: Word = 12;
+
+    pub const W: Byte = 0x80;
+
+    pub const FINE_X: Byte = 0x07;
+
+    pub const FINE_N: Byte = 0x07;
+}
+
+not!(Loopy);
+reg_from_impl!(Loopy, Word, Word);
+reg_add_impl!(Loopy, Word);
+bit_or!(Loopy, Word);
+bit_and!(Loopy, Word);
+bit_xor!(Loopy, Word);
+partial_eq!(Loopy, Word);

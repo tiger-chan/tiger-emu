@@ -2496,9 +2496,10 @@ pub mod act {
 
         fn irq_04(
             reg: &mut Registers,
-            _: &mut dyn RwDevice,
+            bus: &mut dyn RwDevice,
             state: &mut InstructionState,
         ) -> OperationResult {
+            bus.write(PS.wrapping_add(reg.sp as Word), (reg.pc + 1) as Byte);
             reg.sp = reg.sp.wrapping_sub(1);
             state.tmp = IRQ_LO;
             OperationResult::None
@@ -2508,9 +2509,10 @@ pub mod act {
 
         fn nmi_04(
             reg: &mut Registers,
-            _: &mut dyn RwDevice,
+            bus: &mut dyn RwDevice,
             state: &mut InstructionState,
         ) -> OperationResult {
+            bus.write(PS.wrapping_add(reg.sp as Word), (reg.pc + 1) as Byte);
             reg.sp = reg.sp.wrapping_sub(1);
             state.tmp = NMI_LO;
             OperationResult::None

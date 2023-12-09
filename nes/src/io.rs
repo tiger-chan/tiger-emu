@@ -6,10 +6,10 @@ use super::{Byte, Word};
 
 pub trait ReadDevice: std::fmt::Debug {
     fn read(&self, addr: Word) -> Byte;
-}
 
-pub trait ReadOnlyDevice: std::fmt::Debug {
-    fn read_only(&self, addr: Word) -> Byte;
+    fn read_only(&self, addr: Word) -> Byte {
+        self.read(addr)
+    }
 }
 
 pub trait WriteDevice: std::fmt::Debug {
